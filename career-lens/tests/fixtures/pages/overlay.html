@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><title>Overlay page</title></head>
+<body>
+  <h1>Content behind a modal</h1>
+  <div role="dialog" aria-label="Sign in" id="modal"
+       style="position:fixed;inset:0;background:#fff">
+    <button style="position:fixed;right:24px;bottom:24px"
+            onclick="this.closest('[role=dialog]').remove()">
+      <span class="sr-only">Close</span>
+    </button>
+  </div>
+</body>
+</html>

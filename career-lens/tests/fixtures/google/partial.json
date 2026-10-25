@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.0",
+  "request": {
+    "request_id": "rq-google-partial",
+    "status": "succeeded",
+    "requested_at": "2026-08-17T11:00:00Z",
+    "started_at": "2026-08-17T11:01:00Z",
+    "finished_at": "2026-08-17T11:04:00Z"
+  },
+  "search": {
+    "query": "Jane Example",
+    "normalised_query": "jane example",
+    "requested_top_n": 2,
+    "results_examined": 2,
+    "google_host": "www.google.com",
+    "serp_url": "https://www.google.com/search?q=Jane+Example",
+    "browser_locale": "en-US",
+    "browser_timezone": "America/New_York",
+    "searched_at": "2026-08-17T11:01:20Z"
+  },
+  "outcome": "partial",
+  "failure": null,
+  "serp": {
+    "capture_id": "cp-serp-partial",
+    "status": "succeeded",
+    "url_final": "https://www.google.com/search?q=Jane+Example",
+    "title": "Jane Example - Google Search",
+    "text": "Jane Example search results",
+    "text_characters": 27,
+    "completeness": {
+      "scroll_stopped": "not_scrolled",
+      "scroll_growing": false
+    }
+  },
+  "results": [
+    {
+      "rank": 1,
+      "url": "https://www.linkedin.com/in/jane-example/",
+      "normalised_url": "https://www.linkedin.com/in/jane-example/",
+      "host": "www.linkedin.com",
+      "title": "Jane Example | LinkedIn",
+      "snippet": "Jane Example's public profile.",
+      "selection": {
+        "selected": true,
+        "reason": "top_n"
+      },
+      "capture": {
+        "capture_id": "cp-linkedin-shallow",
+        "mode": "linkedin_shallow",
+        "status": "succeeded",
+        "url_requested": "https://www.linkedin.com/in/jane-example/",
+        "url_final": "https://www.linkedin.com/in/jane-example/",
+        "host": "www.linkedin.com",
+        "http_status": 200,
+        "title": "Jane Example | LinkedIn",
+        "captured_at": "2026-08-17T11:02:00Z",
+        "text": "Complete rendered first-page profile text.",
+        "text_characters": 42,
+        "completeness": {
+          "scroll_stopped": "bottom",
+          "scroll_growing": false
+        },
+        "error": null
+      }
+    },
+    {
+      "rank": 2,
+      "url": "https://example.org/research",
+      "normalised_url": "https://example.org/research",
+      "host": "example.org",
+      "title": "Research profile",
+      "snippet": "A second selected organic result.",
+      "selection": {
+        "selected": true,
+        "reason": "top_n"
+      },
+      "capture": {
+        "capture_id": null,
+        "mode": "generic",
+        "status": "failed",
+        "url_requested": "https://example.org/research",
+        "url_final": null,
+        "host": "example.org",
+        "http_status": null,
+        "title": null,
+        "captured_at": null,
+        "text": null,
+        "text_characters": 0,
+        "completeness": {
+          "scroll_stopped": "not_started",
+          "scroll_growing": false
+        },
+        "error": {
+          "kind": "search_budget",
+          "detail": "Google search budget was exhausted before recovery."
+        }
+      }
+    }
+  ],
+  "summary": {
+    "examined": 2,
+    "selected": 2,
+    "captured": 1,
+    "partial": 0,
+    "failed": 1,
+    "skipped": 0
+  }
+}

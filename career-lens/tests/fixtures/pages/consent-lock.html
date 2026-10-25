@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><title>Consent lock</title></head>
+<body>
+  <h1>Article</h1>
+  <!-- Several screens, but well under BAND_PX, so a full-page shot of it is
+       one image. What matters is that it is far taller than the one screen a
+       locked page yields. -->
+  <div style="height:6000px">An article nobody can scroll to the end of.</div>
+  <p id="foot">bottom</p>
+
+  <script>
+    // What iubenda does, in the order it does it: the notice arrives after the
+    // page is interactive and takes the scroll with it. `?deaf` renders the
+    // same lock behind a control none of our rules can press, which is the
+    // case the screenshot fallback exists for.
+    const deaf = location.search.includes("deaf");
+    setTimeout(() => {
+      const banner = document.createElement("div");
+      banner.id = "consent";
+      banner.style.cssText =
+        "position:fixed;right:0;bottom:0;width:480px;height:350px;" +
+        "z-index:99999998;background:#fff;border:1px solid #000";
+      const button = document.createElement("button");
+      button.textContent = deaf ? "Ok, understood" : "Accept";
+      button.onclick = () => {
+        banner.remove();
+        document.documentElement.style.overflow = "";
+      };
+      banner.appendChild(button);
+      document.body.appendChild(banner);
+      document.documentElement.style.overflow = "hidden";
+    }, 400);
+  </script>
+</body>
+</html>

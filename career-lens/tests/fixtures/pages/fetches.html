@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fetches page</title>
+</head>
+<body>
+  <h1>Fetches page</h1>
+  <p id="state">loading</p>
+  <script>
+    // A same-origin fetch, so the recorder sees a first-party xhr/fetch whose
+    // body it is meant to keep, and a document load it is meant to skip.
+    fetch('short.html', {headers: {'x-career-lens-probe': 'yes'}})
+      .then(function (response) { return response.text(); })
+      .then(function () { document.getElementById('state').textContent = 'done'; });
+  </script>
+</body>
+</html>

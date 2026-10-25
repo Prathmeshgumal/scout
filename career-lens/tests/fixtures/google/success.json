@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "request": {
+    "request_id": "rq-google-success",
+    "status": "succeeded",
+    "requested_at": "2026-08-17T10:00:00Z",
+    "started_at": "2026-08-17T10:01:00Z",
+    "finished_at": "2026-08-17T10:03:00Z"
+  },
+  "search": {
+    "query": "Enterprise AI",
+    "normalised_query": "enterprise ai",
+    "requested_top_n": 1,
+    "results_examined": 2,
+    "google_host": "www.google.co.in",
+    "serp_url": "https://www.google.co.in/search?q=Enterprise+AI",
+    "browser_locale": "en-IN",
+    "browser_timezone": "Asia/Kolkata",
+    "searched_at": "2026-08-17T10:01:20Z"
+  },
+  "outcome": "ok",
+  "failure": null,
+  "serp": {
+    "capture_id": "cp-serp-success",
+    "status": "succeeded",
+    "url_final": "https://www.google.co.in/search?q=Enterprise+AI",
+    "title": "Enterprise AI - Google Search",
+    "text": "Enterprise AI search results",
+    "text_characters": 28,
+    "completeness": {
+      "scroll_stopped": "not_scrolled",
+      "scroll_growing": false
+    }
+  },
+  "results": [
+    {
+      "rank": 1,
+      "url": "https://example.com/article",
+      "normalised_url": "https://example.com/article",
+      "host": "example.com",
+      "title": "Enterprise AI article",
+      "snippet": "A complete organic result snippet.",
+      "selection": {
+        "selected": true,
+        "reason": "top_n"
+      },
+      "capture": {
+        "capture_id": "cp-result-success",
+        "mode": "generic",
+        "status": "succeeded",
+        "url_requested": "https://example.com/article",
+        "url_final": "https://example.com/article",
+        "host": "example.com",
+        "http_status": 200,
+        "title": "Enterprise AI article",
+        "captured_at": "2026-08-17T10:01:45Z",
+        "text": "Complete rendered destination text.",
+        "text_characters": 35,
+        "completeness": {
+          "scroll_stopped": "bottom",
+          "scroll_growing": false
+        },
+        "error": null
+      }
+    },
+    {
+      "rank": 2,
+      "url": "https://example.net/second",
+      "normalised_url": "https://example.net/second",
+      "host": "example.net",
+      "title": "Second result",
+      "snippet": "Rendered but outside the requested top N.",
+      "selection": {
+        "selected": false,
+        "reason": "beyond_top_n"
+      },
+      "capture": null
+    }
+  ],
+  "summary": {
+    "examined": 2,
+    "selected": 1,
+    "captured": 1,
+    "partial": 0,
+    "failed": 0,
+    "skipped": 1
+  }
+}

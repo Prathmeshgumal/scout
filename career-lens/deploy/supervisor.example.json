@@ -1,0 +1,7 @@
+{
+  "id": "native-host-1",
+  "label": "Native host 1",
+  "workers": [
+    {"id": "native-worker-1", "profile": "native-worker-1"}
+  ]
+}

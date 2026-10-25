@@ -1,0 +1,10 @@
+<!doctype html>
+<title>Endless page</title>
+<!-- A page that keeps getting taller, like a feed nobody reaches the end of. -->
+<style>body { margin: 0 } div { height: 400px; background: #eef }</style>
+<div>one</div>
+<script>
+  setInterval(() => {
+    document.body.appendChild(document.createElement("div"));
+  }, 60);
+</script>
