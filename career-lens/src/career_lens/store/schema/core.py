@@ -25,7 +25,8 @@ from ...capture.pressure import INTERVENTION_KINDS, INTERVENTION_OUTCOMES
 
 # What the caller asked us to fetch. LinkedIn people and companies have capture
 # recipes and extractors; generic requests stop after their captures are stored.
-KINDS = ("linkedin_person", "linkedin_company", "generic", "google_search")
+KINDS = ("linkedin_person", "linkedin_company", "linkedin_job",
+         "linkedin_job_search", "generic", "google_search")
 
 STATUSES = ("queued", "assigned", "running", "succeeded", "failed",
             "cancelled", "satisfied")
@@ -90,6 +91,9 @@ scrape_request = table(
     Column("tempo", Text, nullable=False, server_default=DEFAULT_TEMPO_NAME),
     # NULL means every available section; [] means the base profile only.
     Column("linkedin_sections", JSONB),
+    # Pages of job results to read: for a company's Jobs tab and for a job
+    # search. NULL for every other kind.
+    Column("job_pages", Integer),
     Column("requested_at", TS, nullable=False),
     Column("dispatch_checked_at", TS),
     Column("dispatch_wait_reason", Text),
@@ -123,6 +127,8 @@ scrape_request = table(
     CheckConstraint("(status = 'satisfied') = (satisfied_at IS NOT NULL)",
                     name="satisfied_has_an_instant"),
     CheckConstraint("max_attempts >= 1", name="max_attempts"),
+    CheckConstraint("job_pages IS NULL OR job_pages BETWEEN 1 AND 20",
+                    name="job_pages"),
     CheckConstraint(
         "(kind = 'google_search' "
         "AND query_requested IS NOT NULL AND query_normalised IS NOT NULL "

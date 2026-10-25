@@ -142,7 +142,7 @@ def _version() -> str:
 
 def run_worker(worker: WorkerConfig, supervisor: SupervisorConfig, *,
                log_level: str, company_tabs: str,
-               company_job_pages: int, show_cursor: bool = False,
+               show_cursor: bool = False,
                window_size: tuple[int, int] | None = None,
                har: str = "off",
                linkedin_google_search_chance: float = (
@@ -155,7 +155,6 @@ def run_worker(worker: WorkerConfig, supervisor: SupervisorConfig, *,
     trace.configure(log_level)
     browser.configure(headless=False, window_size=window_size)
     driver.configure(tabs=wanted_tabs(company_tabs),
-                     job_pages=company_job_pages,
                      show_cursor=show_cursor,
                      har=har,
                      linkedin_google_search_chance=(
@@ -201,7 +200,7 @@ class Supervisor:
             drain_timeout: float = DRAIN_TIMEOUT_S,
             idle_report_interval: float = IDLE_REPORT_INTERVAL_S,
             log_level: str = "info", company_tabs: str = "all",
-            company_job_pages: int = 3, show_cursor: bool = False,
+            show_cursor: bool = False,
             use_virtual_display: bool = False,
             window_size: tuple[int, int] | None = None,
             har: str = "off",
@@ -220,7 +219,6 @@ class Supervisor:
         self.idle_report_interval = idle_report_interval
         self.log_level = log_level
         self.company_tabs = company_tabs
-        self.company_job_pages = company_job_pages
         self.show_cursor = show_cursor
         self.use_virtual_display = use_virtual_display
         self.window_size = (
@@ -370,7 +368,6 @@ class Supervisor:
                 "worker": worker, "supervisor": self.config,
                 "log_level": self.log_level,
                 "company_tabs": self.company_tabs,
-                "company_job_pages": self.company_job_pages,
                 "show_cursor": self.show_cursor,
                 "window_size": self.window_size,
                 "har": self.har,

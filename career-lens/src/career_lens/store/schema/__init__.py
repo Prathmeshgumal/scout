@@ -63,6 +63,8 @@ APPEND_ONLY_TABLES = (
     "linkedin.company_insight",
     "linkedin.company_job",
     "linkedin.company_post",
+    "linkedin.job_observation",
+    "linkedin.job_search_observation",
 )
 
 __all__ = ["metadata", "APPEND_ONLY_TABLES"]

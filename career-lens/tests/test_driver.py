@@ -825,20 +825,38 @@ def test_a_tab_that_failed_is_not_stored(monkeypatch):
     assert documents == []
 
 
-def test_the_worker_bounds_reach_the_sweep():
+def test_the_request_job_pages_reach_the_sweep(monkeypatch):
+    from pathlib import Path
+
+    from career_lens.capture import driver
+
+    received = {}
+
+    def expand(page, config, company):
+        received["job_pages"] = config.job_pages
+        return iter(())
+
+    monkeypatch.setattr(driver.company_module, "expand", expand)
+    list(driver._tabs(
+        object(), Path("/tmp"),
+        company=driver.linkedin_dom.Company("company", "stripe", ""),
+        requested_sections=frozenset({"jobs"}), job_pages=7,
+    ))
+    assert received["job_pages"] == 7
+
+
+def test_the_worker_tab_bound_reaches_the_sweep():
     """configure() is how a CLI flag crosses a Procrastinate task boundary."""
     from career_lens.capture import driver
 
-    before = (driver.TABS, driver.JOB_PAGES)
+    before = driver.TABS
     try:
-        driver.configure(tabs=frozenset({"about"}), job_pages=1)
+        driver.configure(tabs=frozenset({"about"}))
         assert driver.TABS == frozenset({"about"})
-        assert driver.JOB_PAGES == 1
-        # A negative count is a typo, not a request to walk backwards.
-        driver.configure(tabs=None, job_pages=-4)
-        assert driver.JOB_PAGES == 0
     finally:
-        driver.TABS, driver.JOB_PAGES = before
+        driver.TABS = before
+
+
 def test_document_preserves_complete_rendered_text():
     from career_lens.capture.driver import document
     from career_lens.capture.page import PageCapture

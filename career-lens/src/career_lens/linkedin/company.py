@@ -22,6 +22,7 @@ from ..capture import detect, overlays, trace
 from ..capture.page import (
     FEED_SCROLL_PX, MAX_SCROLL_PX, PageCapture, capture_page,
 )
+from ..capture.options import DEFAULT_JOB_PAGES
 from . import dom, sections
 
 # The tabs that are feeds rather than documents: they have no end to reach, so
@@ -30,7 +31,6 @@ from . import dom, sections
 # be cut by it if this were applied everywhere.
 FEED_SECTIONS = ("posts",)
 
-DEFAULT_JOB_PAGES = 3
 
 
 @dataclass

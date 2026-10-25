@@ -291,7 +291,7 @@ def _claim_public_attempt(connection, attempt_id: int, *, now: datetime):
         SELECT a.request_id, a.started_at, a.ended_at, a.worker_id,
                r.url_normalised, r.query_requested, r.query_normalised,
                r.google_top_n, r.requested_at, r.kind, r.status, r.tempo,
-               r.linkedin_sections,
+               r.linkedin_sections, r.job_pages,
                r.cancel_requested_at,
                worker.local_name AS browser_profile,
                CAST(NULL AS text) AS assignment_id,
@@ -343,7 +343,7 @@ def _claim_authenticated_attempt(connection, attempt_id: int):
                r.url_normalised, r.query_requested, r.query_normalised,
                r.google_top_n, r.requested_at,
                r.kind, r.status, r.tempo,
-               r.linkedin_sections,
+               r.linkedin_sections, r.job_pages,
                r.cancel_requested_at,
                worker.local_name AS browser_profile,
                ass.id AS assignment_id, ass.state AS assignment_state,
@@ -445,6 +445,7 @@ def _run_authenticated(row, *, journal: Journal, url: str | None,
             page=page, tempo_name=row.tempo,
             discovery_chance=driver.LINKEDIN_GOOGLE_SEARCH_CHANCE,
             linkedin_sections=row.linkedin_sections,
+            job_pages=row.job_pages,
             before_google_search=before_google_search)
 
 
@@ -530,7 +531,8 @@ def _work(request_id: str, kind: str, target: str, browser_profile: str,
           attempt_id: int | None = None, page=None, *,
           tempo_name: str, discovery_chance: float,
           before_google_search=None,
-          linkedin_sections: list[str] | None = None) -> None:
+          linkedin_sections: list[str] | None = None,
+          job_pages: int | None = None) -> None:
     from ..capture import pace, trace
 
     store = open_store()
@@ -546,6 +548,7 @@ def _work(request_id: str, kind: str, target: str, browser_profile: str,
                                 if linkedin_sections is not None
                                 else None
                             ),
+                            job_pages=job_pages,
                             page=page,
                             before_search=before_google_search),
             request_id=request_id, browser_profile=browser_profile,

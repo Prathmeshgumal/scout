@@ -35,7 +35,7 @@ from . import (
 )
 from .browser import session
 from .har import HarRecorder
-from .options import linkedin_capture_sections
+from .options import DEFAULT_JOB_PAGES, linkedin_capture_sections
 from .page import PageCapture, capture_page, wait_for_visuals
 from .parking import reject_parked_redirect
 from .writer import Document
@@ -62,6 +62,7 @@ def capture_request(kind: str, url: str, *, browser_profile: str,
                     rng=None, tempo=None, page=None,
                     before_search=None,
                     linkedin_sections: frozenset[str] | None = None,
+                    job_pages: int | None = None,
                     ) -> Iterator[Document]:
     """Yield each captured document as it completes. Raises CaptureFailed.
 
@@ -82,11 +83,11 @@ def capture_request(kind: str, url: str, *, browser_profile: str,
         with session(**session_options) as owned_page:
             yield from _capture_on_page(
                 kind, url, owned_page, out_dir, discovery_chance, rng, tempo,
-                before_search, linkedin_sections)
+                before_search, linkedin_sections, job_pages)
         return
     yield from _capture_on_page(
         kind, url, page, out_dir, discovery_chance, rng, tempo, before_search,
-        linkedin_sections)
+        linkedin_sections, job_pages)
 
 
 def capture_arrived_page(
@@ -223,12 +224,13 @@ def _capture_on_page(kind: str, url: str, page, out_dir: Path,
                      discovery_chance: float, rng, tempo,
                      before_search,
                      linkedin_sections: frozenset[str] | None = None,
+                     job_pages: int | None = None,
                      ) -> Iterator[Document]:
     recorder = _new_recorder(page)
     try:
         yield from _capture_documents(
             kind, url, page, out_dir, discovery_chance, rng, tempo,
-            before_search, linkedin_sections, recorder)
+            before_search, linkedin_sections, recorder, job_pages)
     finally:
         if recorder is not None:
             recorder.close()
@@ -238,7 +240,8 @@ def _capture_documents(kind: str, url: str, page, out_dir: Path,
                        discovery_chance: float, rng, tempo,
                        before_search,
                        linkedin_sections: frozenset[str] | None,
-                       recorder) -> Iterator[Document]:
+                       recorder,
+                       job_pages: int | None = None) -> Iterator[Document]:
     detour = discovery.discover(
         page, url, out_dir, chance=discovery_chance, rng=rng,
         before_search=before_search)
@@ -320,7 +323,7 @@ def _capture_documents(kind: str, url: str, page, out_dir: Path,
             yield from _tabs(page, out_dir, company=organisation,
                              tempo=tempo,
                              requested_sections=linkedin_sections,
-                             recorder=recorder)
+                             recorder=recorder, job_pages=job_pages)
         return
 
     _dwell(main, tempo)
@@ -374,7 +377,6 @@ def _sections(page, out_dir: Path, *, tempo=None,
 # level because the setting has to reach here from a CLI flag through a
 # Procrastinate task that carries neither.
 TABS: frozenset[str] | None = frozenset()
-JOB_PAGES = company_module.DEFAULT_JOB_PAGES
 SHOW_CURSOR = False
 # "off" | "headers" | "bodies". Off by default: request logging is evidence
 # about a capture rather than part of it, and nothing in capture -> extract ->
@@ -384,14 +386,14 @@ HAR_MODE = "off"
 LINKEDIN_GOOGLE_SEARCH_CHANCE = discovery.DEFAULT_GOOGLE_SEARCH_CHANCE
 
 
-def configure(*, tabs: frozenset[str] | None, job_pages: int,
+def configure(*, tabs: frozenset[str] | None,
               show_cursor: bool = False, har: str = "off",
               linkedin_google_search_chance: float = (
                   discovery.DEFAULT_GOOGLE_SEARCH_CHANCE)) -> None:
     """Set browser behavior for this worker process."""
-    global TABS, JOB_PAGES, SHOW_CURSOR, LINKEDIN_GOOGLE_SEARCH_CHANCE
+    global TABS, SHOW_CURSOR, LINKEDIN_GOOGLE_SEARCH_CHANCE
     global HAR_MODE
-    TABS, JOB_PAGES = tabs, max(0, job_pages)
+    TABS = tabs
     SHOW_CURSOR = show_cursor
     HAR_MODE = har
     LINKEDIN_GOOGLE_SEARCH_CHANCE = linkedin_google_search_chance
@@ -400,6 +402,7 @@ def configure(*, tabs: frozenset[str] | None, job_pages: int,
 def _tabs(page, out_dir: Path, *, company: linkedin_dom.Company,
           tempo=None,
           requested_sections: frozenset[str] | None = None, recorder=None,
+          job_pages: int | None = None,
           ) -> Iterator[Document]:
     """Every tab, the events view, and the job result pages of one company.
 
@@ -422,7 +425,8 @@ def _tabs(page, out_dir: Path, *, company: linkedin_dom.Company,
         else:
             tabs = requested_tabs
     config = company_module.CompanyConfig(
-        scratch_dir=out_dir, tempo=tempo, tabs=tabs, job_pages=JOB_PAGES)
+        scratch_dir=out_dir, tempo=tempo, tabs=tabs,
+        job_pages=job_pages if job_pages is not None else DEFAULT_JOB_PAGES)
     skipped: list[str] = []
     found = 0
     for item in company_module.expand(page, config, company):

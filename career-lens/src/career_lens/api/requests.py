@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from ..capture.options import (
     LINKEDIN_COMPANY_SECTIONS,
     LINKEDIN_PERSON_SECTIONS,
+    normalise_job_pages,
     normalise_linkedin_sections,
     normalise_max_attempts,
     normalise_tempo,
@@ -131,6 +132,7 @@ def record_interest(connection, request_id: str, api_key_id: str | None) -> None
 def submit(url: str, *, label: str | None = None,
            tempo: object | None = None,
            linkedin_sections: object | None = None,
+           job_pages: object | None = None,
            max_attempts: object | None = None,
            expected_kind: str | None = None,
            database: str | None = None,
@@ -161,6 +163,7 @@ def submit(url: str, *, label: str | None = None,
     stored_sections = (
         sorted(selected_sections) if selected_sections is not None else None
     )
+    pages = normalise_job_pages(job_pages, kind=kind)
     request_label = normalise_label(label)
     attempt_ceiling = normalise_max_attempts(max_attempts)
     seconds = freshness.parse(freshness_window)
@@ -195,7 +198,7 @@ def submit(url: str, *, label: str | None = None,
         # request that a cancel closed meanwhile no longer matches, and the
         # caller gets a new one.
         outstanding = connection.execute(text("""
-            SELECT id, status, linkedin_sections
+            SELECT id, status, linkedin_sections, job_pages
             FROM scrape_request
             WHERE url_normalised = :u
               AND status IN ('queued', 'assigned', 'running')
@@ -206,6 +209,10 @@ def submit(url: str, *, label: str | None = None,
                 raise RequestOptionsConflict(
                     "an outstanding request for this URL has a different "
                     "LinkedIn section selection")
+            if outstanding.job_pages != pages:
+                raise RequestOptionsConflict(
+                    "an outstanding request for this URL reads a different "
+                    "number of job pages")
             record_interest(connection, outstanding.id, api_key_id)
             return Submission(outstanding.id, False,
                               stale=tuple(answer.stale) if answer else (), coverage=coverage,
@@ -216,15 +223,15 @@ def submit(url: str, *, label: str | None = None,
         insert_request = text("""
             INSERT INTO scrape_request
                 (id, label, url_requested, url_normalised, kind, status, tempo,
-                 linkedin_sections, requested_at,
+                 linkedin_sections, job_pages, requested_at,
                  max_attempts, freshness_seconds)
             VALUES (:id, :label, :raw, :norm, :kind, 'queued', :tempo,
-                    :sections, :t, :max_attempts, :freshness)
+                    :sections, :pages, :t, :max_attempts, :freshness)
         """).bindparams(bindparam("sections", type_=JSONB))
         connection.execute(insert_request, {
                "id": request_id, "raw": url, "norm": normalised,
                "label": request_label, "kind": kind, "tempo": tempo_name,
-               "sections": stored_sections,
+               "sections": stored_sections, "pages": pages,
                "t": datetime.now(UTC), "max_attempts": attempt_ceiling,
                "freshness": seconds})
         record_interest(connection, request_id, api_key_id)

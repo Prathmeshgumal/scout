@@ -6,7 +6,8 @@ from career_lens.store.schema.core import KINDS
 
 
 def test_only_kept_request_kinds():
-    assert set(KINDS) == {"linkedin_person", "linkedin_company", "generic", "google_search"}
+    assert set(KINDS) == {"linkedin_person", "linkedin_company", "linkedin_job",
+                          "linkedin_job_search", "generic", "google_search"}
 
 
 def test_linkedin_job_url_is_a_plain_page():

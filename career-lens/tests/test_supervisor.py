@@ -342,10 +342,10 @@ def test_slot_runner_listens_only_to_its_target_queue(monkeypatch):
         lambda **options: browsers.append(options))
     module.run_worker(
         CONFIG.workers[0], CONFIG, log_level="info", company_tabs="none",
-        company_job_pages=0, show_cursor=True, window_size=(1440, 900),
+        show_cursor=True, window_size=(1440, 900),
         linkedin_google_search_chance=0.75)
     assert configured == [{
-        "tabs": None, "job_pages": 0, "show_cursor": True,
+        "tabs": None, "show_cursor": True,
         "har": "off", "linkedin_google_search_chance": 0.75,
     }]
     assert browsers == [{"headless": False, "window_size": (1440, 900)}]
@@ -377,7 +377,7 @@ def test_slot_runner_reuses_registered_tasks_with_database_override(monkeypatch)
     monkeypatch.setattr(module, "make_app", lambda database: FreshApp())
     module.run_worker(
         CONFIG.workers[0], CONFIG, log_level="info", company_tabs="none",
-        company_job_pages=0, database="postgresql://ignored")
+        database="postgresql://ignored")
     assert calls == [
         ("connector", "alternate"),
         ("worker", {
@@ -704,8 +704,7 @@ def test_a_capture_in_flight_is_given_time_to_finish():
     module.queue_app = monkey
     try:
         module.run_worker(
-            CONFIG.workers[0], CONFIG, log_level="info", company_tabs="all",
-            company_job_pages=1)
+            CONFIG.workers[0], CONFIG, log_level="info", company_tabs="all")
     finally:
         module.queue_app = original
 

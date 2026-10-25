@@ -147,11 +147,6 @@ def main(argv: list[str] | None = None) -> int:
         help="which tabs to sweep on a company page: 'all' (default), 'none', "
              "or a comma-separated list such as 'about,people,jobs'")
     supervisor_parser.add_argument(
-        "--company-job-pages", type=int, default=3, metavar="N",
-        help="pages of job-search results to walk behind a company's Jobs tab "
-             "(default: 3; 0 disables them). Each page lists roughly 25 jobs, "
-             "so this counts result pages and not job postings.")
-    supervisor_parser.add_argument(
         "--show-cursor", action="store_true",
         help="show a cursor overlay in each worker's browser. The overlay "
              "is stripped from stored HTML, so it changes nothing that is "
@@ -348,7 +343,6 @@ def main(argv: list[str] | None = None) -> int:
             Supervisor(
                 config, log_level=arguments.log_level,
                 company_tabs=arguments.company_tabs,
-                company_job_pages=arguments.company_job_pages,
                 show_cursor=arguments.show_cursor,
                 use_virtual_display=arguments.use_virtual_display,
                 window_size=arguments.window_size,

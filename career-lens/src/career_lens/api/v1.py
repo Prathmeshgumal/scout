@@ -76,6 +76,8 @@ def _scrape(path: str, body: dict, *, api_key_id: str | None = None) -> dict:
     allowed = {"url", "freshness", "max_attempts"}
     if path.startswith("linkedin-"):
         allowed.add("linkedin_sections")
+    if path == "linkedin-company":
+        allowed.add("job_pages")
     elif path == "google-search":
         allowed = {"query", "top_n", "freshness"}
     unknown = sorted(set(supplied) - allowed)
@@ -127,6 +129,7 @@ def _submit_scrape(path: str, body: dict, api_key_id: str | None) -> dict:
             url or "", label=supplied.get("label"), expected_kind=kind,
             tempo=supplied.get("tempo"),
             linkedin_sections=supplied.get("linkedin_sections"),
+            job_pages=supplied.get("job_pages"),
             max_attempts=supplied.get("max_attempts"),
             freshness_window=supplied.get("freshness"),
             api_key_id=api_key_id)

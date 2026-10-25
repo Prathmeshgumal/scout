@@ -583,3 +583,61 @@ Index("uq_company_section_status", company_section_status.c.observation_id,
 Index("ix_company_section_status_walk", company_section_status.c.section,
       company_section_status.c.observed_at.desc(),
       company_section_status.c.id.desc())
+
+
+# One posting, read signed in. The full document, with the description, is the
+# extraction's JSON object; this row is what a lookup by URL needs.
+job_observation = table(
+    "job_observation",
+    pk(),
+    Column("extraction_id", Text,
+           ForeignKey("extraction.id", ondelete="RESTRICT"), nullable=False,
+           unique=True),
+    Column("request_id", Text,
+           ForeignKey("scrape_request.id", ondelete="RESTRICT"),
+           nullable=False),
+    Column("capture_id", Text, ForeignKey("capture.id", ondelete="RESTRICT"),
+           nullable=False),
+    Column("job_url", Text, nullable=False),
+    Column("job_id", Text, nullable=False),
+    Column("title", Text),
+    Column("company_name", Text),
+    Column("posting_status", Text),
+    Column("observed_at", TS, nullable=False),
+    schema=SCHEMA,
+    mutability=APPEND_ONLY,
+)
+Index("ix_job_observation_url", job_observation.c.job_url,
+      job_observation.c.observed_at.desc())
+Index("ix_job_observation_request", job_observation.c.request_id)
+
+
+# One keyword search over LinkedIn jobs. The result list is in the
+# extraction's JSON object.
+job_search_observation = table(
+    "job_search_observation",
+    pk(),
+    Column("extraction_id", Text,
+           ForeignKey("extraction.id", ondelete="RESTRICT"), nullable=False,
+           unique=True),
+    Column("request_id", Text,
+           ForeignKey("scrape_request.id", ondelete="RESTRICT"),
+           nullable=False),
+    Column("capture_id", Text, ForeignKey("capture.id", ondelete="RESTRICT"),
+           nullable=False),
+    Column("search_url", Text, nullable=False),
+    Column("keywords", Text, nullable=False),
+    Column("location", Text),
+    Column("captured_pages", Integer, nullable=False),
+    # NULL when the last page did not say whether more exist.
+    Column("reached_end", Boolean),
+    Column("result_count", Integer, nullable=False),
+    Column("observed_at", TS, nullable=False),
+    CheckConstraint("captured_pages >= 1", name="captured_pages"),
+    CheckConstraint("result_count >= 0", name="result_count"),
+    schema=SCHEMA,
+    mutability=APPEND_ONLY,
+)
+Index("ix_job_search_observation_url", job_search_observation.c.search_url,
+      job_search_observation.c.observed_at.desc())
+Index("ix_job_search_observation_request", job_search_observation.c.request_id)

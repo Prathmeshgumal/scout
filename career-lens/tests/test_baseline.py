@@ -31,14 +31,14 @@ def schema_snapshot(url: str) -> list[tuple]:
 
 
 def test_single_revision():
-    assert revisions() == ["0001"]
+    assert revisions() == ["0002", "0001"]
 
 
 def test_migrate_twice_changes_nothing(migrate_url):
-    assert migrate(migrate_url) == "0001"
+    assert migrate(migrate_url) == "0002"
     before = schema_snapshot(migrate_url)
     assert before
-    assert migrate(migrate_url) == "0001"
+    assert migrate(migrate_url) == "0002"
     assert schema_snapshot(migrate_url) == before
 
 

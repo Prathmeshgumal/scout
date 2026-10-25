@@ -10,6 +10,13 @@ DEFAULT_TEMPO_NAME = "human"
 DEFAULT_LINKEDIN_GOOGLE_SEARCH_CHANCE = 0.3
 DEFAULT_MAX_ATTEMPTS = 3
 
+# Pages of job results a request reads, about 25 postings each. Each page is
+# one more signed-in page view on the account, so the default stays small and
+# the ceiling stays well below what would make a run take hours.
+JOB_LIST_KINDS = ("linkedin_company", "linkedin_job_search")
+DEFAULT_JOB_PAGES = 5
+MAX_JOB_PAGES = 20
+
 # Public, logical sections callers may select for a LinkedIn person. Internal
 # captures such as recommendations-given are derived from these rather than
 # exposed as separate switches: selecting Recommendations means reading both
@@ -41,6 +48,24 @@ LINKEDIN_PERSON_SECTION_ALIASES = {
 
 class InvalidCaptureOption(ValueError):
     """A request asked for capture behavior the worker cannot provide."""
+
+
+def normalise_job_pages(value: object | None, *, kind: str) -> int | None:
+    """The job pages to store for a request: the default when not given, and
+    NULL for a kind that has no job list."""
+    if kind not in JOB_LIST_KINDS:
+        if value is not None:
+            raise InvalidCaptureOption(
+                "job_pages is only available for company and job search requests")
+        return None
+    if value is None:
+        return DEFAULT_JOB_PAGES
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise InvalidCaptureOption("job_pages must be a whole number")
+    if not 1 <= value <= MAX_JOB_PAGES:
+        raise InvalidCaptureOption(
+            f"job_pages must be between 1 and {MAX_JOB_PAGES}")
+    return value
 
 
 def default_tempo(kind: str | None = None) -> str:

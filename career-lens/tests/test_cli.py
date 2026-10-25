@@ -155,14 +155,14 @@ def test_a_declared_supervisor_runs_one_process_per_worker(monkeypatch, tmp_path
         "career_lens.fleet.supervisor.Supervisor", FakeSupervisor)
     assert main([
         "supervisor", "--config", str(path), "--company-tabs", "none",
-        "--company-job-pages", "1", "--show-cursor",
+        "--show-cursor",
         "--use-virtual-display",
         "--window-size", "1440x900", "--har", "bodies",
         "--linkedin-google-search-chance", "0.75",
     ]) == 0
     assert received[0][0].id == "worker-a"
     assert received[0][1]["company_tabs"] == "none"
-    assert received[0][1]["company_job_pages"] == 1
+    assert "company_job_pages" not in received[0][1]
     assert received[0][1]["show_cursor"] is True
     assert received[0][1]["use_virtual_display"] is True
     assert received[0][1]["window_size"] == (1440, 900)

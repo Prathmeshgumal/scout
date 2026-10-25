@@ -1240,3 +1240,62 @@ def test_all_scrape_endpoints_reject_unknown_fields(
         assert "something_we_never_read" in response.json()["detail"]
 
 
+
+
+def test_a_company_request_reads_five_job_pages_by_default(app, app_url):
+    from career_lens.api import requests as submission
+
+    request_id, *_ = submission.submit(
+        "https://www.linkedin.com/company/acme/", database=app_url)
+    assert app.execute(text(
+        "SELECT job_pages FROM scrape_request WHERE id = :r"),
+        {"r": request_id}).scalar_one() == 5
+
+
+def test_a_company_request_keeps_the_job_pages_it_asked_for(
+        client, app, app_url, monkeypatch):
+    monkeypatch.setenv("CAREER_LENS_DATABASE_URL", app_url)
+    response = client.post("/v1/scrape/linkedin-company", json={
+        "url": "https://www.linkedin.com/company/acme/", "job_pages": 12})
+    assert response.status_code == 202, response.text
+    assert app.execute(text(
+        "SELECT job_pages FROM scrape_request WHERE id = :r"),
+        {"r": response.json()["request_id"]}).scalar_one() == 12
+
+
+@pytest.mark.parametrize("pages", [0, 21, "5", True, 2.5])
+def test_job_pages_out_of_range_is_a_400(client, pages):
+    response = client.post("/v1/scrape/linkedin-company", json={
+        "url": "https://www.linkedin.com/company/acme/", "job_pages": pages})
+    assert response.status_code == 400
+    assert "job_pages" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("path,body", [
+    ("linkedin-individual", {"url": "https://www.linkedin.com/in/jane/"}),
+    ("url", {"url": "https://example.com/"}),
+])
+def test_job_pages_is_refused_where_there_are_no_job_lists(client, path, body):
+    response = client.post(f"/v1/scrape/{path}", json={**body, "job_pages": 2})
+    assert response.status_code == 400
+
+
+def test_a_person_request_stores_no_job_pages(app, app_url):
+    from career_lens.api import requests as submission
+
+    request_id, *_ = submission.submit(
+        "https://www.linkedin.com/in/jane/", database=app_url)
+    assert app.execute(text(
+        "SELECT job_pages FROM scrape_request WHERE id = :r"),
+        {"r": request_id}).scalar_one() is None
+
+
+def test_an_outstanding_company_request_with_other_job_pages_conflicts(
+        client, app_url, monkeypatch):
+    monkeypatch.setenv("CAREER_LENS_DATABASE_URL", app_url)
+    url = "https://www.linkedin.com/company/acme/"
+    assert client.post("/v1/scrape/linkedin-company",
+                       json={"url": url, "job_pages": 2}).status_code == 202
+    response = client.post("/v1/scrape/linkedin-company",
+                           json={"url": url, "job_pages": 9})
+    assert response.status_code == 409
