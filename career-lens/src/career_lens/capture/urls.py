@@ -11,11 +11,19 @@ is never scraped.
 from __future__ import annotations
 
 import re
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 
 PROFILE = re.compile(r"^/in/([^/]+)/?$")
 COMPANY = re.compile(r"^/(company|school|showcase)/([^/]+)/?$")
+# A posting is its trailing number; the slug before it is decoration.
+JOB = re.compile(r"^/jobs/view/(?:[^/]*-)?(\d+)/?$")
+JOB_SEARCH = re.compile(r"^/jobs/search(?:-results)?/?$")
+JOB_SEARCH_PATH = "/jobs/search-results/"
+# The search terms that change which jobs come back, in the order a
+# canonical search URL spells them. Everything else on a search URL is the
+# page's own state, such as which result is selected.
+JOB_SEARCH_TERMS = ("keywords", "location", "geoId", "f_TPR", "f_WT")
 
 LINKEDIN_HOSTS = ("linkedin.com", "www.linkedin.com")
 
@@ -63,6 +71,14 @@ def canonical(url: str) -> str:
             if pair and pair.split("=", 1)[0] not in TRACKING]
     path = parts.path or "/"
     if _is_linkedin(host):
+        _, separator, port = host.rpartition(":")
+        www = "www.linkedin.com" + (f":{port}" if separator else "")
+        job = JOB.match(path)
+        if job:
+            return f"{parts.scheme}://{www}/jobs/view/{job.group(1)}/"
+        if JOB_SEARCH.match(path):
+            return job_search_url(parse_qs(parts.query), scheme=parts.scheme,
+                                  host=www)
         # LinkedIn is inconsistent about the trailing slash and serves the same
         # page either way, so one spelling is chosen. Only for LinkedIn: on an
         # arbitrary site /a and /a/ can be different documents.
@@ -75,6 +91,22 @@ def canonical(url: str) -> str:
             _, separator, port = host.rpartition(":")
             host = "www.linkedin.com" + (f":{port}" if separator else "")
     return urlunsplit((parts.scheme, host, path, "&".join(keep), ""))
+
+
+def job_search_url(terms: dict[str, list[str]] | dict[str, str], *,
+                   scheme: str = "https",
+                   host: str = "www.linkedin.com") -> str:
+    """The one spelling of a LinkedIn job search for these terms."""
+    pairs = []
+    for name in JOB_SEARCH_TERMS:
+        value = terms.get(name)
+        if isinstance(value, list):
+            value = value[0] if value else None
+        value = " ".join(str(value).split()) if value is not None else ""
+        if value:
+            pairs.append((name, value))
+    query = urlencode(pairs)
+    return urlunsplit((scheme, host, JOB_SEARCH_PATH, query, ""))
 
 
 def _is_linkedin(host: str) -> bool:
@@ -92,6 +124,11 @@ def classify(url: str) -> str:
         return "linkedin_person"
     if COMPANY.match(parts.path):
         return "linkedin_company"
+    if JOB.match(parts.path):
+        return "linkedin_job"
+    if (parts.path == JOB_SEARCH_PATH
+            and parse_qs(parts.query).get("keywords")):
+        return "linkedin_job_search"
     # A LinkedIn URL that is neither a profile nor an organisation -- a feed, a
     # job posting, a search. Captured as a page, with no recipe.
     return "generic"

@@ -14,6 +14,9 @@ DEFAULT_MAX_ATTEMPTS = 3
 # one more signed-in page view on the account, so the default stays small and
 # the ceiling stays well below what would make a run take hours.
 JOB_LIST_KINDS = ("linkedin_company", "linkedin_job_search")
+# The kinds that run signed in, on a LinkedIn account.
+LINKEDIN_ACCOUNT_KINDS = ("linkedin_person", "linkedin_company", "linkedin_job",
+                          "linkedin_job_search")
 DEFAULT_JOB_PAGES = 5
 MAX_JOB_PAGES = 20
 
@@ -48,6 +51,42 @@ LINKEDIN_PERSON_SECTION_ALIASES = {
 
 class InvalidCaptureOption(ValueError):
     """A request asked for capture behavior the worker cannot provide."""
+
+
+# LinkedIn's own filter values for a job search.
+POSTED_WITHIN = {"day": "r86400", "week": "r604800", "month": "r2592000"}
+WORKPLACE_TYPES = {"on_site": "1", "remote": "2", "hybrid": "3"}
+MAX_KEYWORDS_LENGTH = 200
+
+
+def job_search_terms(keywords: object, location: object = None,
+                     posted_within: object = None,
+                     workplace_types: object = None) -> dict[str, str]:
+    """A caller's job search as LinkedIn search terms, or InvalidCaptureOption."""
+    if not isinstance(keywords, str) or not " ".join(keywords.split()):
+        raise InvalidCaptureOption("keywords must be a non-empty string")
+    terms = {"keywords": " ".join(keywords.split())}
+    if len(terms["keywords"]) > MAX_KEYWORDS_LENGTH:
+        raise InvalidCaptureOption(
+            f"keywords must be at most {MAX_KEYWORDS_LENGTH} characters")
+    if location is not None:
+        if not isinstance(location, str):
+            raise InvalidCaptureOption("location must be a string")
+        if " ".join(location.split()):
+            terms["location"] = " ".join(location.split())
+    if posted_within is not None:
+        if posted_within not in POSTED_WITHIN:
+            raise InvalidCaptureOption(
+                "posted_within must be one of: " + ", ".join(POSTED_WITHIN))
+        terms["f_TPR"] = POSTED_WITHIN[posted_within]
+    if workplace_types is not None:
+        if (not isinstance(workplace_types, list) or not workplace_types
+                or any(item not in WORKPLACE_TYPES for item in workplace_types)):
+            raise InvalidCaptureOption(
+                "workplace_types must be a list of: " + ", ".join(WORKPLACE_TYPES))
+        terms["f_WT"] = ",".join(sorted({WORKPLACE_TYPES[item]
+                                         for item in workplace_types}))
+    return terms
 
 
 def normalise_job_pages(value: object | None, *, kind: str) -> int | None:

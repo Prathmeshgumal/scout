@@ -357,7 +357,7 @@ def _freshness_roles(kind: str, selected) -> list[str]:
     looked at one section.
     """
     if kind not in FRESHNESS_SECTIONS:
-        return ["page"]
+        return [resolve.HEAD_SECTION[kind]]
     _, head, every = FRESHNESS_SECTIONS[kind]
     return [head, *sorted(selected if selected is not None else every)]
 
@@ -378,14 +378,14 @@ def assess_coverage(connection, *, kind: str, key: str, seconds: int,
                               key=key, at=now, allow_stale=False)
         failed_sections = {name: reading.status for name, reading in latest.items()
                            if reading.grade == resolve.FAILED}
-    elif kind == "generic":
+    elif kind in resolve.HEAD_SECTION:
         failure = connection.execute(text("""
             SELECT a.cause FROM scrape_attempt a JOIN scrape_request r ON r.id=a.request_id
             WHERE r.url_normalised=:key AND r.kind=:kind AND a.ended_at <= :now
             ORDER BY a.ended_at DESC, a.id DESC LIMIT 1
         """), {"key": key, "kind": kind, "now": now}).scalar()
         if failure:
-            failed_sections = {"page": failure}
+            failed_sections = {resolve.HEAD_SECTION[kind]: failure}
     sections = {}
     for name in _freshness_roles(kind, selected):
         state = ("satisfied" if name not in answer.stale else

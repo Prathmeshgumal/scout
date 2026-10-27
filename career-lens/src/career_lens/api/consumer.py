@@ -291,6 +291,7 @@ def data_url(kind: str, url: str | None, request_id: str) -> str | None:
     slugs = {
         "linkedin_person": "linkedin-individual",
         "linkedin_company": "linkedin-company",
+        "linkedin_job": "linkedin-job",
     }
     if kind in slugs and url:
         return f"/v1/{slugs[kind]}?{urlencode({'url': url})}"
@@ -298,6 +299,8 @@ def data_url(kind: str, url: str | None, request_id: str) -> str | None:
         return f"/v1/google-search/{request_id}"
     if kind == "generic":
         return f"/v1/url/{request_id}"
+    if kind == "linkedin_job_search":
+        return f"/v1/linkedin-job-search/{request_id}"
     return None
 
 

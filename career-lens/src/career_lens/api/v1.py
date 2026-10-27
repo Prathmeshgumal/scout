@@ -12,8 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import Connection, text
 
-from ..capture.urls import UrlError, canonical
-from ..capture.options import InvalidCaptureOption
+from ..capture.urls import UrlError, canonical, job_search_url
+from ..capture.options import InvalidCaptureOption, job_search_terms
 from ..google.contract import InvalidGoogleRequest
 from ..observe.freshness import InvalidFreshness
 from . import requests as submission, serialise
@@ -26,6 +26,7 @@ router = APIRouter(prefix="/v1", responses=consumer.ERROR_RESPONSES)
 SCRAPE_PATHS = {
     "linkedin-individual": "linkedin_person",
     "linkedin-company": "linkedin_company",
+    "linkedin-job": "linkedin_job",
     "url": "generic",
 }
 
@@ -71,6 +72,8 @@ def scrape(path: str, body: dict,
 
 def _scrape(path: str, body: dict, *, api_key_id: str | None = None) -> dict:
     supplied = body or {}
+    if path == "linkedin-job-search":
+        return _submit_job_search(supplied, api_key_id)
     if path not in SCRAPE_PATHS and path != "google-search":
         raise HTTPException(404, f"no scrape endpoint {path!r}")
     allowed = {"url", "freshness", "max_attempts"}
@@ -86,6 +89,32 @@ def _scrape(path: str, body: dict, *, api_key_id: str | None = None) -> dict:
             raise HTTPException(400, "linkedin_google_search_chance is configured on the worker")
         raise HTTPException(400, f"unsupported submission fields: {', '.join(unknown)}")
     return _submit_scrape(path, supplied, api_key_id)
+
+
+JOB_SEARCH_FIELDS = {"keywords", "location", "posted_within", "workplace_types",
+                     "job_pages", "freshness", "max_attempts"}
+
+
+def _submit_job_search(body: dict, api_key_id: str | None) -> dict:
+    unknown = sorted(set(body) - JOB_SEARCH_FIELDS)
+    if unknown:
+        raise HTTPException(
+            400, f"unsupported submission fields: {', '.join(unknown)}")
+    try:
+        url = job_search_url(job_search_terms(
+            body.get("keywords"), body.get("location"),
+            body.get("posted_within"), body.get("workplace_types")))
+        answer = submission.submit(
+            url, expected_kind="linkedin_job_search",
+            job_pages=body.get("job_pages"),
+            max_attempts=body.get("max_attempts"),
+            freshness_window=body.get("freshness"), api_key_id=api_key_id)
+    except submission.RequestOptionsConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except (UrlError, submission.KindMismatch, InvalidCaptureOption,
+            InvalidFreshness) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return _submitted(answer, {"kind": "linkedin_job_search", "url": url})
 
 
 def _submit_scrape(path: str, body: dict, api_key_id: str | None) -> dict:

@@ -10,8 +10,8 @@ def test_only_kept_request_kinds():
                           "linkedin_job_search", "generic", "google_search"}
 
 
-def test_linkedin_job_url_is_a_plain_page():
-    assert classify(canonical("https://www.linkedin.com/jobs/view/123/")) == "generic"
+def test_other_linkedin_pages_are_plain_pages():
+    assert classify(canonical("https://www.linkedin.com/feed/")) == "generic"
 
 
 def test_formerly_special_route_is_a_plain_page():

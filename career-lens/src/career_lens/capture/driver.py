@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Iterator
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from ..linkedin import company as company_module
 from ..linkedin import dom as linkedin_dom
@@ -90,12 +90,8 @@ def capture_request(kind: str, url: str, *, browser_profile: str,
         linkedin_sections, job_pages)
 
 
-def capture_arrived_page(
-        kind: str, url_requested: str, page, out_dir: Path, *, response,
-        tempo=None,
-        provenance: dict[str, object] | None = None,
-        linkedin_sections: frozenset[str] | None = None) -> PageCapture:
-    """Capture one arrived page with the ordinary request's main-page rules."""
+def _check_arrival(page, response, url_requested: str) -> None:
+    """Refuse a page that is rate limited, walled, or not there."""
     from .failures import raise_for_rate_limit
 
     raise_for_rate_limit(response)
@@ -110,6 +106,38 @@ def capture_arrived_page(
     status = response.status if response is not None else None
     if status == 404:
         raise CaptureFailed("not_found", f"{url_requested} returned 404")
+
+
+def _search_results(page, out_dir: Path, *, url: str, tempo=None,
+                    job_pages: int | None = None,
+                    recorder=None) -> Iterator[Document]:
+    """The result pages of one LinkedIn job search."""
+    keywords = " ".join(parse_qs(urlsplit(url).query).get("keywords", [""])[0].split())
+    if not linkedin_dom.wait_for_job_results(page):
+        trace.note("job search: no result cards appeared")
+    config = company_module.CompanyConfig(
+        scratch_dir=out_dir, tempo=tempo, tabs=None,
+        job_pages=job_pages if job_pages is not None else DEFAULT_JOB_PAGES)
+    for item in company_module.job_result_pages(
+            page, config,
+            title=lambda number: f"{keywords} jobs - page {number} | LinkedIn"):
+        if not item.capture.ok:
+            trace.note(f"job search: {item.section} could not be captured")
+            break
+        yield document(item.capture, item.section, recorder)
+        if item.stop:
+            break
+
+
+def capture_arrived_page(
+        kind: str, url_requested: str, page, out_dir: Path, *, response,
+        tempo=None,
+        provenance: dict[str, object] | None = None,
+        linkedin_sections: frozenset[str] | None = None) -> PageCapture:
+    """Capture one arrived page with the ordinary request's main-page rules."""
+    from .failures import raise_for_rate_limit
+
+    _check_arrival(page, response, url_requested)
 
     # Before the first pixel is taken. A profile's own sections mount after the
     # document is interactive, so without this the top card is photographed
@@ -286,6 +314,12 @@ def _capture_documents(kind: str, url: str, page, out_dir: Path,
             url, page.url, http_status=(
                 response.status if response is not None and response.url == page.url else None))
 
+    if kind == "linkedin_job_search":
+        _check_arrival(page, response, url)
+        yield from _search_results(page, out_dir, url=url, tempo=tempo,
+                                   job_pages=job_pages, recorder=recorder)
+        return
+
     main = capture_arrived_page(
         kind, url, page, out_dir, response=response, tempo=tempo,
         provenance=(
@@ -306,6 +340,11 @@ def _capture_documents(kind: str, url: str, page, out_dir: Path,
             page, out_dir, tempo=tempo,
             requested_sections=linkedin_capture_sections(linkedin_sections),
             recorder=recorder)
+        return
+
+    if kind == "linkedin_job":
+        _dwell(main, tempo)
+        yield document(main, "job", recorder)
         return
 
     if kind == "linkedin_company":

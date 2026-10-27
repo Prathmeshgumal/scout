@@ -50,7 +50,7 @@ def test_the_refusal_says_which_scheme_was_given():
     ("https://www.linkedin.com/school/mit/", "linkedin_company"),
     ("https://www.linkedin.com/showcase/aws/", "linkedin_company"),
     ("https://www.linkedin.com/feed/", "generic"),
-    ("https://www.linkedin.com/jobs/view/123/", "generic"),
+    ("https://www.linkedin.com/jobs/view/123/", "linkedin_job"),
     ("https://example.com/anything", "generic"),
 ])
 def test_classification(url, kind):
@@ -65,3 +65,40 @@ def test_a_details_url_is_not_itself_a_profile_request():
         "https://www.linkedin.com/in/jane/details/experience/")) == "generic"
 
 
+
+
+@pytest.mark.parametrize("raw", [
+    "https://www.linkedin.com/jobs/view/4012345678/",
+    "https://www.linkedin.com/jobs/view/4012345678",
+    "https://in.linkedin.com/jobs/view/senior-engineer-at-acme-4012345678?trk=x&refId=y",
+    "https://www.linkedin.com/jobs/view/senior-engineer-at-acme-4012345678/#top",
+])
+def test_every_spelling_of_a_job_is_one_job(raw):
+    url = canonical(raw)
+    assert url == "https://www.linkedin.com/jobs/view/4012345678/"
+    assert classify(url) == "linkedin_job"
+
+
+def test_a_job_search_keeps_only_the_search_terms():
+    url = canonical(
+        "https://in.linkedin.com/jobs/search-results/?location=Bengaluru"
+        "&keywords=backend%20engineer&currentJobId=1&origin=JOBS_HOME&f_WT=2")
+    assert url == ("https://www.linkedin.com/jobs/search-results/"
+                   "?keywords=backend+engineer&location=Bengaluru&f_WT=2")
+    assert classify(url) == "linkedin_job_search"
+
+
+def test_the_older_search_path_is_the_same_search():
+    assert canonical(
+        "https://www.linkedin.com/jobs/search/?keywords=go") == (
+        "https://www.linkedin.com/jobs/search-results/?keywords=go")
+
+
+def test_a_job_search_without_keywords_is_a_plain_page():
+    assert classify(canonical(
+        "https://www.linkedin.com/jobs/search-results/?location=Pune")) == "generic"
+
+
+def test_a_job_link_with_no_number_is_a_plain_page():
+    assert classify(canonical(
+        "https://www.linkedin.com/jobs/view/no-number-here/")) == "generic"

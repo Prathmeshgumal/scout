@@ -233,9 +233,21 @@ def _job_pages(page, config: CompanyConfig, tab: dom.Tab,
                company_title: str | None) -> Iterator[TabCapture]:
     """Bounded pages of the job-search results behind "Show all jobs".
 
-    Each is a list of roughly 25 listings, not one posting. An absent next page
-    means the finite list ended early, which ends the loop and not the sweep.
     The caller has already clicked through and owns getting back.
+    """
+    yield from job_result_pages(
+        page, config,
+        title=lambda number: dom.job_results_title(tab, company_title, number))
+
+
+def job_result_pages(page, config: CompanyConfig,
+                     title) -> Iterator[TabCapture]:
+    """Up to `config.job_pages` pages of the job results now on screen.
+
+    Each is a list of roughly 25 listings, not one posting. An absent next page
+    means the finite list ended early, which ends the loop. `title(number)`
+    names each page, because LinkedIn's own title names whichever job it
+    happened to select, which differs between runs of the same page.
     """
     for number in range(1, max(0, config.job_pages) + 1):
         if number > 1 and not dom.open_job_page(page, number):
@@ -256,9 +268,7 @@ def _job_pages(page, config: CompanyConfig, tab: dom.Tab,
                 tempo=config.tempo, scroll_budget=MAX_SCROLL_PX,
                 strip=dom.strip_irrelevant,
                 extract_content=dom.job_results_content)
-            # LinkedIn's own title names whichever job it happened to select,
-            # which differs between runs of the same page.
-            captured.title = dom.job_results_title(tab, company_title, number)
+            captured.title = title(number)
             captured.extra["has_more"] = (
                 dom.job_results_has_more(page, number) if captured.ok else None
             )

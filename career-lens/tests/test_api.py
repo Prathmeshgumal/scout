@@ -1299,3 +1299,62 @@ def test_an_outstanding_company_request_with_other_job_pages_conflicts(
     response = client.post("/v1/scrape/linkedin-company",
                            json={"url": url, "job_pages": 9})
     assert response.status_code == 409
+
+
+def test_a_job_posting_is_submitted_by_its_url(client, app, app_url, monkeypatch):
+    monkeypatch.setenv("CAREER_LENS_DATABASE_URL", app_url)
+    response = client.post("/v1/scrape/linkedin-job", json={
+        "url": "https://in.linkedin.com/jobs/view/backend-at-acme-4012345678?trk=a"})
+    assert response.status_code == 202, response.text
+    row = app.execute(text(
+        "SELECT kind, url_normalised, job_pages FROM scrape_request WHERE id = :r"),
+        {"r": response.json()["request_id"]}).one()
+    assert tuple(row) == (
+        "linkedin_job", "https://www.linkedin.com/jobs/view/4012345678/", None)
+
+
+def test_a_company_url_posted_to_the_job_endpoint_is_a_400(client):
+    response = client.post("/v1/scrape/linkedin-job", json={
+        "url": "https://www.linkedin.com/company/acme/"})
+    assert response.status_code == 400
+
+
+def test_a_job_search_is_submitted_by_its_terms(client, app, app_url, monkeypatch):
+    monkeypatch.setenv("CAREER_LENS_DATABASE_URL", app_url)
+    response = client.post("/v1/scrape/linkedin-job-search", json={
+        "keywords": "  backend   engineer ", "location": "Bengaluru",
+        "posted_within": "week", "workplace_types": ["remote", "hybrid"],
+        "job_pages": 3})
+    assert response.status_code == 202, response.text
+    row = app.execute(text(
+        "SELECT kind, url_normalised, job_pages FROM scrape_request WHERE id = :r"),
+        {"r": response.json()["request_id"]}).one()
+    assert tuple(row) == (
+        "linkedin_job_search",
+        "https://www.linkedin.com/jobs/search-results/?keywords=backend+engineer"
+        "&location=Bengaluru&f_TPR=r604800&f_WT=2%2C3", 3)
+
+
+def test_a_job_search_reads_five_pages_by_default(client, app, app_url, monkeypatch):
+    monkeypatch.setenv("CAREER_LENS_DATABASE_URL", app_url)
+    response = client.post("/v1/scrape/linkedin-job-search",
+                           json={"keywords": "go"})
+    assert response.status_code == 202, response.text
+    assert app.execute(text(
+        "SELECT job_pages FROM scrape_request WHERE id = :r"),
+        {"r": response.json()["request_id"]}).scalar_one() == 5
+
+
+@pytest.mark.parametrize("body", [
+    {},
+    {"keywords": "   "},
+    {"keywords": 5},
+    {"keywords": "go", "posted_within": "year"},
+    {"keywords": "go", "workplace_types": ["moon"]},
+    {"keywords": "go", "workplace_types": "remote"},
+    {"keywords": "go", "url": "https://www.linkedin.com/jobs/search-results/"},
+    {"keywords": "go", "job_pages": 0},
+])
+def test_a_bad_job_search_is_a_400(client, body):
+    response = client.post("/v1/scrape/linkedin-job-search", json=body)
+    assert response.status_code == 400, response.text

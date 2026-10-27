@@ -1870,3 +1870,31 @@ def test_linkedin_request_outside_account_shift_stays_queued_with_reason(
     """), {"request": request_id}).one()
     assert row.status == "queued"
     assert row.dispatch_wait_reason == "accounts_off_shift"
+
+
+@pytest.mark.parametrize("kind,url", [
+    ("linkedin_job", "https://www.linkedin.com/jobs/view/4012345678/"),
+    ("linkedin_job_search",
+     "https://www.linkedin.com/jobs/search-results/?keywords=go"),
+])
+def test_job_requests_run_on_a_signed_in_account(app_url, app, kind, url):
+    from career_lens.fleet.dispatch import dispatch_one
+    from career_lens.store.db import transaction
+
+    with transaction(app_url) as connection:
+        _fleet(connection)
+        request_id = new_id(REQUEST)
+        connection.execute(text("""
+            INSERT INTO scrape_request
+                (id, url_requested, url_normalised, kind, status, requested_at)
+            VALUES (:id, :url, :url, :kind, 'queued', :at)
+        """), {"id": request_id, "url": url, "kind": kind, "at": NOW})
+        attempt_id = dispatch_one(connection, now=NOW, rng=First())
+
+    row = app.execute(text("""
+        SELECT request_id, account_id, assignment_id
+        FROM scrape_attempt WHERE id=:attempt
+    """), {"attempt": attempt_id}).one()
+    assert row.request_id == request_id
+    assert row.account_id is not None
+    assert row.assignment_id is not None

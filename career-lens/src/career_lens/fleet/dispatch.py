@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Connection, text
 
+from ..capture.options import LINKEDIN_ACCOUNT_KINDS
 from . import retry
 from .site_cooldowns import filter_candidates
 from .eligibility import (
@@ -153,7 +154,7 @@ def _dispatch_selected_request(connection: Connection, request, *,
         request.next_attempt_at + _retry_handoff_grace()
         if request.next_attempt_at is not None and tried else None
     )
-    if (request.kind in {"linkedin_person", "linkedin_company"}
+    if (request.kind in LINKEDIN_ACCOUNT_KINDS
             and not untried
             and handoff_deadline is not None
             and now < handoff_deadline):

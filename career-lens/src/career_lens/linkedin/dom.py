@@ -1046,6 +1046,11 @@ def _job_signature(page: Page) -> str:
         return ""
 
 
+def wait_for_job_results(page: Page) -> bool:
+    """Wait until a job result list has cards on screen."""
+    return _wait_for_job_content(page)
+
+
 def _wait_for_job_content(page: Page, previous: str = "") -> bool:
     """Wait until job cards exist, or differ from the preceding page."""
     deadline = time.monotonic() + ARRIVAL_TIMEOUT_S

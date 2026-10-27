@@ -20,11 +20,14 @@ from sqlalchemy import Connection, text
 PERSON = "linkedin_person"
 COMPANY = "linkedin_company"
 GENERIC = "generic"
+JOB = "linkedin_job"
+JOB_SEARCH = "linkedin_job_search"
 
 # The head document's section, which is also the key its resolution comes back
 # under. `capture.section` uses these same names, which is why no translation
 # table is needed anywhere in here.
-HEAD_SECTION = {PERSON: "profile", COMPANY: "company", GENERIC: "page"}
+HEAD_SECTION = {PERSON: "profile", COMPANY: "company", GENERIC: "page",
+                JOB: "job", JOB_SEARCH: "results"}
 
 # Per kind: the status table, the head table, and the column the head is keyed
 # by. Everything else in this module is shared between them.
@@ -40,6 +43,8 @@ _TABLES = {
     COMPANY: ("linkedin.company_section_status",
               "linkedin.company_observation", "company_url"),
     GENERIC: (None, "generic.page_observation", "url_normalised"),
+    JOB: (None, "linkedin.job_observation", "job_url"),
+    JOB_SEARCH: (None, "linkedin.job_search_observation", "search_url"),
 }
 
 READ = "read"

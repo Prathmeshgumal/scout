@@ -988,3 +988,49 @@ def test_driver_reexports_neutral_arrival_pacing():
     assert driver._settle_arrival is arrival.settle_arrival
     assert driver._dwell is arrival.dwell
     assert driver.ARRIVAL_SETTLE_RANGE == arrival.ARRIVAL_SETTLE_RANGE
+
+
+def test_a_job_search_reads_its_result_pages(monkeypatch):
+    from pathlib import Path
+
+    from career_lens.capture import driver
+    from career_lens.linkedin.company import TabCapture
+
+    received = {}
+
+    class Capture:
+        ok = True
+        title = "T"
+        html_bytes = b"<html></html>"
+        url_requested = "https://www.linkedin.com/jobs/search-results/?keywords=go"
+        final_url = None
+        status = 200
+        screenshot_bytes = []
+        images = {}
+        text = "page text"
+        text_chars = 10
+        scroll_stopped = "end"
+        scroll_growing = False
+        screenshot_error = None
+        request_method = "GET"
+        request_headers = {}
+        response_headers = {}
+        extra = {}
+
+    def pages(page, config, title):
+        received["job_pages"] = config.job_pages
+        received["title"] = title(2)
+        return iter([TabCapture("jobs-page-1", Capture()),
+                     TabCapture("jobs-page-2", Capture())])
+
+    monkeypatch.setattr(driver.company_module, "job_result_pages", pages)
+    monkeypatch.setattr(driver.linkedin_dom, "wait_for_job_results",
+                        lambda page: True)
+    documents = list(driver._search_results(
+        object(), Path("/tmp"),
+        url="https://www.linkedin.com/jobs/search-results/?keywords=go+dev",
+        tempo=None, job_pages=4))
+
+    assert [d.section for d in documents] == ["jobs-page-1", "jobs-page-2"]
+    assert received == {"job_pages": 4,
+                        "title": "go dev jobs - page 2 | LinkedIn"}
