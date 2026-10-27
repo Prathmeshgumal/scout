@@ -135,7 +135,6 @@ def capture_arrived_page(
         provenance: dict[str, object] | None = None,
         linkedin_sections: frozenset[str] | None = None) -> PageCapture:
     """Capture one arrived page with the ordinary request's main-page rules."""
-    from .failures import raise_for_rate_limit
 
     _check_arrival(page, response, url_requested)
 
