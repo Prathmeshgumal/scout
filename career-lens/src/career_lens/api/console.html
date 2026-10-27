@@ -17,6 +17,8 @@
   td button { margin: 0 4px 4px 0; }
   pre { background: #f5f5f5; padding: 8px; overflow: auto; max-height: 420px; white-space: pre-wrap; word-break: break-word; }
   .error { color: #a40000; min-height: 1.4em; }
+  .waiting { background: #fff4ce; border: 1px solid #e0b100; padding: 8px 12px; margin: 8px 0; }
+  .waiting p { margin: 4px 0; }
   .scroll { overflow-x: auto; }
   [hidden] { display: none; }
 </style>
@@ -24,6 +26,7 @@
 <body>
 <h1>career-lens console</h1>
 <div id="message" class="error" role="status"></div>
+<div id="waiting" class="waiting" role="alert" hidden></div>
 
 <form id="key-form">
   <label>API key <input id="key" type="password" autocomplete="off" size="50" required></label>
@@ -187,6 +190,21 @@ function hours(schedule) {
   return (schedule.enabled ? "" : "off: ") + (day ? day.start_local + " to " + day.end_local + " " : "") + schedule.timezone;
 }
 
+function renderWaiting(accounts) {
+  const box = $("waiting");
+  box.replaceChildren();
+  const waiting = accounts.filter((account) =>
+    account.assignment && account.assignment.waiting_for_you);
+  for (const account of waiting) {
+    const line = document.createElement("p");
+    const name = document.createElement("strong");
+    name.textContent = "Waiting for you: " + account.label;
+    line.append(name, " \u2014 " + account.assignment.action);
+    box.append(line);
+  }
+  box.hidden = waiting.length === 0;
+}
+
 function renderAccounts(accounts) {
   const body = table("accounts", ["Account", "State", "Needs attention", "Login", "Hours", "Used 24h", "Actions"]);
   const picker = document.querySelector("#shift-form [name=account]");
@@ -212,6 +230,7 @@ function renderAccounts(accounts) {
       command(assignment, "confirm-replace"), command(assignment, "clear")) : "");
   }
   if (chosen) picker.value = chosen;
+  if (passwordChosen) passwordPicker.value = passwordChosen;
 }
 
 const RESULT = {
@@ -247,6 +266,7 @@ async function refresh() {
   $("main").hidden = false;
   renderWorkers(data.workers, data.accounts);
   renderAccounts(data.accounts);
+  renderWaiting(data.accounts);
   renderRequests(data.requests);
 }
 

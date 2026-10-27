@@ -255,3 +255,48 @@ def test_the_page_has_a_change_password_form(client):
     page = client.get("/console").text
     assert 'id="password-form"' in page
     assert '"/password"' in page
+
+
+def _assigned(client, app) -> str:
+    worker = _worker(app)
+    account = _account(client)
+    assert client.post(f"/console/api/workers/{worker}/assignments",
+                       json={"account_id": account}).status_code == 202
+    return account
+
+
+def test_a_login_that_needs_the_operator_says_so(authorised_client, app):
+    _assigned(authorised_client, app)
+    app.execute(text("""
+        UPDATE account_worker_assignment
+        SET state = 'attention_required',
+            operator_attention_code = 'linkedin_signed_out',
+            state_detail = 'signed out'
+        WHERE ended_at IS NULL
+    """))
+    app.commit()
+    overview = authorised_client.get("/console/api/overview").json()
+    assignment = overview["accounts"][0]["assignment"]
+    assert assignment["waiting_for_you"] is True
+    assert "sign in" in assignment["action"]
+    assert "Verify" in assignment["action"]
+
+
+def test_a_login_in_progress_is_not_waiting_for_the_operator(
+        authorised_client, app):
+    _assigned(authorised_client, app)
+    assignment = authorised_client.get(
+        "/console/api/overview").json()["accounts"][0]["assignment"]
+    assert assignment["waiting_for_you"] is False
+    assert assignment["action"] is None
+
+
+def test_the_page_shows_logins_waiting_for_the_operator(client):
+    page = client.get("/console").text
+    assert 'id="waiting"' in page
+    assert "waiting_for_you" in page
+
+
+def test_the_password_picker_keeps_its_choice_across_refresh(client):
+    page = client.get("/console").text
+    assert "passwordPicker.value = passwordChosen" in page

@@ -19,6 +19,7 @@ from ..fleet.assignments import (
     AssignmentConflict, InvalidAssignmentTransition, assign_account,
     confirm_replace, request_clear, request_login_retry, request_verify,
 )
+from ..fleet.attention import GUIDANCE
 from ..fleet.credentials import CredentialError
 from ..fleet.dayplan import DayTemplate, required_minutes
 from ..fleet.schedules import ScheduleError, read_schedule, write_schedule
@@ -149,15 +150,38 @@ def _jsonable_schedule(connection: Connection, account_id: str) -> dict | None:
     }
 
 
+# What to do when a login stops for a person and no code says more.
+OPEN_WINDOW = ("Finish the LinkedIn sign-in in this worker's Chrome window, "
+               "then press Verify.")
+
+
 def _assignments(connection: Connection) -> list[dict]:
     rows = connection.execute(text("""
-        SELECT id, account_id, worker_id, state, state_detail
-        FROM account_worker_assignment WHERE ended_at IS NULL
+        SELECT ass.id, ass.account_id, ass.worker_id, ass.state,
+               ass.state_detail, ass.operator_attention_code,
+               EXISTS (
+                   SELECT 1 FROM worker_operation operation
+                   WHERE operation.assignment_id = ass.id
+                     AND operation.status = 'running'
+                     AND operation.manual_intervention_at IS NOT NULL
+               ) AS window_open
+        FROM account_worker_assignment ass WHERE ass.ended_at IS NULL
     """)).all()
-    return [{
+    return [_assignment(row) for row in rows]
+
+
+def _assignment(row) -> dict:
+    """One assignment, and whether it waits on a person to act."""
+    waiting = row.state == "attention_required" or row.window_open
+    action = None
+    if waiting:
+        guidance = GUIDANCE.get(row.operator_attention_code)
+        action = guidance.hint if guidance is not None else OPEN_WINDOW
+    return {
         "id": row.id, "account_id": row.account_id, "worker_id": row.worker_id,
         "state": row.state, "detail": row.state_detail,
-    } for row in rows]
+        "waiting_for_you": waiting, "action": action,
+    }
 
 
 def _workers(connection: Connection, assignments: list[dict], now: datetime) -> list[dict]:
