@@ -306,9 +306,20 @@ def test_a_fresh_search_answers_a_new_request_for_it(client, app, app_url,
     monkeypatch.setenv("CAREER_LENS_DATABASE_URL", app_url)
     response = client.post("/v1/scrape/linkedin-job-search", json={
         "keywords": "backend engineer", "location": "Bengaluru",
-        "freshness": "7d"})
+        "freshness": "7d", "job_pages": 2})
     assert response.status_code == 200, response.text
     request_id = response.json()["request_id"]
     body = client.get(f"/v1/linkedin-job-search/{request_id}").json()
     assert body["status"] == "satisfied"
     assert len(body["result"]["items"]) == 3
+
+
+def test_a_fresh_search_of_fewer_pages_does_not_answer_a_longer_one(
+        client, app, app_url, monkeypatch):
+    _stored_search(app, app_url, client.store)
+    monkeypatch.setenv("CAREER_LENS_DATABASE_URL", app_url)
+    response = client.post("/v1/scrape/linkedin-job-search", json={
+        "keywords": "backend engineer", "location": "Bengaluru",
+        "freshness": "7d", "job_pages": 5})
+    assert response.status_code == 202, response.text
+    assert response.json()["status"] == "queued"

@@ -179,7 +179,7 @@ def submit(url: str, *, label: str | None = None,
             freshness_selection = selected_sections
             answer = _satisfy(connection, kind=kind, key=normalised,
                               seconds=seconds, selected=freshness_selection,
-                              now=datetime.now(UTC))
+                              now=datetime.now(UTC), job_pages=pages)
             coverage = assess_coverage(connection, kind=kind, key=normalised,
                                        seconds=seconds, selected=freshness_selection,
                                        answer=answer)
@@ -398,12 +398,24 @@ def assess_coverage(connection, *, kind: str, key: str, seconds: int,
 
 
 def _satisfy(connection, *, kind: str, key: str, seconds: int,
-             selected, now):
+             selected, now, job_pages: int | None = None):
     """Whether the stored history already answers this request."""
     resolve_kind = FRESHNESS_SECTIONS.get(kind, (kind,))[0]
-    return freshness.satisfies(
+    sections = _freshness_roles(kind, selected)
+    answer = freshness.satisfies(
         connection, kind=resolve_kind, key=key, freshness_seconds=seconds,
-        sections=_freshness_roles(kind, selected), now=now)
+        sections=sections, now=now)
+    if answer.satisfied and kind == resolve.JOB_SEARCH and job_pages:
+        # A search read to fewer pages than asked for, without reaching the
+        # end, does not answer: the jobs on the other pages were never seen.
+        reading = answer.by_section[resolve.HEAD_SECTION[kind]]
+        covered = connection.execute(text("""
+            SELECT captured_pages >= :pages OR reached_end IS TRUE
+            FROM linkedin.job_search_observation WHERE id=:id
+        """), {"pages": job_pages, "id": reading.observation_id}).scalar_one()
+        if not covered:
+            return freshness.Satisfaction(False, sections, {}, None)
+    return answer
 
 
 def _satisfied_request(connection, *, url, normalised, kind, label, tempo,
