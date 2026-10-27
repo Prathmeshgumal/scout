@@ -792,11 +792,23 @@ def _extract_generic(request_id: str, target: str, documents, by_section, store,
     )
 
 
+def _extract_job(*args, **kwargs) -> None:
+    from ..linkedin.jobs import extract_job
+    extract_job(*args, **kwargs)
+
+
+def _extract_job_search(*args, **kwargs) -> None:
+    from ..linkedin.jobs import extract_job_search
+    extract_job_search(*args, **kwargs)
+
+
 # Which extractor reads a request of each kind. Registering rather than
 # branching means adding one costs an entry here, not an edit to _work.
 EXTRACTORS = {
     "linkedin_person": _extract,
     "linkedin_company": _extract_company,
+    "linkedin_job": _extract_job,
+    "linkedin_job_search": _extract_job_search,
     "generic": _extract_generic,
 }
 

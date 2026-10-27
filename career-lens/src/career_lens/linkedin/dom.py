@@ -1575,6 +1575,36 @@ STRIP_SCAFFOLDING = """() => {
 # The job search pins this account-specific prompt over the bottom of its
 # result column. Its classes are generated; the exact heading and the small
 # subtree containing it are the stable boundary.
+# A job page's panels about the signed-in account rather than the job: who
+# the account knows there, how its profile fits, and paid upsells. None of it
+# describes the posting, and some of it is the account owner's personal data.
+JOB_VIEWER_PANELS = (
+    '[data-view-name="job-details-people-who-can-help"]',
+    '[componentkey^="JobDetailsPeopleWhoCanHelpSlot_"]',
+    '[data-view-name="how-you-fit-card"]',
+    '[componentkey="InitialStateHowYouFitSlot"]',
+    '[data-view-name^="premium-upsell-card"]',
+    '[data-view-name="freemium-job-insights"]',
+    '[data-view-name="job-details-company-aiq-insights-upsell"]',
+    '[componentkey^="JobDetails_ResumeReview_"]',
+    '[componentkey^="JobDetails_Premium"]',
+    '[componentkey^="JobDetails_JobAlertToggle_"]',
+)
+
+STRIP_JOB_VIEWER = """(selectors) => {
+  const host = location.hostname;
+  if (host !== 'linkedin.com' && !host.endsWith('.linkedin.com')) return 0;
+  if (!location.pathname.startsWith('/jobs/view/')) return 0;
+  let gone = 0;
+  for (const el of document.querySelectorAll(selectors.join(','))) {
+    if (el.closest('[data-career-lens-artifact-only]')) continue;
+    el.setAttribute('data-career-lens-artifact-only', '');
+    el.style.setProperty('display', 'none', 'important');
+    gone++;
+  }
+  return gone;
+}"""
+
 STRIP_JOB_ALERTS = """() => {
   const host = location.hostname;
   if (host !== 'linkedin.com' && !host.endsWith('.linkedin.com')) return 0;
@@ -1753,7 +1783,8 @@ def strip_irrelevant(page: Page) -> int:
                              (STRIP_ALUMNI, None),
                              (STRIP_ADS, AD_BOX_SLACK_PX),
                              (STRIP_SCAFFOLDING, None),
-                             (STRIP_JOB_ALERTS, None)):
+                             (STRIP_JOB_ALERTS, None),
+                             (STRIP_JOB_VIEWER, list(JOB_VIEWER_PANELS))):
         try:
             gone += int(page.evaluate(script) if argument is None
                         else page.evaluate(script, argument))

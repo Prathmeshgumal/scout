@@ -83,20 +83,20 @@ def test_a_job_search_keeps_only_the_search_terms():
     url = canonical(
         "https://in.linkedin.com/jobs/search-results/?location=Bengaluru"
         "&keywords=backend%20engineer&currentJobId=1&origin=JOBS_HOME&f_WT=2")
-    assert url == ("https://www.linkedin.com/jobs/search-results/"
+    assert url == ("https://www.linkedin.com/jobs/search/"
                    "?keywords=backend+engineer&location=Bengaluru&f_WT=2")
     assert classify(url) == "linkedin_job_search"
 
 
-def test_the_older_search_path_is_the_same_search():
+def test_the_newer_search_path_is_the_same_search():
     assert canonical(
-        "https://www.linkedin.com/jobs/search/?keywords=go") == (
-        "https://www.linkedin.com/jobs/search-results/?keywords=go")
+        "https://www.linkedin.com/jobs/search-results/?keywords=go") == (
+        "https://www.linkedin.com/jobs/search/?keywords=go")
 
 
 def test_a_job_search_without_keywords_is_a_plain_page():
     assert classify(canonical(
-        "https://www.linkedin.com/jobs/search-results/?location=Pune")) == "generic"
+        "https://www.linkedin.com/jobs/search/?location=Pune")) == "generic"
 
 
 def test_a_job_link_with_no_number_is_a_plain_page():

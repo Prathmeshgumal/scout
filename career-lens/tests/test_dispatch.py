@@ -1875,7 +1875,7 @@ def test_linkedin_request_outside_account_shift_stays_queued_with_reason(
 @pytest.mark.parametrize("kind,url", [
     ("linkedin_job", "https://www.linkedin.com/jobs/view/4012345678/"),
     ("linkedin_job_search",
-     "https://www.linkedin.com/jobs/search-results/?keywords=go"),
+     "https://www.linkedin.com/jobs/search/?keywords=go"),
 ])
 def test_job_requests_run_on_a_signed_in_account(app_url, app, kind, url):
     from career_lens.fleet.dispatch import dispatch_one

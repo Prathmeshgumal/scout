@@ -1002,7 +1002,7 @@ def test_a_job_search_reads_its_result_pages(monkeypatch):
         ok = True
         title = "T"
         html_bytes = b"<html></html>"
-        url_requested = "https://www.linkedin.com/jobs/search-results/?keywords=go"
+        url_requested = "https://www.linkedin.com/jobs/search/?keywords=go"
         final_url = None
         status = 200
         screenshot_bytes = []
@@ -1028,7 +1028,7 @@ def test_a_job_search_reads_its_result_pages(monkeypatch):
                         lambda page: True)
     documents = list(driver._search_results(
         object(), Path("/tmp"),
-        url="https://www.linkedin.com/jobs/search-results/?keywords=go+dev",
+        url="https://www.linkedin.com/jobs/search/?keywords=go+dev",
         tempo=None, job_pages=4))
 
     assert [d.section for d in documents] == ["jobs-page-1", "jobs-page-2"]

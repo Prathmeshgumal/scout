@@ -19,7 +19,7 @@ COMPANY = re.compile(r"^/(company|school|showcase)/([^/]+)/?$")
 # A posting is its trailing number; the slug before it is decoration.
 JOB = re.compile(r"^/jobs/view/(?:[^/]*-)?(\d+)/?$")
 JOB_SEARCH = re.compile(r"^/jobs/search(?:-results)?/?$")
-JOB_SEARCH_PATH = "/jobs/search-results/"
+JOB_SEARCH_PATH = "/jobs/search/"
 # The search terms that change which jobs come back, in the order a
 # canonical search URL spells them. Everything else on a search URL is the
 # page's own state, such as which result is selected.

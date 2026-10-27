@@ -1331,7 +1331,7 @@ def test_a_job_search_is_submitted_by_its_terms(client, app, app_url, monkeypatc
         {"r": response.json()["request_id"]}).one()
     assert tuple(row) == (
         "linkedin_job_search",
-        "https://www.linkedin.com/jobs/search-results/?keywords=backend+engineer"
+        "https://www.linkedin.com/jobs/search/?keywords=backend+engineer"
         "&location=Bengaluru&f_TPR=r604800&f_WT=2%2C3", 3)
 
 

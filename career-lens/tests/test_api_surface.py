@@ -17,6 +17,7 @@ EXPECTED = {
     ("GET", "/v1/url"), ("GET", "/v1/url/{request_id}"),
     ("GET", "/v1/google-search"), ("GET", "/v1/google-search/{request_id}"),
     ("POST", "/v1/search"), ("GET", "/v1/search/{request_id}"),
+    ("GET", "/v1/linkedin-job"), ("GET", "/v1/linkedin-job-search/{request_id}"),
     ("GET", "/console/api/overview"), ("POST", "/console/api/accounts"),
     ("PUT", "/console/api/accounts/{account_id}/password"),
     ("PUT", "/console/api/accounts/{account_id}/shift"),
