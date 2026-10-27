@@ -62,7 +62,11 @@ curl $API/healthz
 
 # Submit scrapes. Each one returns a request id.
 curl -H "$AUTH" -H 'Content-Type: application/json' $API/v1/scrape/linkedin-company \
-  -d '{"url":"https://www.linkedin.com/company/example/","linkedin_sections":["about","jobs"]}'
+  -d '{"url":"https://www.linkedin.com/company/example/","linkedin_sections":["about","jobs"],"job_pages":5}'
+curl -H "$AUTH" -H 'Content-Type: application/json' $API/v1/scrape/linkedin-job \
+  -d '{"url":"https://www.linkedin.com/jobs/view/1234567890/"}'
+curl -H "$AUTH" -H 'Content-Type: application/json' $API/v1/scrape/linkedin-job-search \
+  -d '{"keywords":"backend engineer","location":"Bengaluru","posted_within":"week","workplace_types":["remote","hybrid"],"job_pages":5}'
 curl -H "$AUTH" -H 'Content-Type: application/json' $API/v1/scrape/linkedin-individual \
   -d '{"url":"https://www.linkedin.com/in/example/"}'
 curl -H "$AUTH" -H 'Content-Type: application/json' $API/v1/scrape/google-search \
@@ -77,6 +81,8 @@ curl -H "$AUTH" -X POST $API/v1/requests/$ID/cancel
 # Read results
 curl -H "$AUTH" "$API/v1/linkedin-company?url=https://www.linkedin.com/company/example/"
 curl -H "$AUTH" "$API/v1/linkedin-individual?url=https://www.linkedin.com/in/example/"
+curl -H "$AUTH" "$API/v1/linkedin-job?url=https://www.linkedin.com/jobs/view/1234567890/"
+curl -H "$AUTH" $API/v1/linkedin-job-search/$ID
 curl -H "$AUTH" "$API/v1/google-search?query=python+jobs+bangalore"
 curl -H "$AUTH" $API/v1/google-search/$ID
 curl -H "$AUTH" "$API/v1/url?url=https://example.com/"
@@ -88,6 +94,19 @@ curl -H "$AUTH" $API/v1/search/$ID
 ```
 
 Company job rows are in the `jobs` section of `/v1/linkedin-company`.
+
+Job pages, job postings and job searches run signed in, on a LinkedIn account,
+so they wait for the account's working hours and pacing.
+
+- `job_pages` is how many pages of job results to read, about 25 jobs each:
+  1 to 20, default 5. It works for a company's jobs and for a job search.
+  `reached_end: false` means more jobs exist past the last page read.
+- `/v1/linkedin-job` returns one posting with its full `description_text`,
+  `posting_status` (`open` or `closed`), location, workplace and employment type.
+- `/v1/linkedin-job-search/{id}` returns 202 while running. A failed search has
+  `status: failed`, a `failure` and `result: null`, never an empty job list.
+  `posted_within` is `day`, `week` or `month`; `workplace_types` takes
+  `on_site`, `remote` and `hybrid`.
 
 ## Develop
 
