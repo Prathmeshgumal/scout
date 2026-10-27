@@ -73,10 +73,14 @@
       <option value="google-search">Google search</option>
       <option value="linkedin-company">LinkedIn company</option>
       <option value="linkedin-individual">LinkedIn person</option>
+      <option value="linkedin-job">LinkedIn job posting</option>
+      <option value="linkedin-job-search">LinkedIn job search</option>
       <option value="url">Single page</option>
     </select>
   </label>
-  <label>Query or URL <input name="target" size="50" required></label>
+  <label>Query, keywords or URL <input name="target" size="50" required></label>
+  <label>Job search location <input name="location" placeholder="Bengaluru"></label>
+  <label>Job pages <input name="job_pages" type="number" min="1" max="20" placeholder="5"></label>
   <label>LinkedIn sections, comma separated <input name="sections" placeholder="about, jobs"></label>
   <button>Submit</button>
 </form>
@@ -236,6 +240,8 @@ function renderAccounts(accounts) {
 const RESULT = {
   linkedin_person: (request) => "/v1/linkedin-individual?url=" + encodeURIComponent(request.url),
   linkedin_company: (request) => "/v1/linkedin-company?url=" + encodeURIComponent(request.url),
+  linkedin_job: (request) => "/v1/linkedin-job?url=" + encodeURIComponent(request.url),
+  linkedin_job_search: (request) => "/v1/linkedin-job-search/" + request.id,
   generic: (request) => "/v1/url/" + request.id,
   google_search: (request) => "/v1/google-search/" + request.id,
 };
@@ -312,8 +318,17 @@ $("shift-form").addEventListener("submit", attempt(async (event) => {
 $("try-form").addEventListener("submit", attempt(async (event) => {
   event.preventDefault();
   const fields = Object.fromEntries(new FormData(event.target));
-  const body = fields.kind === "google-search" ? { query: fields.target } : { url: fields.target };
-  if (fields.kind.startsWith("linkedin-") && fields.sections.trim()) {
+  let body = fields.kind === "google-search" ? { query: fields.target } : { url: fields.target };
+  if (fields.kind === "linkedin-job-search") {
+    body = { keywords: fields.target };
+    if (fields.location.trim()) body.location = fields.location.trim();
+  }
+  if ((fields.kind === "linkedin-company" || fields.kind === "linkedin-job-search")
+      && fields.job_pages) {
+    body.job_pages = Number(fields.job_pages);
+  }
+  if ((fields.kind === "linkedin-company" || fields.kind === "linkedin-individual")
+      && fields.sections.trim()) {
     body.linkedin_sections = fields.sections.split(",").map((item) => item.trim()).filter(Boolean);
   }
   await call("POST", "/v1/scrape/" + fields.kind, body);

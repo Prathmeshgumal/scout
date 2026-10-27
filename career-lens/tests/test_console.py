@@ -300,3 +300,10 @@ def test_the_page_shows_logins_waiting_for_the_operator(client):
 def test_the_password_picker_keeps_its_choice_across_refresh(client):
     page = client.get("/console").text
     assert "passwordPicker.value = passwordChosen" in page
+
+
+def test_the_page_can_try_job_postings_and_job_searches(client):
+    page = client.get("/console").text
+    assert 'value="linkedin-job"' in page
+    assert 'value="linkedin-job-search"' in page
+    assert "/v1/linkedin-job-search/" in page
