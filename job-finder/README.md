@@ -1,0 +1,117 @@
+# job-finder
+
+job-finder is a chat agent that finds jobs for one person. Tell the agent what you want, for example
+"Find senior backend roles in Bengaluru or remote India, Python or Go, 20 fit roles each weekday."
+
+The main agent talks with you and gives the work to subagents. All subagents use one shared store in Postgres.
+
+| Subagent | Work |
+|---|---|
+| `candidate-profile` | Make the candidate profile from your words and your resume text |
+| `job-discovery` | Find roles with Google and LinkedIn search |
+| `job-research` | Read the full job description and the company facts |
+| `fit-check` | Compare each role with the profile: fit, partial, not_fit or unsure |
+| `application-prep` | Write an application note for each fit role |
+
+job-finder gets all web data from [career-lens](../career-lens-v2). It does not use the built-in `WebSearch` and
+`WebFetch` tools.
+
+## You need
+
+- Python 3.12 and [uv](https://docs.astral.sh/uv/)
+- Node.js 20 or newer, for the web app
+- Docker, for Postgres
+- A Claude login: a subscription token or an API key
+- A running career-lens stack and a customer key (`cl_v1.`)
+
+## Set up
+
+```bash
+uv sync
+cp .env.example .env                 # set the career-lens settings
+uv run job-finder login              # save a Claude login
+docker compose up -d                 # start Postgres
+cd web && npm install && npm run build && cd ..
+uv run job-finder serve              # then open http://127.0.0.1:8000
+```
+
+The app applies its database migrations when it starts.
+
+## Claude login
+
+| Login | Setting | How to get it |
+|---|---|---|
+| Subscription token | `CLAUDE_CODE_OAUTH_TOKEN` | Run `uv run job-finder login` |
+| API key | `ANTHROPIC_API_KEY` | Run `uv run job-finder login --api-key` |
+
+- The API key wins when both are set.
+- Restart `job-finder serve` after a login change.
+
+## Use the web app
+
+| Page | Use |
+|---|---|
+| Chat | Talk with the main agent. Stop, retry or continue a goal. Select the model and the effort. |
+| Jobs tab of a goal | See the progress, the roles, the verdicts and the application notes. Download the report. |
+| All jobs | See the roles of all goals. |
+| Mandates | See the work that repeats on a schedule. |
+
+A role shows only the facts that the source gave. A role that has no full job description says so.
+
+To work on the UI, run `uv run job-finder serve`. Then run `npm run dev` in `web`.
+
+## Use the command line
+
+```bash
+uv run job-finder chat               # start a new goal
+uv run job-finder chat 3f9a2c1e      # open a goal again
+uv run job-finder goals              # list the goals
+uv run job-finder show 3f9a2c1e      # also --jobs, --notes, --research or --events
+uv run job-finder delete 3f9a2c1e    # asks first, or use --yes
+```
+
+In a chat, use `/status`, `/jobs`, `/stop` and `/retry`.
+
+## Mandates
+
+A mandate is work that repeats on a schedule. To make one, tell the agent in a chat, for example "every weekday at
+09:00". The agent shows all the settings and waits for your yes. Then that chat manages the mandate.
+
+Change, pause, resume or end a mandate in its chat. A mandate needs a ready candidate profile.
+
+```bash
+uv run job-finder mandate list
+uv run job-finder mandate show 3f9a2c1e
+uv run job-finder mandate delete 3f9a2c1e
+```
+
+## Limits
+
+| Limit | Setting | Default |
+|---|---|---|
+| Spend for each goal | `JOB_FINDER_MAX_SPEND_USD` | $2.00 |
+| Fresh scrapes for each goal | `JOB_FINDER_MAX_FRESH_SCRAPES` | 15 |
+| Total spend of a mandate | `JOB_FINDER_MANDATE_TOTAL_USD` | $10.00 |
+| Time limit for each mandate goal | `JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES` | 120 |
+
+`.env.example` shows all the settings.
+
+## Work on a subagent
+
+Each subagent is a folder in `job_finder/agents/`, with `agent.py` and `prompt.md`. Run one subagent alone:
+
+```bash
+uv run job-finder agent job-discovery "Find 5 Go roles in Pune"
+uv run job-finder agent job-research "Research the roles" --jobs-from <goal id>
+```
+
+## Test
+
+```bash
+docker compose up -d                 # the tests use a real Postgres
+uv run pytest
+uv run ruff check .
+cd web && npm test && npm run build
+```
+
+The tests do not contact LinkedIn, Google or another live site.
