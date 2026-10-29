@@ -1245,10 +1245,26 @@ EXTRACT_JOB_RESULTS = """() => {
 }"""
 
 
+JOB_RESULTS_SAY_EMPTY = """() => {
+  const main = document.querySelector('main') || document.body;
+  return /\\bno matching jobs found\\b/i.test(main ? main.innerText : '');
+}"""
+
+NO_JOB_RESULTS_DOCUMENT = (
+    b'<!doctype html><html><head><meta charset="utf-8">'
+    b"<title>Job listings</title></head><body>"
+    b"<main data-career-lens-no-results><h1>Job listings</h1></main>"
+    b"</body></html>")
+
+
 def job_results_content(page: Page) -> tuple[str, bytes]:
     """Return only semantic job cards, without the selected-job/account pane."""
     rows = page.evaluate(EXTRACT_JOB_RESULTS)
     if not rows:
+        # A search that matched nothing is an answer, not a failed page; a
+        # list that never rendered stays a failure.
+        if page.evaluate(JOB_RESULTS_SAY_EMPTY) is True:
+            return "", NO_JOB_RESULTS_DOCUMENT
         raise RuntimeError("LinkedIn job result cards not found")
 
     text_rows = []

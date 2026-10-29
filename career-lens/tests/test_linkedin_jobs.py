@@ -140,6 +140,17 @@ def test_a_search_cut_by_the_page_limit_does_not_claim_the_end():
     assert search["reached_end"] is False
 
 
+def test_a_search_that_matched_nothing_is_an_empty_finished_list():
+    empty = ('<!doctype html><html><body><main data-career-lens-no-results>'
+             '<h1>Job listings</h1></main></body></html>')
+    search = jobs.build_search(SEARCH_URL, [
+        _document("jobs-page-1", empty, url=SEARCH_URL,
+                  metadata={"has_more": False})])
+    assert search["items"] == []
+    assert search["captured_pages"] == 1
+    assert search["reached_end"] is True
+
+
 def test_a_search_with_no_result_pages_is_a_failed_read():
     with pytest.raises(CaptureFailed) as failed:
         jobs.build_search(SEARCH_URL, [])

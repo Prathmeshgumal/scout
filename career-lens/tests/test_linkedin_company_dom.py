@@ -1,3 +1,5 @@
+import pytest
+
 from career_lens.linkedin import dom
 
 
@@ -485,3 +487,27 @@ def test_tab_anchor_finds_absolute_navigation_links_from_the_current_layout() ->
             assert anchor.get_attribute("data-view-name") == "pages-member-nav-jobs-tab"
         finally:
             browser.close()
+
+
+class _NoCardsPage:
+    def __init__(self, says_empty):
+        self.says_empty = says_empty
+
+    def evaluate(self, script):
+        if script == dom.EXTRACT_JOB_RESULTS:
+            return []
+        assert script == dom.JOB_RESULTS_SAY_EMPTY
+        return self.says_empty
+
+
+def test_job_results_that_say_none_match_are_an_empty_list():
+    text, html = dom.job_results_content(_NoCardsPage(says_empty=True))
+
+    assert text == ""
+    assert b"<article" not in html
+    assert b"data-career-lens-no-results" in html
+
+
+def test_job_results_without_cards_or_an_empty_notice_still_fail():
+    with pytest.raises(RuntimeError):
+        dom.job_results_content(_NoCardsPage(says_empty=False))
