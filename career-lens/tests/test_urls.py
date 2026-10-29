@@ -1,6 +1,7 @@
 import pytest
 
 from career_lens.capture.urls import UrlError, canonical, classify
+from career_lens.capture import urls
 
 
 @pytest.mark.parametrize("raw,expected", [
@@ -102,3 +103,18 @@ def test_a_job_search_without_keywords_is_a_plain_page():
 def test_a_job_link_with_no_number_is_a_plain_page():
     assert classify(canonical(
         "https://www.linkedin.com/jobs/view/no-number-here/")) == "generic"
+
+
+def test_a_search_opens_with_its_location_in_the_keywords():
+    # LinkedIn drops the location parameter and searches the account's own
+    # area; a location in the keywords is what it honours.
+    stored = urls.job_search_url({"keywords": "backend engineer",
+                                  "location": "Bengaluru", "f_TPR": "r86400"})
+    assert urls.job_search_address(stored) == (
+        "https://www.linkedin.com/jobs/search/"
+        "?keywords=backend+engineer+in+Bengaluru&f_TPR=r86400")
+
+
+def test_a_search_without_a_location_opens_as_stored():
+    stored = urls.job_search_url({"keywords": "backend engineer"})
+    assert urls.job_search_address(stored) == stored

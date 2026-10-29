@@ -1034,3 +1034,26 @@ def test_a_job_search_reads_its_result_pages(monkeypatch):
     assert [d.section for d in documents] == ["jobs-page-1", "jobs-page-2"]
     assert received == {"job_pages": 4,
                         "title": "go dev jobs - page 2 | LinkedIn"}
+
+
+def test_a_job_search_opens_its_location_in_the_keywords(tmp_path):
+    from career_lens.capture import driver
+
+    opened = []
+
+    class Page:
+        url = "about:blank"
+
+        def goto(self, url, *, wait_until):
+            opened.append(url)
+            raise RuntimeError("navigation stopped for the test")
+
+    with pytest.raises(CaptureFailed):
+        list(driver.capture_request(
+            "linkedin_job_search",
+            "https://www.linkedin.com/jobs/search/"
+            "?keywords=go&location=Pune",
+            browser_profile="test", out_dir=tmp_path, page=Page()))
+
+    assert opened == [
+        "https://www.linkedin.com/jobs/search/?keywords=go+in+Pune"]

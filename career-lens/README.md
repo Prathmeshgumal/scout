@@ -106,7 +106,9 @@ so they wait for the account's working hours and pacing.
 - `/v1/linkedin-job-search/{id}` returns 202 while running. A failed search has
   `status: failed`, a `failure` and `result: null`, never an empty job list.
   `posted_within` is `day`, `week` or `month`; `workplace_types` takes
-  `on_site`, `remote` and `hybrid`.
+  `on_site`, `remote` and `hybrid`. LinkedIn ignores a separate location, so
+  the search opens as "<keywords> in <location>". A search that matches
+  nothing succeeds with `items: []` and `reached_end: true`.
 
 ## Develop
 

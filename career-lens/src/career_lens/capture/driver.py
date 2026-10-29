@@ -39,6 +39,7 @@ from .options import DEFAULT_JOB_PAGES, linkedin_capture_sections
 from .page import PageCapture, capture_page, wait_for_visuals
 from .parking import reject_parked_redirect
 from .writer import Document
+from .urls import job_search_address
 
 
 # Re-exported, not redefined. Both halves are site-neutral and moved out so a
@@ -276,10 +277,12 @@ def _capture_documents(kind: str, url: str, page, out_dir: Path,
     trace.note(_arrival_note(detour))
     if detour is not None and detour.serp is not None:
         yield document(detour.serp, referral.SERP_SECTION, recorder)
+    address = (job_search_address(url) if kind == "linkedin_job_search"
+               else url)
     try:
         if detour is None or not detour.arrived:
             with trace.phase(trace.NET, "open target", url):
-                response = page.goto(url, wait_until="domcontentloaded")
+                response = page.goto(address, wait_until="domcontentloaded")
         elif _needs_requested_host(page, url):
             landed = (urlsplit(page.url).hostname or "").lower()
             with trace.phase(trace.NET, "leave country host") as span:
@@ -287,7 +290,7 @@ def _capture_documents(kind: str, url: str, page, out_dir: Path,
                 # A same-document navigation returns no response. The detour's
                 # own is the honest fallback then -- it is the response for
                 # these bytes, whatever host the address ended up reading.
-                response = (page.goto(url, wait_until="domcontentloaded")
+                response = (page.goto(address, wait_until="domcontentloaded")
                             or detour.response)
         else:
             response = detour.response

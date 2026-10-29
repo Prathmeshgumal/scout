@@ -109,6 +109,22 @@ def job_search_url(terms: dict[str, list[str]] | dict[str, str], *,
     return urlunsplit((scheme, host, JOB_SEARCH_PATH, query, ""))
 
 
+def job_search_address(search_url: str) -> str:
+    """Where a stored job search is opened.
+
+    LinkedIn drops a `location` parameter and searches the account's own area,
+    but honours a place named in the keywords. The stored URL keeps the two
+    apart; only the address the browser opens joins them.
+    """
+    parts = urlsplit(search_url)
+    terms = {name: values[0] for name, values in parse_qs(parts.query).items()}
+    location = terms.pop("location", None)
+    if not location:
+        return search_url
+    terms["keywords"] = f"{terms.get('keywords', '')} in {location}"
+    return job_search_url(terms, scheme=parts.scheme, host=parts.netloc)
+
+
 def _is_linkedin(host: str) -> bool:
     bare = host.split(":", 1)[0]
     return bare in LINKEDIN_HOSTS or bare.endswith(".linkedin.com")
