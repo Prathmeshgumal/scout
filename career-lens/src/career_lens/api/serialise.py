@@ -747,6 +747,7 @@ def scrape_request(connection: Connection,
         "max_attempts": row.max_attempts,
         "next_attempt_at": (row.next_attempt_at.isoformat()
                             if row.next_attempt_at else None),
+        "wait_reason": row.dispatch_wait_reason,
         # Intent, not outcome. Set while a run is still going, which is what
         # lets the console say "Stopping…" instead of showing an unchanged
         # `running` for up to a page's duration.

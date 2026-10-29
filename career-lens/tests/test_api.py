@@ -777,6 +777,21 @@ def test_a_url_in_backoff_cannot_be_submitted_twice(client, app, app_url,
         {"u": url}).scalar_one() == 1
 
 
+def test_a_queued_request_says_why_it_waits(client, app, app_url, monkeypatch):
+    """A consumer cannot tell a closed shift from a busy worker without this."""
+    _real_submit(monkeypatch, app_url)
+    request = client.post("/v1/scrape/url", json={
+        "url": "https://example.com/waits"}).json()["request_id"]
+    app.execute(text(
+        "UPDATE scrape_request SET dispatch_wait_reason='accounts_off_shift' "
+        "WHERE id=:r"), {"r": request})
+    app.commit()
+
+    body = client.get(f"/v1/requests/{request}").json()
+
+    assert body["wait_reason"] == "accounts_off_shift"
+
+
 def test_retrying_a_request_that_does_not_exist_is_a_404(client, app_url,
                                                          monkeypatch):
     _real_submit(monkeypatch, app_url)

@@ -333,7 +333,8 @@ def request_response(body: dict, *, sections: list[str] | None = None) -> dict:
             }
         },
         wait_reason=(
-            "Waiting for eligible capacity or retry time."
+            body.get("wait_reason")
+            or "Waiting for eligible capacity or retry time."
             if body["status"] == "queued"
             else None
         ),
