@@ -502,6 +502,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         @app.get("/mandates/{path:path}", include_in_schema=False)
         @app.get("/mandates", include_in_schema=False)
         @app.get("/jobs", include_in_schema=False)
+        @app.get("/pipeline", include_in_schema=False)
         async def goal_page(path: str = "") -> FileResponse:
             """A link to a page of the app: the browser app reads the URL."""
             return FileResponse(STATIC_DIR / "index.html")
