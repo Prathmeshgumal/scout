@@ -31,6 +31,13 @@ uv run patchright install chrome
 uv run career-lens supervisor --env-file .env --config deploy/supervisor.json
 ```
 
+To keep the native worker running, install it as a systemd user service. It starts when you log in and restarts after a crash.
+
+```bash
+systemctl --user enable --now "$PWD/deploy/career-lens-worker.service"
+journalctl --user -u career-lens-worker -f
+```
+
 ## The console
 
 Open <http://127.0.0.1:8090/console> and paste the key. The key lives in the
