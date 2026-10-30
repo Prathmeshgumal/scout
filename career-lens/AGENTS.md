@@ -14,3 +14,9 @@
 - Do not bulk-rewrite fixtures. They are reviewed and redacted by hand.
 - Before calling work done, run `uv run ruff check src tests scripts` and
   `uv run pytest -q`.
+
+## UI controls
+
+- Do not use native `select`, checkbox, radio, date or time pickers. Their open state ignores the theme.
+- Use `web/src/components/ui/`. `web/src/test/native-controls.test.ts` checks this.
+- Check each open state, such as a dropdown list, in dark mode.

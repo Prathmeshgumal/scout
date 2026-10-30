@@ -314,3 +314,7 @@
 @media (prefers-reduced-motion: reduce) {
   .effort-fill, .effort-fill::after { animation: none !important; }
 }
+
+/* Time fields: type the time. The native picker list ignores the theme of the app. */
+input[type="time"]::-webkit-calendar-picker-indicator { display: none; }
+.dark { color-scheme: dark; }

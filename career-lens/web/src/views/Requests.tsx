@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Page, Problem, Status, fieldClass } from "@/components/Status"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { usePoll } from "@/hooks/usePoll"
 import { type RequestPage, type RequestRow, requests } from "@/lib/api"
 import { KINDS, STATUSES, ago, kindText, waitText, words } from "@/lib/format"
@@ -50,10 +51,8 @@ export function Requests({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input aria-label="Search" placeholder="Search by URL or query" value={typed} onChange={(e) => setTyped(e.target.value)} className={fieldClass} />
-        <select aria-label="Kind" value={kind} onChange={(e) => setKind(e.target.value)} className={cn(fieldClass, "bg-background sm:w-52")}>
-          <option value="">All kinds</option>
-          {Object.entries(KINDS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-        </select>
+        <Select label="Kind" value={kind || "all"} onChange={(value) => setKind(value === "all" ? "" : value)} className="w-full shrink-0 sm:w-52"
+          choices={[{ value: "all", label: "All kinds" }, ...Object.entries(KINDS).map(([value, label]) => ({ value, label }))]} />
       </div>
       {data && unique.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No request matches these filters.</p>}
       <ul className="divide-y rounded-xl border empty:hidden">

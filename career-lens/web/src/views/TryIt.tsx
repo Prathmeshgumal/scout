@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Field, Page, Problem, fieldClass } from "@/components/Status"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { tryRequest } from "@/lib/api"
 
 const CHOICES = [
@@ -32,9 +33,7 @@ export function TryIt({ onOpen }: { onOpen: (id: string) => void }) {
       <form onSubmit={submit} className="flex max-w-xl flex-col gap-3">
         <Problem text={error} />
         <Field label="Type">
-          <select aria-label="Type" value={path} onChange={(e) => setPath(e.target.value)} className={`${fieldClass} bg-background`}>
-            {CHOICES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-          </select>
+          <Select label="Type" value={path} onChange={setPath} className="w-full" choices={CHOICES.map((item) => ({ value: item.id, label: item.label }))} />
         </Field>
         <Field label={choice.field === "url" ? "URL" : "Search words"}>
           <input required placeholder={choice.hint} value={value} onChange={(e) => setValue(e.target.value)} className={fieldClass} />

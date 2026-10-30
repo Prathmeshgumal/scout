@@ -6,6 +6,8 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select } from "@/components/ui/select"
 import { type Overview, type Worker, assign, assignmentCommand, patchGoogle } from "@/lib/api"
 import { ago, words } from "@/lib/format"
 
@@ -72,10 +74,8 @@ function WorkerRow({ worker, data, onChange }: { worker: Worker; data: Overview;
       ) : (
         <form className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); void act(() => assign(worker.id, accountId), "Assigned the account.") }}>
           <Field label="Assign an account">
-            <select required value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`${fieldClass} bg-background sm:w-64`}>
-              <option value="">Choose an account</option>
-              {free.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
+            <Select label="Assign an account" placeholder="Choose an account" value={accountId} onChange={setAccountId} className="w-full sm:w-64"
+              choices={free.map((item) => ({ value: item.id, label: item.label }))} />
           </Field>
           <Button type="submit" variant="outline" disabled={!accountId}>Assign</Button>
         </form>
@@ -105,7 +105,7 @@ function Google({ worker, act }: { worker: Worker; act: (action: () => Promise<u
     <form className="mt-3 border-t pt-3" onSubmit={(e) => { e.preventDefault(); void act(() => patchGoogle(worker.id, { max_searches_hour: Number(hour), max_searches_24h: Number(day) }), "Saved the Google limits.") }}>
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex h-9 items-center gap-2 text-sm">
-          <input type="checkbox" checked={policy.enabled} onChange={(e) => void act(() => patchGoogle(worker.id, { enabled: e.target.checked }), e.target.checked ? "Google search is on." : "Google search is off.")} />
+          <Checkbox checked={policy.enabled} onChange={(enabled) => void act(() => patchGoogle(worker.id, { enabled }), enabled ? "Google search is on." : "Google search is off.")} />
           Google search
         </label>
         <div className="w-28"><Field label="Each hour"><input type="number" min={1} value={hour} onChange={(e) => setHour(e.target.value)} className={fieldClass} /></Field></div>

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { Field, Page, Problem, Status, fieldClass } from "@/components/Status"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { type Account, type Overview, type ShiftDay, addAccount, changePassword, saveShift } from "@/lib/api"
 import { blankShift, shiftBody, shiftText } from "@/lib/shift"
@@ -127,12 +128,12 @@ function ShiftDialog({ account, onClose, onDone }: { account: Account; onClose: 
           <Problem text={error} />
           <div className="flex items-end gap-3">
             <div className="flex-1"><Field label="Time zone"><input required value={shift.timezone} onChange={(e) => setShift({ ...shift, timezone: e.target.value })} className={fieldClass} /></Field></div>
-            <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" checked={shift.enabled} onChange={(e) => setShift({ ...shift, enabled: e.target.checked })} />Shift is on</label>
+            <label className="flex h-9 items-center gap-2 text-sm"><Checkbox checked={shift.enabled} onChange={(enabled) => setShift({ ...shift, enabled })} />Shift is on</label>
           </div>
           <ul className="flex flex-col gap-1.5">
             {shift.days.map((item) => (
               <li key={item.weekday} className="grid grid-cols-[6.5rem_1fr_1fr_4.5rem] items-center gap-2 text-sm">
-                <label className="flex items-center gap-2"><input type="checkbox" checked={item.working} onChange={(e) => day(item.weekday, e.target.checked ? { working: true, start_local: "10:00", end_local: "19:00" } : { working: false, start_local: null, end_local: null })} />{DAYS[item.weekday - 1].slice(0, 3)}</label>
+                <label className="flex items-center gap-2"><Checkbox checked={item.working} onChange={(working) => day(item.weekday, working ? { working: true, start_local: "10:00", end_local: "19:00" } : { working: false, start_local: null, end_local: null })} />{DAYS[item.weekday - 1].slice(0, 3)}</label>
                 <input type="time" aria-label={`${DAYS[item.weekday - 1]} start`} disabled={!item.working} value={item.start_local?.slice(0, 5) ?? ""} onChange={(e) => day(item.weekday, { start_local: e.target.value })} className={fieldClass} />
                 <input type="time" aria-label={`${DAYS[item.weekday - 1]} end`} disabled={!item.working} value={item.end_local?.slice(0, 5) ?? ""} onChange={(e) => day(item.weekday, { end_local: e.target.value })} className={fieldClass} />
                 <input type="number" min={0} max={240} aria-label={`${DAYS[item.weekday - 1]} lunch minutes`} title="Lunch minutes" disabled={!item.working} value={item.lunch_minutes} onChange={(e) => day(item.weekday, { lunch_minutes: Number(e.target.value) })} className={fieldClass} />
