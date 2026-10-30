@@ -13,7 +13,7 @@ export function Welcome({ composer, onDraft, hasGoals }: { composer: ReactNode; 
         <div>
           <h1 className="text-[22px] leading-tight font-semibold">{hasGoals ? "What roles do you want next?" : "Tell the agent what job you want"}</h1>
           <p className="mt-1.5 text-muted-foreground">
-            Say what you do and what you want, and paste your resume as text. The agents find roles, read each job, and tell you which ones fit and why. They never apply for you.
+            Say what you do and what you want. Upload your resume, or paste it as text. The agents find roles, read each job, and tell you which ones fit and why. They never apply for you.
           </p>
         </div>
         {composer}

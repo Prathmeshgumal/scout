@@ -5,6 +5,7 @@ import { CommandMenu } from "@/components/CommandMenu"
 import { DeleteDialog, type DeleteTarget } from "@/components/DeleteDialog"
 import { ChatView } from "@/components/chat/ChatView"
 import { Composer } from "@/components/chat/Composer"
+import { FileMenu } from "@/components/chat/FileMenu"
 import { ModelPicker } from "@/components/chat/ModelPicker"
 import { Welcome } from "@/components/chat/Welcome"
 import { AllJobs } from "@/components/jobs/AllJobs"
@@ -19,7 +20,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { NARROW_QUERY, useMediaQuery } from "@/hooks/useMediaQuery"
 import { useTheme } from "@/hooks/useTheme"
 import {
-  RECONNECT_DELAYS_MS, continueGoal, createGoal, getGoal, getModels, getReport, getStatus, listGoals, listMandates, retryGoal,
+  type FileInfo, RECONNECT_DELAYS_MS, continueGoal, createGoal, deleteFile, getGoal, getModels, getReport, getStatus, listGoals, listMandates, retryGoal,
   sendMessage, setGoalModel, stopGoal, watchGoal,
   type GoalDetail, type GoalSummary, type Mandate, type ModelCatalog, type ModelChoice, type Report, type Status,
 } from "@/lib/api"
@@ -51,6 +52,8 @@ export default function App() {
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null)
   const [newChoice, setNewChoice] = useState<ModelChoice | null>(null)
   const [input, setInput] = useState("")
+  const [attached, setAttached] = useState<FileInfo[]>([])
+  const [uploading, setUploading] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null)
   const textarea = useRef<HTMLTextAreaElement>(null)
@@ -188,17 +191,21 @@ export default function App() {
   async function send(text: string) {
     const trimmed = text.trim()
     if (!trimmed) return
+    const files = attached
+    const fileIds = files.map((file) => file.id)
     setInput("")
+    setAttached([])
     try {
-      if (goalId) await sendMessage(goalId, trimmed)
+      if (goalId) await sendMessage(goalId, trimmed, fileIds)
       else {
-        const { goal_id } = await createGoal(trimmed, newChoice ?? undefined)
+        const { goal_id } = await createGoal(trimmed, newChoice ?? undefined, fileIds)
         setNewChat(false)
         openGoal(goal_id)
       }
       refreshList()
     } catch (err) {
       setInput(trimmed)
+      setAttached(files)
       toast.error(errorText(err))
     }
   }
@@ -231,9 +238,17 @@ export default function App() {
 
   const composer = (
     <Composer value={input} onChange={setInput} onSubmit={(text) => void send(text)} busy={busy}
-      placeholder={goalId ? undefined : "Say what roles you want, and paste your resume as text"} textareaRef={textarea}
-      tools={catalog && choice ? <ModelPicker catalog={catalog} choice={choice} onChange={(c) => void chooseModel(c)}
-        locked={goalId && busy ? "Stop the work to change the model or the effort." : undefined} /> : null} />
+      placeholder={goalId ? undefined : "Say what roles you want. Upload your resume, or paste it here."} textareaRef={textarea}
+      attached={attached} uploading={uploading}
+      onRemove={(id) => {
+        setAttached((files) => files.filter((file) => file.id !== id))
+        deleteFile(id).catch((err) => toast.error(errorText(err)))
+      }}
+      tools={<>
+        <FileMenu goalId={goalId} onAttach={(file) => setAttached((files) => [...files, file])} onBusy={setUploading} />
+        {catalog && choice ? <ModelPicker catalog={catalog} choice={choice} onChange={(c) => void chooseModel(c)}
+          locked={goalId && busy ? "Stop the work to change the model or the effort." : undefined} /> : null}
+      </>} />
   )
 
   const goal = summary?.goal

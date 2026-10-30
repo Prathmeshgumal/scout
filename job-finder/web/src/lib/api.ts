@@ -22,6 +22,19 @@ export type GoalSummary = {
   home_of: string | null
 }
 
+/** A file that the user uploaded. `readable` is false when the agents cannot read it. */
+export type FileInfo = {
+  id: string
+  goal_id: string | null
+  role: "attachment" | "resume"
+  name: string
+  kind: string
+  size_bytes: number
+  readable: boolean
+}
+
+export type GoalFiles = { resume: FileInfo | null; files: FileInfo[] }
+
 export type Pipeline = {
   jobs: number
   researched: number
@@ -216,12 +229,12 @@ export const getGoal = (id: string) => request<GoalDetail>(`/api/goals/${id}`)
 export const getReport = (id: string) => request<Report>(`/api/goals/${id}/report`)
 export const getJob = (goalId: string, jobId: string) => request<JobDetail>(`/api/goals/${goalId}/jobs/${jobId}`)
 export const getModels = () => request<ModelCatalog>("/api/models")
-export const createGoal = (text: string, choice?: ModelChoice) =>
-  request<{ goal_id: string }>("/api/goals", postJson({ text, ...choice, timezone: userZone() }))
+export const createGoal = (text: string, choice?: ModelChoice, fileIds: string[] = []) =>
+  request<{ goal_id: string }>("/api/goals", postJson({ text, ...choice, timezone: userZone(), file_ids: fileIds }))
 export const setGoalModel = (id: string, choice: ModelChoice) =>
   request<{ ok: boolean }>(`/api/goals/${id}/model`, { ...postJson(choice), method: "PUT" })
-export const sendMessage = (id: string, text: string) =>
-  request<{ ok: boolean }>(`/api/goals/${id}/messages`, postJson({ text, timezone: userZone() }))
+export const sendMessage = (id: string, text: string, fileIds: string[] = []) =>
+  request<{ ok: boolean }>(`/api/goals/${id}/messages`, postJson({ text, timezone: userZone(), file_ids: fileIds }))
 export const stopGoal = (id: string) => request<{ ok: boolean }>(`/api/goals/${id}/stop`, { method: "POST" })
 export const retryGoal = (id: string) => request<{ ok: boolean }>(`/api/goals/${id}/retry`, { method: "POST" })
 export const continueGoal = (id: string) => request<{ ok: boolean }>(`/api/goals/${id}/continue`, { method: "POST" })
@@ -233,6 +246,16 @@ export const mandateDeletePreview = (id: string) => request<DeletePreview>(`/api
 async function remove(path: string): Promise<void> {
   const response = await fetch(path, { method: "DELETE" })
   if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
+}
+export const deleteFile = (id: string) => remove(`/api/files/${id}`)
+export const fileUrl = (id: string) => `/api/files/${id}/download`
+export const listFiles = (goalId?: string | null) =>
+  request<GoalFiles>(goalId ? `/api/files?goal_id=${goalId}` : "/api/files")
+export function uploadFile(file: File, role: "attachment" | "resume" = "attachment") {
+  const body = new FormData()
+  body.append("file", file)
+  body.append("role", role)
+  return request<FileInfo>("/api/files", { method: "POST", body })
 }
 export const deleteGoal = (id: string) => remove(`/api/goals/${id}`)
 export const deleteMandate = (id: string) => remove(`/api/mandates/${id}`)
