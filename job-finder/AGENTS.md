@@ -39,3 +39,9 @@ Simplified Technical English.
 - Title: one short imperative line, like a commit message.
 - Description: a few short, plain sentences or bullets saying what changed and
   how it was verified. See #54 and #56. No long narrative.
+
+## UI controls
+
+- Do not use native `select`, checkbox, radio, date or time pickers. Their open state ignores the theme.
+- Use `web/src/components/ui/`. `web/src/test/native-controls.test.ts` checks this.
+- Check each open state, such as a dropdown list, in dark mode.

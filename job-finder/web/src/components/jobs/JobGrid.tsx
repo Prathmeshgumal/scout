@@ -1,6 +1,7 @@
 import { ChevronRight, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
+import { Select } from "@/components/ui/select"
 import type { JobCardData, Verdict } from "@/lib/api"
 import { NO_FILTERS, VERDICT_LABEL, filterJobs, sortJobs, workplaces, type JobFilters } from "@/lib/jobs"
 import { cn } from "@/lib/utils"
@@ -47,12 +48,9 @@ export function JobGrid({ jobs, working, selectedId, onOpen, showGoal }: Props) 
           ))}
         </div>
         {places.length > 1 && (
-          <select aria-label="Filter by workplace" value={filters.workplace}
-            onChange={(e) => setFilters({ ...filters, workplace: e.target.value })}
-            className="h-7 rounded-md border bg-card px-1.5 text-[12px] capitalize">
-            <option value="all">Any workplace</option>
-            {places.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
+          <Select label="Filter by workplace" value={filters.workplace} onChange={(workplace) => setFilters({ ...filters, workplace })}
+            className="h-7 rounded-md bg-card text-[12px] capitalize"
+            choices={[{ value: "all", label: "Any workplace" }, ...places.map((p) => ({ value: p, label: p[0].toUpperCase() + p.slice(1) }))]} />
         )}
         <div className="relative min-w-[160px] flex-1 sm:max-w-[260px]">
           <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />

@@ -314,3 +314,5 @@
 @media (prefers-reduced-motion: reduce) {
   .effort-fill, .effort-fill::after { animation: none !important; }
 }
+
+.dark { color-scheme: dark; }
