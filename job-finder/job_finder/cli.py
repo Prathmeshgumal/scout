@@ -182,7 +182,7 @@ async def delete_goal(services: Services, out: Console, text: str, yes: bool, as
         raise CliError("This chat belongs to a mandate. Delete the mandate: "
                        f"job-finder mandate delete {goal['home_of'][:8]}")
     deleter = Deleter(services.settings, services.store, MandateStore(services.store.pool), services.recorder,
-                      career_lens=services.career_lens)
+                      career_lens=services.career_lens, files=services.files)
     out.print(f"Goal {goal['id'][:8]}, {goal['title']}: {_contents(await deleter.goal_preview(goal['id']))}")
     if not yes and not ask("Delete the goal and all its data? You cannot undo this."):
         out.print("Nothing is deleted.")
@@ -194,7 +194,7 @@ async def delete_goal(services: Services, out: Console, text: str, yes: bool, as
 async def delete_mandate(services: Services, out: Console, text: str, yes: bool, ask=typer.confirm) -> None:
     ms = MandateStore(services.store.pool)
     m = await resolve_mandate(ms, text)
-    deleter = Deleter(services.settings, services.store, ms, services.recorder, career_lens=services.career_lens)
+    deleter = Deleter(services.settings, services.store, ms, services.recorder, career_lens=services.career_lens, files=services.files)
     p = await deleter.mandate_preview(m["id"])
     out.print(f"Mandate {m['id'][:8]}, {m['title']} ({m['status']}): its chat, {_plural(p['goals'], 'goal')}, "
               f"{_contents(p)}")

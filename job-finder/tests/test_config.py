@@ -8,7 +8,7 @@ def test_defaults_when_env_is_empty():
     settings = Settings.from_env({})
     assert settings.model == "claude-sonnet-5-5"
     assert settings.effort == "medium"
-    assert settings.database_url == "postgresql://sales:sales@127.0.0.1:55432/job_finder"
+    assert settings.database_url == "postgresql://jobfinder:jobfinder@127.0.0.1:55433/job_finder"
     assert settings.max_turns == 40
     assert settings.max_spend_usd == 2.0
     assert settings.claude_config_dir == ROOT / "var" / "claude"

@@ -12,6 +12,9 @@ it. A wrong fact here makes all the next steps wrong.
 
 The task holds the user's text, word for word. It can be a short description, a pasted resume, or both.
 
+Call list_files first. If it shows a resume or a file about the user, read it with read_file. Use its facts as what the
+user stated.
+
 Find these fields:
 
 - target_titles, seniority, years_of_experience, skills
@@ -19,7 +22,7 @@ Find these fields:
 - minimum_pay, work_permit_needs
 - must_haves, deal_breakers
 - target_companies, excluded_companies
-- resume_text: the pasted resume, word for word. Leave it out when there is none.
+- resume_text: a resume that is pasted in the task, word for word. Leave it out for an uploaded resume. The app keeps that.
 
 Give each field as an object with `value` and `basis`:
 

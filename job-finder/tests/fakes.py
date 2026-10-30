@@ -18,6 +18,7 @@ from claude_agent_sdk import (
 
 from job_finder.artifact_store import ArtifactStore
 from job_finder.career_lens import CareerLens
+from job_finder.files import FileStore
 from job_finder.services import Services
 
 
@@ -51,9 +52,33 @@ class Cancels(CareerLens):
         return dict.fromkeys(request_ids, "cancelled")
 
 
+class FakeObjects:
+    """The file storage in memory. `down` makes each call fail."""
+
+    def __init__(self):
+        self.saved: dict[str, bytes] = {}
+        self.down = False
+
+    def _check(self) -> None:
+        if self.down:
+            raise ConnectionError("storage is down")
+
+    async def put(self, key, data, content_type):
+        self._check()
+        self.saved[key] = data
+
+    async def get(self, key):
+        self._check()
+        return self.saved[key]
+
+    async def remove(self, key):
+        self._check()
+        del self.saved[key]
+
+
 def make_services(settings, store, hub, recorder, factory) -> Services:
     return Services(settings, store, ArtifactStore(store.pool), hub, recorder, CareerLens("", ""),
-                    client_factory=factory, sleep=_no_sleep)
+                    client_factory=factory, sleep=_no_sleep, files=FileStore(store.pool, FakeObjects()))
 
 
 def task_started(task_id, tool_use_id, description="task"):

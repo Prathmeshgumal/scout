@@ -87,9 +87,9 @@ class GoalSession:
     """Owns the SDK client of one goal while its chat is open. See docs/architecture.md."""
 
     def __init__(self, settings: Settings, store: Store, recorder: Recorder, career_lens: CareerLens,
-                 goal_id: str, *, client_factory=ClaudeSDKClient, sleep=asyncio.sleep):
+                 goal_id: str, *, client_factory=ClaudeSDKClient, sleep=asyncio.sleep, files=None):
         self.settings, self.store, self.recorder, self.career_lens = settings, store, recorder, career_lens
-        self.goal_id = goal_id
+        self.goal_id, self.files = goal_id, files
         self._client_factory, self._sleep = client_factory, sleep
         self.client = None
         self.translator = Translator()
@@ -169,7 +169,7 @@ class GoalSession:
                           poll_timeout_s=self.settings.web_wait_minutes * 60,
                           scrape_wait_s=self.settings.scrape_wait_minutes * 60,
                           reader=PageReader.for_settings(self.settings), settings=self.settings,
-                          on_change=self._mark_reopen, waiting=self.waiting)
+                          on_change=self._mark_reopen, waiting=self.waiting, files=self.files)
         hooks = build_hooks(goal, self.store, self._notice, closed=closed, guard=self.guard)
         resume = resume if resume is not None else goal["sdk_session_id"]
         options = build_options(self.settings, goal, ctx, hooks, budget=budget, max_turns=max_turns, resume=resume)

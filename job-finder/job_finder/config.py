@@ -58,6 +58,10 @@ class Settings:
     scrape_wait_minutes: float = 1.0
     web_wait_minutes: float = 5.0
     idle_minutes: float = 10.0
+    s3_endpoint: str = ""
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_bucket: str = "job-finder"
     read_model: str = "claude-haiku-5-5"
     read_effort: str = "medium"
     career_lens_freshness: str = "7d"
@@ -78,7 +82,7 @@ class Settings:
     def from_env(cls, env: Mapping[str, str] = os.environ) -> Settings:
         get = lambda key, default="": (env.get(key) or default).strip()  # noqa: E731
         return cls(
-            database_url=get("DATABASE_URL", "postgresql://sales:sales@127.0.0.1:55432/job_finder"),
+            database_url=get("DATABASE_URL", "postgresql://jobfinder:jobfinder@127.0.0.1:55433/job_finder"),
             career_lens_base_url=get("CAREER_LENS_BASE_URL").rstrip("/"),
             career_lens_api_key=get("CAREER_LENS_API_KEY"),
             anthropic_api_key=get("ANTHROPIC_API_KEY"),
@@ -102,6 +106,10 @@ class Settings:
             scrape_wait_minutes=float(get("JOB_FINDER_SCRAPE_WAIT_MINUTES", "1")),
             web_wait_minutes=float(get("JOB_FINDER_WEB_WAIT_MINUTES", "5")),
             idle_minutes=float(get("JOB_FINDER_IDLE_MINUTES", "10")),
+            s3_endpoint=get("JOB_FINDER_S3_ENDPOINT"),
+            s3_access_key=get("JOB_FINDER_S3_ACCESS_KEY"),
+            s3_secret_key=get("JOB_FINDER_S3_SECRET_KEY"),
+            s3_bucket=get("JOB_FINDER_S3_BUCKET", "job-finder"),
             read_model=get("JOB_FINDER_READ_MODEL", "claude-haiku-5-5"),
             read_effort=get("JOB_FINDER_READ_EFFORT", "medium"),
             career_lens_freshness=_freshness(get("CAREER_LENS_FRESHNESS", "7d")),

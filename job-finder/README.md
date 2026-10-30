@@ -30,7 +30,7 @@ job-finder gets all web data from [career-lens](../career-lens-v2). It does not 
 uv sync
 cp .env.example .env                 # set the career-lens settings
 uv run job-finder login              # save a Claude login
-docker compose up -d                 # start Postgres
+docker compose up -d                 # start Postgres and MinIO
 cd web && npm install && npm run build && cd ..
 uv run job-finder serve              # then open http://127.0.0.1:8000
 ```
@@ -59,6 +59,19 @@ The app applies its database migrations when it starts.
 A role shows only the facts that the source gave. A role that has no full job description says so.
 
 To work on the UI, run `uv run job-finder serve`. Then run `npm run dev` in `web`.
+
+## Upload files
+
+Use the paperclip in the message box to attach a file to a message. Use the same menu to upload your resume.
+
+- Agents read text files, PDF files, Word files and images. The largest file is 10 MB.
+- A scanned PDF has no text. Paste the text into the chat.
+- You can store other file types and download them. Agents cannot read them.
+- One resume applies to all goals. A new resume replaces the old one.
+- Only the candidate-profile, fit-check and application-prep subagents get the resume text.
+- The text and the images that agents read go to Claude.
+
+MinIO keeps the files. Postgres keeps the facts of each file and its text.
 
 ## Use the command line
 

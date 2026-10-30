@@ -9,8 +9,10 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Literal
+from urllib.parse import quote
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
@@ -18,6 +20,7 @@ from pydantic import BaseModel, field_validator
 from ..config import NO_LOGIN, ROOT, Settings, env_file
 from ..deletion import Deleter, MandateChat
 from ..events import Hub, follow
+from ..files import MAX_BYTES, FileRefused, FileStorageError
 from ..login_status import LoginStatus
 from ..mandate_store import MandateStore
 from ..models import EFFORT_LABELS, ModelList, effort_label, read_sdk_models
@@ -43,6 +46,7 @@ RETRYABLE = {"failed", "stopped"}
 class Text(BaseModel):
     text: str
     timezone: str | None = None  # the time zone of the user, from the browser. An unknown zone becomes None.
+    file_ids: list[uuid.UUID] = []  # uploaded files that this message attaches
 
     @field_validator("text")
     @classmethod
@@ -145,7 +149,23 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     def deleter(request: Request) -> Deleter:
         s = svc(request)
         return Deleter(settings, s.store, MandateStore(s.store.pool), s.recorder, manager(request),
-                       career_lens=s.career_lens)
+                       career_lens=s.career_lens, files=s.files)
+
+    async def with_files(request: Request, goal_id: str, body: Text) -> str:
+        """The message, with the names of the files that it attaches. The files now belong to the goal."""
+        ids = [str(file_id) for file_id in body.file_ids]
+        linked = await svc(request).files.link(ids, goal_id)
+        names = ", ".join(row["name"] for row in linked)
+        return f"{body.text}\n\nAttached files: {names}" if names else body.text
+
+    async def file_or_404(request: Request, file_id: str) -> dict:
+        try:
+            row = await svc(request).files.get(str(uuid.UUID(file_id)))
+        except ValueError:
+            row = None
+        if row is None:
+            raise HTTPException(404, "File not found.")
+        return row
 
     def need_key() -> None:
         if settings.auth_mode == "none":
@@ -204,8 +224,44 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
                                                     model=body.model or settings.model,
                                                     effort=body.effort or settings.effort,
                                                     timezone=body.timezone)
-        await drive(request, goal["id"], body.text, "user", recover=False)
+        await drive(request, goal["id"], await with_files(request, goal["id"], body), "user", recover=False)
         return {"goal_id": goal["id"]}
+
+    @app.post("/api/files", status_code=201)
+    async def upload_file(request: Request, file: UploadFile = File(...),
+                          role: Literal["attachment", "resume"] = Form("attachment")) -> dict:
+        """Keep a file. Replies give the facts of a file and never its text."""
+        data = await file.read(MAX_BYTES + 1)
+        if len(data) > MAX_BYTES:
+            raise HTTPException(413, f"The largest file is {MAX_BYTES // (1024 * 1024)} MB.")
+        try:
+            return await svc(request).files.save(file.filename, data, role)
+        except FileRefused as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except FileStorageError as exc:
+            raise HTTPException(503, str(exc)) from exc
+
+    @app.get("/api/files")
+    async def list_files(request: Request, goal_id: str | None = None) -> dict:
+        files = svc(request).files
+        rows = await files.of_goal((await goal_or_404(request, goal_id))["id"]) if goal_id else []
+        return {"resume": await files.resume(), "files": rows}
+
+    @app.get("/api/files/{file_id}/download")
+    async def download_file(file_id: str, request: Request) -> Response:
+        row = await file_or_404(request, file_id)
+        try:
+            data = await svc(request).files.data(row["id"])
+        except FileStorageError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        return Response(data, media_type=row["content_type"], headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(row['name'], safe='')}",
+            "X-Content-Type-Options": "nosniff"})
+
+    @app.delete("/api/files/{file_id}", status_code=204)
+    async def delete_file(file_id: str, request: Request) -> None:
+        row = await file_or_404(request, file_id)
+        await svc(request).files.delete(row["id"])
 
     @app.put("/api/goals/{goal_id}/model")
     async def set_model(goal_id: str, body: ModelChoice, request: Request) -> dict:
@@ -292,7 +348,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
             raise HTTPException(409, f"This is a {goal['agent']} test goal. Continue it with: job-finder agent")
         if body.timezone and body.timezone != goal.get("timezone"):
             await svc(request).store.set_timezone(goal_id, body.timezone)
-        text = await with_pending_note(svc(request).store, goal_id, body.text)
+        text = await with_pending_note(svc(request).store, goal_id, await with_files(request, goal_id, body))
         await drive(request, goal_id, text, "follow_up")
         return {"ok": True}
 

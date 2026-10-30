@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import uuid
 from typing import Any
@@ -9,14 +10,17 @@ from typing import Any
 from claude_agent_sdk import SdkMcpTool, ToolAnnotations, create_sdk_mcp_server, tool
 
 from ..artifact_store import EVIDENCE, JOB_FILTERS, SOURCES, VERDICTS, ArtifactStore
+from ..files import MAX_IMAGE_BYTES, FileStorageError
 from ..jobs import looks_like_sign_in
-from ..profile import PROFILE_FIELDS, build_profile, public_profile
+from ..profile import PROFILE_FIELDS, RESUME, build_profile, public_profile
 from . import ToolContext, result
 
 SERVER_NAME = "artifacts"
 MAX_DATA = 4000  # characters of one company row that read_job shows
 MAX_DESCRIPTION = 12000  # characters of a job description that read_job shows
 READS_PROFILE = {"fit-check", "application-prep"}  # only these agents read the candidate profile
+READS_RESUME = {"candidate-profile"}  # only this agent reads the uploaded resume as a file
+MAX_FILE_REPLY = 60_000  # characters of a file in one reply
 
 STRING = {"type": "string"}
 STRINGS = {"type": "array", "items": STRING}
@@ -192,10 +196,46 @@ def build_tools(ctx: ToolContext, agent: str, hide: set[str] = frozenset()) -> l
         brief = goal.get("brief")
         out = {**brief} if brief else {"brief": "This goal has no brief yet. Use the criteria in your task."}
         profile = goal.get("profile")
-        if profile and agent not in READS_PROFILE:
-            profile = public_profile(profile)
+        resume = await ctx.files.resume_text() if ctx.files else None  # the uploaded resume is the current one
+        if agent in READS_PROFILE and resume:
+            profile = {**(profile or {}), RESUME: resume}
+        elif profile and agent not in READS_PROFILE:
+            profile = {**public_profile(profile), **({"has_resume": True} if resume else {})}
         out["profile"] = profile or "This goal has no candidate profile yet."
         return result(_json(out))
+
+    @tool("list_files", "List the files of this goal, and the resume that the user uploaded. It gives the id of each "
+          "file and says if you can read it.", _object({}, []), annotations=read_only)
+    async def list_files(args: dict[str, Any]) -> dict[str, Any]:
+        if ctx.files is None:
+            return result(_json({"resume": None, "files": []}))
+        shown = lambda row: {key: row[key] for key in ("id", "name", "kind", "readable")}  # noqa: E731
+        resume = await ctx.files.resume()
+        rows = await ctx.files.of_goal(ctx.goal_id)
+        return result(_json({"resume": shown(resume) if resume else None, "files": [shown(row) for row in rows]}))
+
+    @tool("read_file", "Read one file from list_files: its text, or the image.",
+          _object({"file_id": {"type": "string"}}, ["file_id"]), annotations=read_only)
+    async def read_file(args: dict[str, Any]) -> dict[str, Any]:
+        file_id = _id(args.get("file_id"))
+        row = await ctx.files.get(file_id) if ctx.files and file_id else None
+        if row is None or (row["role"] == "attachment" and row["goal_id"] != ctx.goal_id):
+            return result("This goal has no such file. Call list_files.", error=True)
+        if row["role"] == "resume" and agent not in READS_RESUME:
+            return result("The resume goes only to the subagents that need it. Run candidate-profile.", error=True)
+        if row["kind"] == "image":
+            if row["size_bytes"] > MAX_IMAGE_BYTES:
+                return result(f"{row['name']} is too large to read as an image.", error=True)
+            try:
+                data = base64.b64encode(await ctx.files.data(file_id)).decode()
+            except FileStorageError as exc:
+                return result(str(exc), error=True)
+            return {"content": [{"type": "text", "text": f"The image {row['name']}."},
+                                {"type": "image", "data": data, "mimeType": row["content_type"]}]}
+        text = await ctx.files.text(file_id)
+        if text is None:
+            return result(f"{row['name']} has no text that the app can read. Ask the user to paste the text.", error=True)
+        return result(text[:MAX_FILE_REPLY])
 
     @tool("save_profile", "Save the candidate profile. A new call replaces it. The reply says if titles or locations "
           "are missing. Then ask the main agent to ask the user.", PROFILE_SCHEMA)
@@ -398,7 +438,7 @@ def build_tools(ctx: ToolContext, agent: str, hide: set[str] = frozenset()) -> l
 
     tools = [set_brief, get_brief, save_profile, get_pipeline, list_jobs, read_job, save_jobs, save_job_research,
              save_company, save_fit, save_application_note, save_notes, get_search_history, list_goals, read_goal_jobs,
-             finish_goal]
+             finish_goal, list_files, read_file]
     return [t for t in tools if t.name not in hide]
 
 

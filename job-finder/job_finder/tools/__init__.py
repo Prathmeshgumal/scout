@@ -10,6 +10,7 @@ from typing import Any
 from ..career_lens import CareerLens
 from ..config import Settings
 from ..events import Recorder
+from ..files import FileStore
 from ..page_reader import PageReader
 from ..store import Store
 
@@ -35,4 +36,5 @@ class ToolContext:
     settings: Settings | None = None  # the defaults of a new mandate
     now: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
     on_change: Callable[[], None] | None = None  # the goal became a home chat: reopen its session
+    files: FileStore | None = None  # the files that the user uploaded
     waiting: set[str] = field(default_factory=set)  # the session's: career-lens requests that a tool waits on now

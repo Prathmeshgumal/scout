@@ -18,6 +18,7 @@ from .career_lens import CareerLens
 from .config import Settings
 from .db import GoalLock, mandate_lock_key
 from .events import Recorder
+from .files import FileStore
 from .mandate_store import MandateStore
 from .options import remove_transcripts
 from .services import GoalLocked
@@ -34,10 +35,12 @@ class MandateChat(Exception):
 
 class Deleter:
     def __init__(self, settings: Settings, store: Store, mandates: MandateStore, recorder: Recorder,
-                 sessions=None, *, career_lens: CareerLens | None = None, wait_s: float = 30.0):
+                 sessions=None, *, career_lens: CareerLens | None = None, wait_s: float = 30.0,
+                 files: FileStore | None = None):
         self.settings, self.store, self.mandates, self.recorder = settings, store, mandates, recorder
         self.sessions = sessions  # the web server's GoalSessions; None in the CLI, which opens no session
         self.career_lens = career_lens  # None: nothing is cancelled in career-lens
+        self.files = files  # None: no file bytes to remove
         self.wait_s = wait_s  # how long to wait for the scheduler, which holds the mandate while a goal starts
 
     # What a delete removes: for the warning before it
@@ -54,6 +57,13 @@ class Deleter:
         return {**preview, "goals": len(runs), "status": m["status"], "next_run_at": m["next_run_at"]}
 
     # Deletes
+
+    async def _delete_rows(self, goal_ids: list[str]) -> list[str]:
+        keys = await self.files.keys_of(goal_ids) if self.files else []
+        sessions = await self.store.delete_goals(goal_ids)
+        if keys:
+            await self.files.remove_objects(keys)
+        return sessions
 
     async def delete_goal(self, goal_id: str) -> bool:
         """Delete a goal, or one goal of a mandate. False when it does not exist."""
@@ -77,7 +87,7 @@ class Deleter:
             if goal["home_of"]:
                 raise MandateChat(goal_id)
             scrapes = await self.store.pending_request_ids([goal_id])
-            sessions = await self.store.delete_goals([goal_id])
+            sessions = await self._delete_rows([goal_id])
         self._after([goal_id], sessions)
         await self._cancel(scrapes)
         if mandate_id and (m := await self.mandates.get(mandate_id)) is not None:
@@ -96,7 +106,7 @@ class Deleter:
             goal_ids = [m["home_goal_id"], *(r["id"] for r in await self.mandates.runs(mandate_id))]
             await self._close(held, goal_ids)
             scrapes = await self.store.pending_request_ids(goal_ids)
-            sessions = await self.store.delete_goals(goal_ids)  # the chat's delete removes the mandate too
+            sessions = await self._delete_rows(goal_ids)  # the chat's delete removes the mandate too
         self._after(goal_ids, sessions)
         await self._cancel(scrapes)
         return True

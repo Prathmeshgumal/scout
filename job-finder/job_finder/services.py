@@ -15,6 +15,8 @@ from .career_lens import CareerLens
 from .config import Settings
 from .db import GoalLock, migrate, open_pool
 from .events import Hub, Recorder
+from .files import FileStore
+from .objects import open_objects
 from .session import GoalSession
 from .store import GoalNotFound, Store  # noqa: F401 (GoalNotFound: for the callers of open_session)
 from .watcher import Watcher
@@ -68,6 +70,7 @@ class Services:
     career_lens: CareerLens
     client_factory: Any = ClaudeSDKClient
     sleep: Any = asyncio.sleep
+    files: FileStore | None = None
 
     @classmethod
     async def open(cls, settings: Settings, *, client_factory=ClaudeSDKClient) -> Services:
@@ -78,7 +81,7 @@ class Services:
         career_lens = CareerLens(settings.career_lens_base_url, settings.career_lens_api_key,
                                  freshness=settings.career_lens_freshness)
         return cls(settings, store, ArtifactStore(pool, settings.research_max_age_days), hub, recorder, career_lens,
-                   client_factory)
+                   client_factory, files=FileStore(pool, open_objects(settings)))
 
     async def close(self) -> None:
         await self.career_lens.aclose()
@@ -90,7 +93,7 @@ class Services:
         if lock is None:
             raise GoalLocked(goal_id)
         session = GoalSession(self.settings, self.store, self.recorder, self.career_lens, goal_id,
-                              client_factory=self.client_factory, sleep=self.sleep)
+                              client_factory=self.client_factory, sleep=self.sleep, files=self.files)
         try:
             await session.open(recover=recover)
         except BaseException:

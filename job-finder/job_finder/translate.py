@@ -63,6 +63,8 @@ LABELS = {
                            f"role{'' if str(i.get('target_count')) == '1' else 's'}",
     "save_profile": lambda i: "Saving the candidate profile",
     "get_brief": lambda i: "Reading the brief",
+    "list_files": lambda i: "Listing the files",
+    "read_file": lambda i: "Reading a file",
     "get_pipeline": lambda i: "Counting the roles at each stage",
     "get_search_history": lambda i: "Reading the earlier searches and refused roles",
     "finish_goal": lambda i: f"Finishing the goal: {i.get('reason', '')}",

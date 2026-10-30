@@ -129,3 +129,9 @@ Table("company_job_reads", metadata, _goal(), Column("company_url", Text, nullab
       Column("state", Text, nullable=False), Column("items", Integer, nullable=False), Column("captured_pages", Integer),
       Column("observed_at", TZ), Column("updated_at", TZ, nullable=False),
       PrimaryKeyConstraint("goal_id", "company_url"))
+
+Table("files", metadata, _id(), Column("goal_id", UUID(as_uuid=False), ForeignKey("goals.id", ondelete="CASCADE")),
+      *_text("role", "name", "content_type", "kind", "sha256", "object_key", nullable=False),
+      Column("size_bytes", BigInteger, nullable=False), Column("text", Text), Column("created_at", TZ, nullable=False),
+      UniqueConstraint("object_key"), Index("files_goal", "goal_id"),
+      Index("files_one_resume", "role", unique=True, postgresql_where=text("role = 'resume'")))
