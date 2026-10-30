@@ -77,18 +77,6 @@ def _worker(app) -> str:
     return "wk"
 
 
-def test_page_loads_without_a_key(client):
-    response = client.get("/console")
-    assert response.status_code == 200
-    assert "text/html" in response.headers["content-type"]
-
-
-def test_page_has_no_outside_scripts_and_never_uses_inner_html(client):
-    page = client.get("/console").text
-    assert "<script src" not in page
-    assert "innerHTML" not in page
-
-
 def test_console_api_needs_a_key(client):
     assert client.get("/operator/api/overview").status_code == 401
 
@@ -254,12 +242,6 @@ def test_a_blank_password_is_refused(authorised_client):
     assert response.status_code == 422
 
 
-def test_the_page_has_a_change_password_form(client):
-    page = client.get("/console").text
-    assert 'id="password-form"' in page
-    assert '"/password"' in page
-
-
 def _assigned(client, app) -> str:
     worker = _worker(app)
     account = _account(client)
@@ -292,21 +274,3 @@ def test_a_login_in_progress_is_not_waiting_for_the_operator(
         "/operator/api/overview").json()["accounts"][0]["assignment"]
     assert assignment["waiting_for_you"] is False
     assert assignment["action"] is None
-
-
-def test_the_page_shows_logins_waiting_for_the_operator(client):
-    page = client.get("/console").text
-    assert 'id="waiting"' in page
-    assert "waiting_for_you" in page
-
-
-def test_the_password_picker_keeps_its_choice_across_refresh(client):
-    page = client.get("/console").text
-    assert "passwordPicker.value = passwordChosen" in page
-
-
-def test_the_page_can_try_job_postings_and_job_searches(client):
-    page = client.get("/console").text
-    assert 'value="linkedin-job"' in page
-    assert 'value="linkedin-job-search"' in page
-    assert "/v1/linkedin-job-search/" in page

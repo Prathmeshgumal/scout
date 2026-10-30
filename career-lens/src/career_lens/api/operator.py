@@ -12,7 +12,7 @@ from sqlalchemy import Connection, text
 
 from ..store import blobs
 from ..store.schema.core import KINDS, STATUSES
-from . import serialise
+from . import serialise, v1
 from .db import database
 from .operator_auth import require_operator
 
@@ -118,6 +118,12 @@ def request_result(request_id: str, connection: Db) -> dict:
     if row is None:
         raise HTTPException(404, {"code": "no_result"})
     return json.loads(blobs.open_store().get(row.document_key))
+
+
+@router.post("/try/{path}", status_code=202)
+def try_request(path: str, body: dict) -> dict:
+    """One request from the console, with the rules of the public route. It belongs to no customer key."""
+    return v1._scrape(path, body)
 
 
 @router.get("/artifacts/{artifact_id}")

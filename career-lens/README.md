@@ -40,23 +40,26 @@ journalctl --user -u career-lens-worker -f
 
 ## The console
 
-Open <http://127.0.0.1:8090/console> and paste the key. The key lives in the
-page's memory only, so reloading the page asks for it again.
+Open <http://127.0.0.1:8090/console> and sign in with the operator password.
+Set the password in `.env` as `CAREER_LENS_OPERATOR_PASSWORD`. With no value, nobody can sign in.
 
-- **Workers**: which workers are live and healthy, and the Google switch and
-  budget. Turn Google on for a worker before searching.
-- **LinkedIn accounts**: add an account, then assign it to a worker. A Chrome
-  window opens on that worker to sign in. If LinkedIn asks for a code, enter it
-  in that window. The state moves to `ready` when the login is verified.
-- **Working hours**: LinkedIn scrapes run only inside an account's hours, so an
-  account needs hours before it does any work.
-- **Try it**: submit a search or a scrape, then watch **Recent requests**. A
-  queued request shows why it is waiting.
+| Page | What it does |
+| --- | --- |
+| Overview | Shows the workers, the logins that wait for you, and the newest requests. |
+| Requests | Filters all requests. Each request shows its attempts, run log, screenshots and result. |
+| Workers | Shows each native worker. Assigns accounts and sets the Google limits. |
+| Accounts and shifts | Adds accounts, changes passwords and sets working hours. |
+| Try it | Sends one request. |
+
+The console uses `/operator/api`. Only a signed-in operator reaches these routes. A customer key gets 401.
+A session ends after 12 hours or when the password changes. Five wrong passwords stop sign-in for one minute.
+
+To work on the console, run `npm install` and `npm run dev` in `web/`. `npm run build` writes the build that the API serves.
 
 ## API
 
-Every route needs `Authorization: Bearer <key>`, except `/healthz`, `/console`,
-`/docs`, `/redoc` and `/openapi.json`. The examples use:
+Every `/v1` route needs `Authorization: Bearer <key>`. `/healthz`, `/console`, `/docs`, `/redoc` and
+`/openapi.json` need no key. The examples use:
 
 ```bash
 API=http://127.0.0.1:8090

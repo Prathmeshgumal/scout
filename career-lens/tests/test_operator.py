@@ -9,8 +9,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from auth_support import customer_client
 
-from career_lens.api import operator_auth
+from career_lens.api import console, operator_auth
 from career_lens.api.main import create_app
+from career_lens.api.requests import Submission
 from career_lens.store import blobs
 from career_lens.store.ids import EXTRACTION, REQUEST, new_id
 
@@ -238,3 +239,69 @@ def test_the_result_is_the_stored_document(operator, app, monkeypatch):
 
 def test_a_request_with_no_result_gets_404(operator, app):
     assert operator.get(f"/operator/api/requests/{_request(app)}/result").status_code == 404
+
+
+# Try it
+
+
+def test_try_it_submits_with_no_customer_key(operator, monkeypatch):
+    from career_lens.api import requests as submission
+
+    seen = {}
+
+    def submit(url, **kwargs):
+        seen.update(url=url, key=kwargs.get("api_key_id"))
+        return Submission("rq-try", True)
+
+    monkeypatch.setattr(submission, "submit", submit)
+    response = operator.post("/operator/api/try/url", json={"url": "https://example.com/"})
+    assert response.status_code == 202
+    assert response.json()["request_id"] == "rq-try"
+    assert seen == {"url": "https://example.com/", "key": None}
+
+
+def test_try_it_refuses_an_unknown_path(operator):
+    assert operator.post("/operator/api/try/nope", json={}).status_code == 404
+
+
+def test_try_it_needs_a_session(anonymous, application, app_url):
+    assert anonymous.post("/operator/api/try/url", json={"url": "https://example.com/"}).status_code == 401
+    customer = customer_client(application, app_url)
+    assert customer.post("/operator/api/try/url", json={"url": "https://example.com/"}).status_code == 401
+
+
+# The page
+
+
+@pytest.fixture
+def built(tmp_path, monkeypatch):
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<title>career-lens</title>")
+    (tmp_path / "assets" / "app.js").write_text("run()")
+    (tmp_path / "favicon.svg").write_text("<svg/>")
+    monkeypatch.setattr(console, "DIST", tmp_path)
+    return tmp_path
+
+
+def test_each_console_path_gives_the_app(anonymous, built):
+    for path in ("/console", "/console/", "/console/requests", "/console/requests/rq-1"):
+        response = anonymous.get(path)
+        assert response.status_code == 200 and "career-lens" in response.text, path
+        assert response.headers["cache-control"] == "no-store"
+        assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+
+
+def test_the_console_gives_its_files(anonymous, built):
+    assert anonymous.get("/console/assets/app.js").text == "run()"
+    assert anonymous.get("/console/favicon.svg").text == "<svg/>"
+
+
+def test_the_console_gives_no_file_outside_its_folder(anonymous, built):
+    (built.parent / "secret.txt").write_text("secret")
+    response = anonymous.get("/console/assets/%2e%2e/%2e%2e/secret.txt")
+    assert "secret" not in response.text
+
+
+def test_a_missing_build_says_so(anonymous, tmp_path, monkeypatch):
+    monkeypatch.setattr(console, "DIST", tmp_path / "none")
+    assert anonymous.get("/console").status_code == 503

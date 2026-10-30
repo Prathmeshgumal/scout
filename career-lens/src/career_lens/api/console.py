@@ -8,7 +8,7 @@ from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import Connection, text
 from sqlalchemy.exc import IntegrityError
@@ -28,7 +28,13 @@ from ..queue.enqueue import enqueue_dispatch
 from .db import database, write
 from .operator_auth import require_operator
 
-PAGE = Path(__file__).with_name("console.html")
+DIST = Path(__file__).with_name("console_dist")  # the build of web/
+PAGE_HEADERS = {
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": ("default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                                "frame-ancestors 'none'; base-uri 'none'"),
+    "X-Content-Type-Options": "nosniff",
+}
 LIVE_WITHIN = timedelta(seconds=30)
 RECENT_REQUESTS = 50
 WEEKDAY_NAMES = {
@@ -146,7 +152,11 @@ def _jsonable_schedule(connection: Connection, account_id: str) -> dict | None:
             "weekday": day["weekday"], "working": day["working"],
             "start_local": str(day["start_local"]) if day["start_local"] else None,
             "end_local": str(day["end_local"]) if day["end_local"] else None,
+            "lunch_minutes": day["lunch_minutes"], "break_count": day["break_count"],
+            "break_minutes": day["break_minutes"],
         } for day in schedule["days"]],
+        "start_jitter_minutes": schedule["start_jitter_minutes"],
+        "end_jitter_minutes": schedule["end_jitter_minutes"],
     }
 
 
@@ -246,9 +256,19 @@ def _requests(connection: Connection) -> list[dict]:
 
 
 @page_router.get("/console", include_in_schema=False)
-def console_page() -> HTMLResponse:
-    return HTMLResponse(PAGE.read_text(encoding="utf-8"),
-                        headers={"Cache-Control": "no-store"})
+@page_router.get("/console/{path:path}", include_in_schema=False)
+def console_page(path: str = "") -> Response:
+    """A file of the build, or the app for a page of the app."""
+    if path == "api" or path.startswith("api/"):
+        raise HTTPException(404, "The console API moved to /operator/api.")
+    root = DIST.resolve()
+    index = root / "index.html"
+    if not index.is_file():
+        raise HTTPException(503, "The console is not built. Run npm run build in web/.")
+    wanted = (root / path).resolve()
+    if path and wanted.is_relative_to(root) and wanted.is_file():
+        return FileResponse(wanted, headers={"X-Content-Type-Options": "nosniff"})
+    return HTMLResponse(index.read_text(encoding="utf-8"), headers=PAGE_HEADERS)
 
 
 @router.get("/overview")

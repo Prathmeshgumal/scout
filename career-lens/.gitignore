@@ -50,3 +50,7 @@ bulk-results.jsonl
 # Worktrees for parallel feature work. Each is a full checkout of this same
 # repository, so committing one would nest the project inside itself.
 .worktrees/
+
+# The console build. Dockerfile.api makes it.
+src/career_lens/api/console_dist/
+web/node_modules/
