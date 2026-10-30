@@ -226,7 +226,7 @@ class ArtifactStore(Queries):
         """Everything saved for one role. `fresh`: only company facts newer than the age limit, for the agents. The
         report shows all that the goal used."""
         job = await self._one("""
-            SELECT j.id::text AS id, j.goal_id::text AS goal_id, j.url, j.source, j.source_url, j.title, j.company_name,
+            SELECT j.role_key, j.id::text AS id, j.goal_id::text AS goal_id, j.url, j.source, j.source_url, j.title, j.company_name,
                    j.company_id::text AS company_id, j.location, j.workplace_type, j.posted_at, j.posting_status,
                    j.snippet, j.description_text, j.evidence_level, j.observed_at, j.found_note, j.researched_at,
                    j.fit, j.fit_reasons, j.fit_evidence, j.fit_at, j.fit_count, j.created_at,

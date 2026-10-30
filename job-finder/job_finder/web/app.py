@@ -15,7 +15,7 @@ from urllib.parse import quote
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from ..config import NO_LOGIN, ROOT, Settings, env_file
 from ..deletion import Deleter, MandateChat
@@ -25,6 +25,7 @@ from ..login_status import LoginStatus
 from ..mandate_store import MandateStore
 from ..models import EFFORT_LABELS, ModelList, effort_label, read_sdk_models
 from ..options import retry_message
+from ..pipeline import PipelineStore
 from ..profile import public_profile
 from ..report import build_report, job_detail
 from ..report_md import render_markdown
@@ -41,6 +42,24 @@ log = logging.getLogger(__name__)
 STATIC_DIR = ROOT / "web" / "dist"
 STOPPABLE = {"running", "waiting"}
 RETRYABLE = {"failed", "stopped"}
+
+
+class PipelineMove(BaseModel):
+    role_key: str
+    stage: Literal["fit", "referral", "applied", "responded", "removed"]
+
+
+class PipelineNote(BaseModel):
+    role_key: str
+    text: str = Field(max_length=5000)
+
+    @field_validator("text")
+    @classmethod
+    def not_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Type a note")
+        return value
 
 
 class Text(BaseModel):
@@ -317,7 +336,39 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         row = await s.artifacts.get_job(goal_id, job_id)
         if row is None:
             raise HTTPException(404, "Role not found")
-        return json.loads(json.dumps(job_detail(row, await s.artifacts.list_notes(goal_id)), default=str))
+        detail = job_detail(row, await s.artifacts.list_notes(goal_id))
+        stage = await PipelineStore(s.store.pool).stage_of(row["role_key"])
+        return json.loads(json.dumps({**detail, "pipeline": {"role_key": row["role_key"], "stage": stage}}, default=str))
+
+    def pipeline(request: Request) -> PipelineStore:
+        return PipelineStore(svc(request).store.pool)
+
+    @app.get("/api/pipeline")
+    async def pipeline_items(request: Request) -> dict:
+        return {"items": await pipeline(request).items()}
+
+    @app.put("/api/pipeline/stage")
+    async def pipeline_stage(body: PipelineMove, request: Request) -> dict:
+        item = await pipeline(request).set_stage(body.role_key, body.stage)
+        if item is None:
+            raise HTTPException(404, "Role not found")
+        return item
+
+    @app.post("/api/pipeline/notes", status_code=201)
+    async def pipeline_note(body: PipelineNote, request: Request) -> dict:
+        note = await pipeline(request).add_note(body.role_key, body.text)
+        if note is None:
+            raise HTTPException(404, "Role not found")
+        return note
+
+    @app.delete("/api/pipeline/notes/{note_id}", status_code=204)
+    async def pipeline_note_delete(note_id: str, request: Request) -> None:
+        try:
+            uuid.UUID(note_id)
+        except ValueError:
+            raise HTTPException(404, "Note not found") from None
+        if not await pipeline(request).delete_note(note_id):
+            raise HTTPException(404, "Note not found")
 
     @app.get("/api/jobs")
     async def all_jobs(request: Request) -> list[dict]:

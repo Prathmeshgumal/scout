@@ -135,3 +135,13 @@ Table("files", metadata, _id(), Column("goal_id", UUID(as_uuid=False), ForeignKe
       Column("size_bytes", BigInteger, nullable=False), Column("text", Text), Column("created_at", TZ, nullable=False),
       UniqueConstraint("object_key"), Index("files_goal", "goal_id"),
       Index("files_one_resume", "role", unique=True, postgresql_where=text("role = 'resume'")))
+
+Table("pipeline_jobs", metadata, _id(), Column("role_key", Text, nullable=False, unique=True),
+      *_text("stage", "title", "company_name", "url", nullable=False),
+      *_text("location", "workplace_type", "posting_status", "goal_title", "fit", "fit_reasons"),
+      Column("created_at", TZ, nullable=False), Column("updated_at", TZ, nullable=False))
+
+Table("pipeline_notes", metadata, _id(),
+      Column("pipeline_job_id", UUID(as_uuid=False), ForeignKey("pipeline_jobs.id", ondelete="CASCADE"), nullable=False),
+      Column("text", Text, nullable=False), Column("created_at", TZ, nullable=False),
+      Index("pipeline_notes_job", "pipeline_job_id", "created_at"))

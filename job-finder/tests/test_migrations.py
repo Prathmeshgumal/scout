@@ -35,7 +35,7 @@ def test_the_baseline_builds_the_schema_and_alembic_check_finds_no_change(scratc
         tables = {row[0] for row in conn.execute(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public'").fetchall()}
     assert tables == {"alembic_version", "application_notes", "companies", "company_job_reads", "company_research",
-                      "files", "goal_events", "goals", "jobs", "mandates", "rejected_jobs", "report_notes", "scrapes",
+                      "files", "goal_events", "goals", "jobs", "mandates", "pipeline_jobs", "pipeline_notes", "rejected_jobs", "report_notes", "scrapes",
                       "subagent_tasks"}
 
 
