@@ -26,7 +26,7 @@ from ..fleet.schedules import ScheduleError, read_schedule, write_schedule
 from ..google import policy as google_policy
 from ..queue.enqueue import enqueue_dispatch
 from .db import database, write
-from .security import require_key
+from .operator_auth import require_operator
 
 PAGE = Path(__file__).with_name("console.html")
 LIVE_WITHIN = timedelta(seconds=30)
@@ -45,7 +45,7 @@ COMMANDS = {
 Db = Annotated[Connection, Depends(database)]
 
 page_router = APIRouter()
-router = APIRouter(prefix="/console/api", dependencies=[Depends(require_key)])
+router = APIRouter(prefix="/operator/api", dependencies=[Depends(require_operator)])
 
 
 class Strict(BaseModel):

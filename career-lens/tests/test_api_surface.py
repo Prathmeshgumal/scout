@@ -18,12 +18,12 @@ EXPECTED = {
     ("GET", "/v1/google-search"), ("GET", "/v1/google-search/{request_id}"),
     ("POST", "/v1/search"), ("GET", "/v1/search/{request_id}"),
     ("GET", "/v1/linkedin-job"), ("GET", "/v1/linkedin-job-search/{request_id}"),
-    ("GET", "/console/api/overview"), ("POST", "/console/api/accounts"),
-    ("PUT", "/console/api/accounts/{account_id}/password"),
-    ("PUT", "/console/api/accounts/{account_id}/shift"),
-    ("POST", "/console/api/workers/{worker_id}/assignments"),
-    ("POST", "/console/api/assignments/{assignment_id}/{command}"),
-    ("PATCH", "/console/api/workers/{worker_id}/google-policy"),
+    ("GET", "/operator/api/overview"), ("POST", "/operator/api/accounts"),
+    ("PUT", "/operator/api/accounts/{account_id}/password"),
+    ("PUT", "/operator/api/accounts/{account_id}/shift"),
+    ("POST", "/operator/api/workers/{worker_id}/assignments"),
+    ("POST", "/operator/api/assignments/{assignment_id}/{command}"),
+    ("PATCH", "/operator/api/workers/{worker_id}/google-policy"),
 }
 
 

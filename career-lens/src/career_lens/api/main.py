@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from ..consumer_contract import SCHEMA_VERSION
 from ..store.config import ConfigError
 from ..store.db import DatabaseUnavailable
-from . import console, entities, generic, google, jobs, search, v1
+from . import console, entities, generic, google, jobs, operator, operator_auth, search, v1
 from .security import require_key
 from .versioning import ConsumerVersionMiddleware
 
@@ -96,7 +96,9 @@ def create_app() -> FastAPI:
     app.include_router(search.router, dependencies=v1_auth)
     app.include_router(jobs.router, dependencies=v1_auth)
     app.include_router(console.page_router)
+    app.include_router(operator_auth.router)
     app.include_router(console.router)
+    app.include_router(operator.router)
     return app
 
 
