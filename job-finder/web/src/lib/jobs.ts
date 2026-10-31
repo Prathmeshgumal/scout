@@ -23,6 +23,12 @@ export function sortJobs<T extends JobCardData>(jobs: T[]): T[] {
   return jobs.map((job, i) => [job, i] as const).sort((a, b) => ORDER(a[0]) - ORDER(b[0]) || a[1] - b[1]).map(([job]) => job)
 }
 
+/** "Posted 2 days ago". Some sources already put the word "Posted" in the date. */
+export function postedText(posted: string | null | undefined): string | null {
+  const text = posted?.trim().replace(/^posted\s*:?\s*/i, "")
+  return text ? `Posted ${text}` : null
+}
+
 export function isClosed(job: Pick<JobCardData, "posting_status">): boolean {
   return ![null, undefined, "", "posted", "reposted", "open"].includes(job.posting_status?.trim().toLowerCase())
 }
@@ -100,12 +106,4 @@ export function groupByGoal(jobs: JobCardData[]): GoalGroup[] {
     if (job.researched ?? job.researched_at) group.counts.researched += 1
   }
   return [...groups.values()]
-}
-
-/** "15 roles: 3 fit, 4 partial, 8 researched". A count of zero stays out. */
-export function groupSummary({ jobs, counts }: GoalGroup): string {
-  const parts = [[counts.fit, "fit"], [counts.partial, "partial"], [counts.unsure, "unsure"], [counts.notFit, "not a fit"], [counts.researched, "researched"]] as const
-  const shown = parts.filter(([n]) => n > 0).map(([n, label]) => `${n} ${label}`)
-  const roles = `${jobs.length} ${jobs.length === 1 ? "role" : "roles"}`
-  return shown.length ? `${roles}: ${shown.join(", ")}` : roles
 }

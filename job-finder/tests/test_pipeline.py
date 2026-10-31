@@ -135,6 +135,26 @@ async def test_the_item_links_to_the_role_and_its_goal(pipeline, store, goal):
     assert item["role_key"] == job["role_key"] and item["fit_reasons"] == "Matches Go."
 
 
+async def test_a_role_with_any_verdict_can_join_the_pipeline(pipeline, store, goal):
+    for n, fit in enumerate(("partial", "unsure", "not_fit", None)):
+        job = await add_job(store, goal["id"], title=f"Role {fit}", fit=fit, n=n)
+        assert (await pipeline.set_stage(job["role_key"], "fit"))["stage"] == "fit"
+        assert await pipeline.stage_of(job["role_key"]) == "fit"
+
+
+async def test_a_removed_role_stays_on_the_board_with_its_notes_and_can_return(pipeline, store, goal):
+    job = await add_job(store, goal["id"])
+    await pipeline.add_note(job["role_key"], "Asked a friend")
+    await pipeline.set_stage(job["role_key"], "removed")
+    board = await pipeline.board()
+    assert board["items"] == []
+    assert [(r["role_key"], r["stage"]) for r in board["removed"]] == [(job["role_key"], "removed")]
+    assert board["removed"][0]["notes"][0]["text"] == "Asked a friend"
+    await pipeline.set_stage(job["role_key"], "fit")
+    board = await pipeline.board()
+    assert board["removed"] == [] and board["items"][0]["notes"][0]["text"] == "Asked a friend"
+
+
 # The routes
 
 
@@ -155,7 +175,7 @@ async def test_the_routes_move_a_role_and_keep_notes(client, store, goal):
     note = await client.post("/api/pipeline/notes", json={"role_key": job["role_key"], "text": "  Sent  "})
     assert note.status_code == 201 and note.json()["text"] == "Sent"
     body = (await client.get("/api/pipeline")).json()
-    assert body["items"][0]["notes"][0]["text"] == "Sent"
+    assert body["items"][0]["notes"][0]["text"] == "Sent" and body["removed"] == []
     assert (await client.delete(f"/api/pipeline/notes/{note.json()['id']}")).status_code == 204
     assert (await client.delete(f"/api/pipeline/notes/{note.json()['id']}")).status_code == 404
 

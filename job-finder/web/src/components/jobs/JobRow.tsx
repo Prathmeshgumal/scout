@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react"
 import type { JobCardData, Verdict } from "@/lib/api"
-import { VERDICT_LABEL, isClosed, monogram, monogramHue, stageLabel } from "@/lib/jobs"
+import { VERDICT_LABEL, isClosed, monogram, monogramHue, postedText, stageLabel } from "@/lib/jobs"
 import { cn } from "@/lib/utils"
 
 const BADGE: Record<Verdict, string> = {
@@ -19,13 +19,13 @@ export function VerdictBadge({ verdict, stage }: { verdict: Verdict | null; stag
   )
 }
 
-export function Monogram({ company }: { company: string }) {
+export function Monogram({ company, className }: { company: string; className?: string }) {
   const hue = monogramHue(company)
   return (
     <span
       aria-hidden
       style={{ backgroundColor: `oklch(0.62 0.13 ${hue} / 0.16)`, color: `light-dark(oklch(0.42 0.13 ${hue}), oklch(0.82 0.11 ${hue}))` }}
-      className="grid size-9 shrink-0 place-items-center rounded-lg text-[12px] font-semibold tracking-wide [color-scheme:light] dark:[color-scheme:dark]"
+      className={cn("grid size-9 shrink-0 place-items-center rounded-lg text-[12px] font-semibold tracking-wide [color-scheme:light] dark:[color-scheme:dark]", className)}
     >
       {monogram(company)}
     </span>
@@ -42,7 +42,7 @@ type Props = {
 }
 
 export function JobRow({ job, working, selected, onOpen, goalTitle }: Props) {
-  const facts = [job.company_name, job.location, job.workplace_type, job.posted_at && `Posted ${job.posted_at}`].filter(Boolean)
+  const facts = [job.company_name, job.location, job.workplace_type, postedText(job.posted_at)].filter(Boolean)
   return (
     <li className={cn("relative grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-2.5 transition-colors hover:bg-muted/50 focus-within:bg-muted/50 sm:grid-cols-[auto_minmax(0,1fr)_auto]", selected && "bg-violet-500/8")}>
       <Monogram company={job.company_name} />

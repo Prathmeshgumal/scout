@@ -23,12 +23,16 @@ BEST_JOBS = """
 """
 
 
+def _newest(item: dict) -> tuple:
+    return (item["updated_at"] is not None, item["updated_at"] or 0)
+
+
 class PipelineStore:
     def __init__(self, pool: AsyncConnectionPool):
         self.pool = pool
 
-    async def items(self) -> list[dict]:
-        """The roles in the pipeline, with their notes. The role that changed last comes first."""
+    async def board(self) -> dict:
+        """The roles in the pipeline and the removed roles, with their notes. The role that changed last comes first."""
         async with self.pool.connection() as conn:
             jobs = await (await conn.execute(BEST_JOBS.format(where=""))).fetchall()
             rows = await (await conn.execute("SELECT * FROM pipeline_jobs")).fetchall()
@@ -38,18 +42,22 @@ class PipelineStore:
         tracked = {row["role_key"]: row for row in rows}
         best = {job["role_key"]: job for job in jobs}
         items = []
+        removed = []
         for row in rows:
-            if row["stage"] == REMOVED:
-                continue
             job = best.get(row["role_key"])
             facts = job or {**{key: row[key] for key in FACTS}, "job_id": None, "goal_id": None}
-            items.append({**facts, "role_key": row["role_key"], "stage": row["stage"], "updated_at": row["updated_at"],
-                          "notes": [{key: n[key] for key in ("id", "text", "created_at")} for n in notes
-                                    if n["pipeline_job_id"] == row["id"]]})
+            (removed if row["stage"] == REMOVED else items).append(
+                {**facts, "role_key": row["role_key"], "stage": row["stage"], "updated_at": row["updated_at"],
+                 "notes": [{key: n[key] for key in ("id", "text", "created_at")} for n in notes
+                           if n["pipeline_job_id"] == row["id"]]})
         for job in jobs:
             if job["fit"] == "fit" and job["role_key"] not in tracked:
                 items.append({**job, "stage": STAGES[0], "updated_at": None, "notes": []})
-        return sorted(items, key=lambda item: (item["updated_at"] is not None, item["updated_at"] or 0), reverse=True)
+        return {"items": sorted(items, key=_newest, reverse=True), "removed": sorted(removed, key=_newest, reverse=True)}
+
+    async def items(self) -> list[dict]:
+        """The roles in the pipeline."""
+        return (await self.board())["items"]
 
     async def item(self, role_key: str) -> dict | None:
         return next((item for item in await self.items() if item["role_key"] == role_key), None)

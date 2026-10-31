@@ -1,10 +1,8 @@
 import type { FunnelStep } from "@/lib/pipeline"
 import { cn } from "@/lib/utils"
 
-const WIDTH = 120
-const BAND = 44
-const GAP = 2
-// One hue that deepens stage by stage. The text beside each band gives the name and the count.
+const BAND = 28
+// One hue that deepens stage by stage.
 const FILLS = [
   "fill-violet-300 dark:fill-violet-800",
   "fill-violet-400 dark:fill-violet-700",
@@ -12,45 +10,51 @@ const FILLS = [
   "fill-violet-700 dark:fill-violet-300",
 ]
 
-/** The funnel of the pipeline. A row shows the count, the share of the first stage and the name. */
-export function Funnel({ steps }: { steps: FunnelStep[] }) {
-  const top = steps[0]?.reached ?? 0
-  const width = (reached: number) => (top ? Math.max(reached ? 6 : 0, (reached / top) * WIDTH) : 0)
+/** A ring that fills stage by stage, so each column can be told apart at a glance. */
+export function StageIcon({ index, total }: { index: number; total: number }) {
+  const length = 2 * Math.PI * 2.5
+  const share = index / (total - 1)
   return (
-    <section aria-label="Pipeline funnel" className="rounded-xl border bg-card p-4">
-      <h2 className="font-semibold">Funnel</h2>
-      {top === 0 ? <p className="mt-2 text-muted-foreground">The funnel appears when the pipeline has a role.</p> : (
-        <>
-          <div className="mt-3 flex gap-3">
-            <svg width={WIDTH} height={steps.length * (BAND + GAP) - GAP} className="shrink-0" aria-hidden>
-              {steps.map((step, i) => {
-                const upper = width(step.reached)
-                const lower = width(steps[i + 1]?.reached ?? step.reached)
-                const y = i * (BAND + GAP)
-                const c = WIDTH / 2
-                return (
-                  <polygon key={step.id} className={cn(FILLS[i], "transition-opacity hover:opacity-80")}
-                    points={`${c - upper / 2},${y} ${c + upper / 2},${y} ${c + lower / 2},${y + BAND} ${c - lower / 2},${y + BAND}`}>
-                    <title>{`${step.label}: ${step.reached}`}</title>
-                  </polygon>
-                )
-              })}
-            </svg>
-            <ol className="flex min-w-0 flex-1 flex-col gap-[2px]">
-              {steps.map((step) => (
-                <li key={step.id} className="flex h-[44px] flex-col justify-center">
-                  <span className="flex items-baseline gap-1.5">
-                    <span className="text-[17px] leading-tight font-semibold tabular-nums">{step.reached}</span>
-                    {step.share !== null && <span className="text-[12px] text-muted-foreground tabular-nums">{step.share}%</span>}
-                  </span>
-                  <span className="truncate text-[12px] text-muted-foreground" title={step.label}>{step.label}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <p className="mt-3 text-[12px] leading-snug text-muted-foreground">Each stage counts the roles that reached it or a later stage.</p>
-        </>
-      )}
+    <svg viewBox="0 0 14 14" className="size-3.5 shrink-0 text-violet-600 dark:text-violet-400" aria-hidden>
+      <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray={index === 0 ? "2 2" : undefined} />
+      {share > 0 && <circle cx="7" cy="7" r="2.5" fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray={`${share * length} ${length}`} transform="rotate(-90 7 7)" />}
+    </svg>
+  )
+}
+
+type Props = { steps: FunnelStep[]; counts: Record<string, number>; className?: string; children?: React.ReactNode }
+
+/** The head of the board. Each stage has its name, the roles in it now, and one piece of a band that narrows from left to right. */
+export function Funnel({ steps, counts, className, children }: Props) {
+  const top = steps[0]?.reached ?? 0
+  const height = (reached: number) => (top && reached ? Math.max(3, (reached / top) * BAND) : 0)
+  return (
+    <section aria-label="Pipeline funnel" className={className}>
+      <ol className="contents">
+        {steps.map((step, i) => {
+          const upper = height(step.reached)
+          const lower = height(steps[i + 1]?.reached ?? step.reached)
+          const c = BAND / 2
+          return (
+            <li key={step.id} className="flex min-w-0 flex-col gap-1.5 px-2">
+              <h2 className="flex items-center gap-2 font-medium">
+                <StageIcon index={i} total={steps.length} />
+                <span className="truncate">{step.label}</span>
+                <span className="text-muted-foreground tabular-nums"><span className="sr-only">Roles here: </span>{counts[step.id] ?? 0}</span>
+              </h2>
+              <svg viewBox={`0 0 100 ${BAND}`} preserveAspectRatio="none" className="h-7 w-full" aria-hidden>
+                <rect x="0" y={c - 0.5} width="100" height="1" className="fill-border" />
+                {step.reached > 0 && <polygon className={cn(FILLS[i])} points={`0,${c - upper / 2} 100,${c - lower / 2} 100,${c + lower / 2} 0,${c + upper / 2}`} />}
+              </svg>
+              <p className="flex items-baseline justify-between gap-2 text-[12px] text-muted-foreground tabular-nums">
+                <span>{step.reached} reached</span>
+                {step.share !== null && <span>{step.share}%</span>}
+              </p>
+            </li>
+          )
+        })}
+        {children}
+      </ol>
     </section>
   )
 }
