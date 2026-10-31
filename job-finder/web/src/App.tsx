@@ -12,7 +12,7 @@ import { AllJobs } from "@/components/jobs/AllJobs"
 import { JobsTab } from "@/components/jobs/JobsTab"
 import { PipelinePage } from "@/components/pipeline/PipelinePage"
 import { IconRail } from "@/components/shell/IconRail"
-import { ChatList, MandateList } from "@/components/shell/ListPane"
+import { GoalList, MandateList } from "@/components/shell/ListPane"
 import { StatusBar } from "@/components/shell/StatusBar"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
@@ -41,7 +41,7 @@ export default function App() {
   const { theme, resolved, choose } = useTheme()
   const narrow = useMediaQuery(NARROW_QUERY)
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname))
-  const [newChat, setNewChat] = useState(false) // narrow screens: show the new chat, not the list
+  const [newGoal, setNewGoal] = useState(false) // narrow screens: show the new chat, not the list
   const [goals, setGoals] = useState<GoalSummary[] | null>(null)
   const [mandates, setMandates] = useState<Mandate[]>([])
   const [status, setStatus] = useState<Status | null>(null)
@@ -126,7 +126,7 @@ export default function App() {
       } catch (err) {
         if (controller.signal.aborted) return
         toast.error(errorText(err))
-        go({ section: "chats", goalId: null, mandateId: null, tab: "chat" })
+        go({ section: "goals", goalId: null, mandateId: null, tab: "chat" })
         return
       }
       let failures = 0
@@ -172,16 +172,16 @@ export default function App() {
 
   const openGoal = useCallback((id: string, tab: Route["tab"] = "chat") => {
     setInput("")
-    go({ section: "chats", goalId: id, mandateId: null, tab })
+    go({ section: "goals", goalId: id, mandateId: null, tab })
   }, [go])
   const startNew = useCallback(() => {
     setInput("")
-    setNewChat(true)
-    go({ section: "chats", goalId: null, mandateId: null, tab: "chat" })
+    setNewGoal(true)
+    go({ section: "goals", goalId: null, mandateId: null, tab: "chat" })
     requestAnimationFrame(() => textarea.current?.focus())
   }, [go])
   const openSection = (section: Section) => {
-    setNewChat(false)
+    setNewGoal(false)
     go({ section, goalId: null, mandateId: null, tab: "chat" })
   }
   const login = { open: loginOpen, onOpenChange: setLoginOpen, status, onChanged: () => void getStatus().then(setStatus).catch(() => {}) }
@@ -202,7 +202,7 @@ export default function App() {
       if (goalId) await sendMessage(goalId, trimmed, fileIds)
       else {
         const { goal_id } = await createGoal(trimmed, newChoice ?? undefined, fileIds)
-        setNewChat(false)
+        setNewGoal(false)
         openGoal(goal_id)
       }
       refreshList()
@@ -258,8 +258,8 @@ export default function App() {
   const homeChat = Boolean(goal?.home_of)
   // A goal of a mandate and the chat of a mandate are in the list of mandates, not in the list of chats.
   const openRow = goals?.find((g) => g.id === goalId)
-  const section = route.section === "chats" && (openRow?.mandate_id || openRow?.home_of) ? "mandates" : route.section
-  const showList = route.section !== "jobs" && route.section !== "pipeline" && (!narrow || (!goalId && !route.mandateId && !newChat && (route.section === "mandates" || Boolean(goals?.length))))
+  const section = route.section === "goals" && (openRow?.mandate_id || openRow?.home_of) ? "mandates" : route.section
+  const showList = route.section !== "jobs" && route.section !== "pipeline" && (!narrow || (!goalId && !route.mandateId && !newGoal && (route.section === "mandates" || Boolean(goals?.length))))
   const showMain = !narrow || !showList
   const lensDown = statusRead && (!status || (status.career_lens && !["online", "checking", "not_configured"].includes(status.career_lens.state)))
   const wait = report?.waits.flatMap((w) => (w.reason ? [w.reason] : []))[0] ?? null
@@ -269,13 +269,13 @@ export default function App() {
         onOpen={(id) => go({ section: "mandates", goalId: null, mandateId: id, tab: "chat" })} onOpenGoal={(id) => openGoal(id)}
         onNew={startNew} onDelete={(m) => setToDelete({ kind: "mandate", id: m.id, title: m.title })}
         onDeleteGoal={(g) => setToDelete({ kind: "goal", id: g.id, title: g.title })} />
-    : <ChatList goals={goals ?? []} activeId={goalId} full={narrow} onOpen={(id) => openGoal(id)} onNew={startNew}
+    : <GoalList goals={goals ?? []} activeId={goalId} full={narrow} onOpen={(id) => openGoal(id)} onNew={startNew}
         onDelete={(g) => setToDelete({ kind: "goal", id: g.id, title: g.title })} />
 
   const goalScreen = goalId && (
     <>
       <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-        {narrow && <Button variant="ghost" size="icon" className="size-7" aria-label="Back to the list" onClick={() => openSection("chats")}><ChevronLeft /></Button>}
+        {narrow && <Button variant="ghost" size="icon" className="size-7" aria-label="Back to the list" onClick={() => openSection("goals")}><ChevronLeft /></Button>}
         <h2 className="min-w-0 flex-1 truncate font-medium">{route.tab === "jobs" && !homeChat ? "" : report?.title ?? goal?.title ?? "Goal"}</h2>
         {!homeChat && (
           <div role="tablist" aria-label="Goal view" className="flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.5">
@@ -317,7 +317,7 @@ export default function App() {
                   {status ? "career-lens does not answer. The agents cannot search or read pages. Goals wait until it is back." : "The job-finder server does not answer. Start it, then this page continues."}
                 </p>
               )}
-              {route.section === "jobs" ? <AllJobs openJob={route.job ?? null} onOpenJob={(job) => go({ section: "jobs", goalId: null, mandateId: null, tab: "chat", job: { goalId: job.goal_id, jobId: job.id } })} onBoard={() => openSection("jobs")} onShowInPipeline={(highlight) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", highlight })} onNewChat={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
+              {route.section === "jobs" ? <AllJobs openJob={route.job ?? null} onOpenJob={(job) => go({ section: "jobs", goalId: null, mandateId: null, tab: "chat", job: { goalId: job.goal_id, jobId: job.id } })} onBoard={() => openSection("jobs")} onShowInPipeline={(highlight) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", highlight })} onNewGoal={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
                 : route.section === "pipeline" ? <PipelinePage roleKey={route.roleKey ?? null} highlight={route.highlight ?? null} onOpenRole={(roleKey) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", roleKey })} onBoard={() => openSection("pipeline")} onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
                 : goalId ? goalScreen
                 : route.mandateId ? <p className="p-4 text-muted-foreground">Reading the mandate</p>

@@ -8,7 +8,7 @@ import type { Section } from "@/lib/route"
 import { cn } from "@/lib/utils"
 
 const SECTIONS: { id: Section; label: string; icon: typeof Briefcase }[] = [
-  { id: "chats", label: "Chats", icon: MessagesSquare },
+  { id: "goals", label: "Goals", icon: MessagesSquare },
   { id: "mandates", label: "Mandates", icon: CalendarClock },
   { id: "jobs", label: "Jobs", icon: Briefcase },
   { id: "pipeline", label: "Job pipeline", icon: Funnel },

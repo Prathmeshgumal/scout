@@ -252,7 +252,7 @@ describe("Jobs page", () => {
     job({ id: "j4", title: "Bad Role", fit: "not_fit" }),
   ]
   const board = (over: Partial<React.ComponentProps<typeof AllJobs>> = {}) => (
-    <AllJobs openJob={null} onOpenJob={() => {}} onBoard={() => {}} onShowInPipeline={() => {}} onNewChat={() => {}} onOpenGoal={() => {}} {...over} />
+    <AllJobs openJob={null} onOpenJob={() => {}} onBoard={() => {}} onShowInPipeline={() => {}} onNewGoal={() => {}} onOpenGoal={() => {}} {...over} />
   )
   const open = { goalId: "g1", jobId: "j1" }
   const detail = { pipeline: { role_key: "acme|go|pune", stage: null }, source: "job_board", fit_reasons: null, fit_evidence: [], description_text: null, snippet: null, research: [], notes: [], note: null }

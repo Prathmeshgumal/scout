@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import type { GoalSummary, Mandate } from "@/lib/api"
-import { MandateList } from "./ListPane"
+import { GoalList, MandateList } from "./ListPane"
 
 const mandate = (over: Partial<Mandate> = {}) => ({ id: "m1", home_goal_id: "home", title: "Daily roles", status: "active", next_run_at: "2026-11-06T09:00:00Z", ...over }) as Mandate
 const run = (n: number, over: Partial<GoalSummary> = {}) => ({
@@ -83,5 +83,27 @@ describe("MandateList", () => {
     await userEvent.click(screen.getByRole("button", { name: "Delete Run title 1" }))
     expect(props.onDeleteGoal).toHaveBeenCalledWith(goal)
     expect(within(document.body).getByRole("button", { name: "Delete Daily roles" })).toBeInTheDocument()
+  })
+})
+
+describe("GoalList", () => {
+  const goal = run(1, { mandate_id: null })
+  const list = (goals: GoalSummary[]) => render(<GoalList goals={goals} activeId={null} full={false} onOpen={vi.fn()} onNew={vi.fn()} onDelete={vi.fn()} />)
+
+  it("names the list and its button with the word goal", () => {
+    list([goal])
+    expect(screen.getByRole("region", { name: "Goals" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "New goal" })).toBeInTheDocument()
+    expect(screen.getByRole("textbox", { name: "Search goals" })).toBeInTheDocument()
+  })
+
+  it("shows only the goals that no mandate started", () => {
+    list([goal, run(2)])
+    expect(screen.getAllByRole("button", { name: /^(?!Delete).*Run title/ })).toHaveLength(1)
+  })
+
+  it("says that there are no goals", () => {
+    list([])
+    expect(screen.getByText("No goals yet. Start one to find roles.")).toBeInTheDocument()
   })
 })

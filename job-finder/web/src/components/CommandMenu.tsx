@@ -31,19 +31,19 @@ export function CommandMenu({ open, onOpenChange, goals, mandates, dark, onNew, 
   }, [open, onOpenChange])
   const run = (action: () => void) => () => { onOpenChange(false); action() }
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} title="Command menu" description="Go to a chat, a mandate or the roles">
+    <CommandDialog open={open} onOpenChange={onOpenChange} title="Command menu" description="Go to a goal, a mandate or the roles">
       <CommandInput placeholder="Go to" />
       <CommandList>
         <CommandEmpty>Nothing found.</CommandEmpty>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={run(onNew)}><Plus /> New chat</CommandItem>
+          <CommandItem onSelect={run(onNew)}><Plus /> New goal</CommandItem>
           <CommandItem onSelect={run(onJobs)}><Briefcase /> Jobs</CommandItem>
           <CommandItem onSelect={run(onPipeline)}><Funnel /> Job pipeline</CommandItem>
           <CommandItem onSelect={run(onSettings)}><SettingsIcon /> Settings</CommandItem>
           <CommandItem onSelect={run(onToggleTheme)}>{dark ? <Sun /> : <Moon />} Use the {dark ? "light" : "dark"} theme</CommandItem>
         </CommandGroup>
         {goals.length > 0 && (
-          <CommandGroup heading="Chats">
+          <CommandGroup heading="Goals">
             {goals.filter((g) => !g.home_of).map((g) => <CommandItem key={g.id} value={`${g.title} ${g.id}`} onSelect={run(() => onGoal(g.id))}><MessageSquare /> {g.title}</CommandItem>)}
           </CommandGroup>
         )}

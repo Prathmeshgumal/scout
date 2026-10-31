@@ -60,12 +60,12 @@ type Props = {
   onOpenJob: (job: JobCardData) => void
   onBoard: () => void
   onShowInPipeline: (roleKey: string) => void
-  onNewChat: () => void
+  onNewGoal: () => void
   onOpenGoal: (id: string) => void
 }
 
 /** All roles as a board, with one column for each verdict. The agents give the verdict, so the cards do not move. */
-export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewChat, onOpenGoal }: Props) {
+export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewGoal, onOpenGoal }: Props) {
   const [jobs, setJobs] = useState<JobCardData[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [goal, setGoal] = useState("all")
@@ -128,8 +128,8 @@ export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewCh
       {jobs?.length === 0 && (
         <div className="flex flex-col items-start gap-2 px-6 py-6">
           <p className="font-medium">No roles yet.</p>
-          <p className="text-muted-foreground">Start a chat and say what you want. The roles of each goal appear here.</p>
-          <Button size="sm" onClick={onNewChat}>Start a chat</Button>
+          <p className="text-muted-foreground">Start a goal and say what you want. The roles of each goal appear here.</p>
+          <Button size="sm" onClick={onNewGoal}>Start a goal</Button>
         </div>
       )}
       {jobs && jobs.length > 0 && (

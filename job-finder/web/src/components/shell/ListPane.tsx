@@ -63,16 +63,16 @@ function Pane({ title, count, onNew, newLabel, full, search, setSearch, children
   )
 }
 
-type ChatProps = { goals: GoalSummary[]; activeId: string | null; full: boolean; onOpen: (id: string) => void; onNew: () => void; onDelete: (goal: GoalSummary) => void }
+type GoalProps = { goals: GoalSummary[]; activeId: string | null; full: boolean; onOpen: (id: string) => void; onNew: () => void; onDelete: (goal: GoalSummary) => void }
 
-export function ChatList({ goals, activeId, full, onOpen, onNew, onDelete }: ChatProps) {
+export function GoalList({ goals, activeId, full, onOpen, onNew, onDelete }: GoalProps) {
   const [search, setSearch] = useState("")
   const words = search.toLowerCase()
-  const chats = goals.filter((g) => !g.mandate_id && !g.home_of && g.title.toLowerCase().includes(words))
+  const shown = goals.filter((g) => !g.mandate_id && !g.home_of && g.title.toLowerCase().includes(words))
   return (
-    <Pane title="Chats" count={chats.length} onNew={onNew} newLabel="New chat" full={full} search={search} setSearch={setSearch}>
-      {chats.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No chats match." : "No chats yet. Start one to find roles."}</p>}
-      {chats.map((g) => <Row key={g.id} title={g.title} meta={goalMeta(g)} dot={DOT[g.status]} label={g.status} active={g.id === activeId} onOpen={() => onOpen(g.id)} onDelete={() => onDelete(g)} />)}
+    <Pane title="Goals" count={shown.length} onNew={onNew} newLabel="New goal" full={full} search={search} setSearch={setSearch}>
+      {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No goals match." : "No goals yet. Start one to find roles."}</p>}
+      {shown.map((g) => <Row key={g.id} title={g.title} meta={goalMeta(g)} dot={DOT[g.status]} label={g.status} active={g.id === activeId} onOpen={() => onOpen(g.id)} onDelete={() => onDelete(g)} />)}
     </Pane>
   )
 }
@@ -104,7 +104,7 @@ export function MandateList({ mandates, goals, activeGoalId, full, onOpen, onOpe
   const showAll = (id: string) => setAll((now) => { const next = new Set(now); if (!next.delete(id)) next.add(id); return next })
   return (
     <Pane title="Mandates" count={shown.length} onNew={onNew} newLabel="New mandate" full={full} search={search} setSearch={setSearch}>
-      {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No mandates match." : "No mandates yet. Ask for work that repeats in a chat, for example 10 roles each weekday."}</p>}
+      {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No mandates match." : "No mandates yet. Ask for work that repeats, for example 10 roles each weekday."}</p>}
       {shown.map((m) => {
         const runs = goals.filter((g) => g.mandate_id === m.id)
           .sort((a, b) => a.created_at.localeCompare(b.created_at))
