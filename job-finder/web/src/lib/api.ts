@@ -148,6 +148,9 @@ export type PipelineItem = {
   notes: PipelineNote[]
 }
 
+/** A role that the user took out of the pipeline. Its notes stay. */
+export type RemovedItem = Omit<PipelineItem, "stage"> & { stage: "removed" }
+
 export type JobDetail = JobCardData & {
   pipeline: { role_key: string; stage: PipelineStage | null }
   source_url: string | null
@@ -298,7 +301,7 @@ export function uploadFile(file: File, role: "attachment" | "resume" = "attachme
   body.append("role", role)
   return request<FileInfo>("/api/files", { method: "POST", body })
 }
-export const getPipeline = () => request<{ items: PipelineItem[] }>("/api/pipeline")
+export const getPipeline = () => request<{ items: PipelineItem[]; removed?: RemovedItem[] }>("/api/pipeline")
 export const setPipelineStage = (roleKey: string, stage: PipelineStage | "removed") =>
   request<unknown>("/api/pipeline/stage", { ...postJson({ role_key: roleKey, stage }), method: "PUT" })
 export const addPipelineNote = (roleKey: string, text: string) =>

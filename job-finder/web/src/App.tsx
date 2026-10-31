@@ -185,12 +185,6 @@ export default function App() {
     go({ section, goalId: null, mandateId: null, tab: "chat" })
   }
   const login = { open: loginOpen, onOpenChange: setLoginOpen, status, onChanged: () => void getStatus().then(setStatus).catch(() => {}) }
-  // Settings is a popup now. An old /settings link goes to the home page and opens the popup.
-  useEffect(() => {
-    if (route.section !== "settings") return
-    go({ section: "chats", goalId: null, mandateId: null, tab: "chat" })
-    setLoginOpen(true)
-  }, [route.section, go])
 
   const view = goalId ? views[goalId] ?? null : null
   const running = view ? runningAgents(view) : []
@@ -320,8 +314,8 @@ export default function App() {
                   {status ? "career-lens does not answer. The agents cannot search or read pages. Goals wait until it is back." : "The job-finder server does not answer. Start it, then this page continues."}
                 </p>
               )}
-              {route.section === "jobs" ? <AllJobs onNewChat={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
-                : route.section === "pipeline" ? <PipelinePage onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
+              {route.section === "jobs" ? <AllJobs openJob={route.job ?? null} onOpenJob={(job) => go({ section: "jobs", goalId: null, mandateId: null, tab: "chat", job: { goalId: job.goal_id, jobId: job.id } })} onBoard={() => openSection("jobs")} onShowInPipeline={(highlight) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", highlight })} onNewChat={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
+                : route.section === "pipeline" ? <PipelinePage roleKey={route.roleKey ?? null} highlight={route.highlight ?? null} onOpenRole={(roleKey) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", roleKey })} onBoard={() => openSection("pipeline")} onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
                 : goalId ? goalScreen
                 : route.mandateId ? (openMandate
                   ? <>

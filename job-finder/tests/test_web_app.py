@@ -194,7 +194,7 @@ async def test_a_goal_link_gives_the_browser_app(app_settings, services, session
     monkeypatch.setattr("job_finder.web.app.STATIC_DIR", tmp_path)
     app = create_app(app_settings, services, sessions, model_loader=sdk_models)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
-        for path in ("/", "/goals/b7602321-26e1-4e7c-942e-243d23fec79b/report", "/mandates", "/jobs", "/pipeline", "/settings"):
+        for path in ("/", "/goals/b7602321-26e1-4e7c-942e-243d23fec79b/report", "/mandates", "/jobs", "/jobs/b7602321-26e1-4e7c-942e-243d23fec79b/b7602321-26e1-4e7c-942e-243d23fec79c", "/pipeline", "/pipeline/acme%7Cgo%7Cpune"):
             response = await c.get(path)
             assert response.status_code == 200 and "root" in response.text
         assert (await c.get("/api/goals")).status_code == 200  # the API still answers

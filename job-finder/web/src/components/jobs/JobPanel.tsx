@@ -32,6 +32,11 @@ function shown(value: unknown): string {
   return String(value)
 }
 
+/** The company research of a role as label and value rows. */
+export const companyFacts = (detail: JobDetail | null) => (detail?.research ?? []).flatMap((row) => Object.entries(row.data)
+  .filter(([, value]) => value !== null && value !== "" && !(Array.isArray(value) && !value.length))
+  .map(([key, value]) => ({ key: `${row.kind}-${key}`, label: labelOf(key), value: shown(value), from: row.from_goal })))
+
 export function JobPanel({ job, onClose, onStage }: { job: JobCardData; onClose: () => void; onStage?: () => void }) {
   const [askApplied, setAskApplied] = useState(false)
   const [detail, setDetail] = useState<JobDetail | null>(null)
@@ -77,9 +82,7 @@ export function JobPanel({ job, onClose, onStage }: { job: JobCardData; onClose:
     }
   }
 
-  const facts = (detail?.research ?? []).flatMap((row) => Object.entries(row.data)
-    .filter(([, value]) => value !== null && value !== "" && !(Array.isArray(value) && !value.length))
-    .map(([key, value]) => ({ key: `${row.kind}-${key}`, label: labelOf(key), value: shown(value), from: row.from_goal })))
+  const facts = companyFacts(detail)
 
   return (
     <aside aria-label={`Details of ${job.title}`}

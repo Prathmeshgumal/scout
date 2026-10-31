@@ -370,7 +370,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
 
     @app.get("/api/pipeline")
     async def pipeline_items(request: Request) -> dict:
-        return {"items": await pipeline(request).items()}
+        return await pipeline(request).board()
 
     @app.put("/api/pipeline/stage")
     async def pipeline_stage(body: PipelineMove, request: Request) -> dict:
@@ -590,9 +590,10 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         @app.get("/goals/{path:path}", include_in_schema=False)
         @app.get("/mandates/{path:path}", include_in_schema=False)
         @app.get("/mandates", include_in_schema=False)
+        @app.get("/jobs/{path:path}", include_in_schema=False)
         @app.get("/jobs", include_in_schema=False)
+        @app.get("/pipeline/{path:path}", include_in_schema=False)
         @app.get("/pipeline", include_in_schema=False)
-        @app.get("/settings", include_in_schema=False)
         async def goal_page(path: str = "") -> FileResponse:
             """A link to a page of the app: the browser app reads the URL."""
             return FileResponse(STATIC_DIR / "index.html")

@@ -85,9 +85,9 @@ MinIO keeps the files. Postgres keeps the facts of each file and its text.
 
 ## Track your applications
 
-Open **Jobs** to see the roles of each goal. Click a goal to show its roles. Click **Show all jobs** to see the roles of all goals at once.
+Open **Jobs** to see all roles on a board, with one column for each verdict. The agents give the verdict, so you cannot drag these cards. Use the filters to see one goal or one workplace type, or to search. Click a role to open its page.
 
-Open **Job pipeline** to track your applications. The page has four stages:
+Open **Job pipeline** to track your applications. The page is a board with one column for each of the four stages:
 
 | Stage | Meaning |
 |---|---|
@@ -96,9 +96,12 @@ Open **Job pipeline** to track your applications. The page has four stages:
 | Applied | You applied to the role. |
 | Responded | The company responded. |
 
-- Choose the stage of a role yourself. The agents do not change it.
-- Click a role to add notes.
-- The funnel counts the roles that reached each stage or a later stage.
+- Drag a role to a different column to change its stage. The agents do not change it.
+- To move a role with the keyboard, press Space, use the left and right arrows, and press Space again.
+- Click a role to open its page. The page shows the verdict, the application note and your notes. Press Escape to go back to the board.
+- The bands at the top of the board count the roles that reached each stage or a later stage.
+- To add any role, open it on the Jobs page and choose **Add to pipeline**. The role goes to Fit jobs. Then use **Show in pipeline** to see its card on the board.
+- When you remove a role, the role and its notes stay. Click **Removed** to show the removed roles in a column. Drag a role from that column to a stage to bring it back.
 - A role and its notes stay in the pipeline when you delete its goal.
 
 ## Use the command line
