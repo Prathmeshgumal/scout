@@ -107,3 +107,47 @@ describe("GoalList", () => {
     expect(screen.getByText("No goals yet. Start one to find roles.")).toBeInTheDocument()
   })
 })
+
+describe("the icons of the lists", () => {
+  const icon = (name: string) => document.querySelector(`.lucide-${name}`)
+  const goals = (status: GoalSummary["status"]) => render(<GoalList goals={[run(1, { mandate_id: null, status })]} activeId={null} full={false} onOpen={vi.fn()} onNew={vi.fn()} onDelete={vi.fn()} />)
+
+  it("gives a goal a target, and a new goal a pen", () => {
+    goals("done")
+    expect(icon("target")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "New goal" }).querySelector(".lucide-square-pen")).toBeInTheDocument()
+  })
+
+  it.each([["running", "Working"], ["waiting", "Waiting on scrapes"], ["failed", "Failed"], ["capped", "Reached its limit"]] as const)("shows that a goal is %s", (status, label) => {
+    goals(status)
+    expect(screen.getByRole("img", { name: label })).toBeInTheDocument()
+  })
+
+  it("shows no status icon for a finished goal", () => {
+    goals("done")
+    expect(screen.queryByRole("img")).not.toBeInTheDocument()
+  })
+
+  it("gives a mandate a scroll", () => {
+    show()
+    expect(icon("scroll-text")).toBeInTheDocument()
+  })
+
+  it("shows a paused mandate and an ended mandate", () => {
+    show({ mandates: [mandate({ status: "paused" }), mandate({ id: "m2", status: "ended", title: "Old" })] })
+    expect(screen.getByRole("img", { name: "Paused" })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "Ended" })).toBeInTheDocument()
+  })
+
+  it("shows a green dot while a goal of the mandate works", () => {
+    show({ goals: [run(1, { status: "running" })] })
+    expect(screen.getByRole("img", { name: "Working now" })).toBeInTheDocument()
+    expect(icon("scroll-text")).not.toBeInTheDocument()
+  })
+
+  it("gives a goal of a mandate only a status icon", () => {
+    show({ goals: [run(1, { status: "running" })], activeGoalId: "home" })
+    expect(icon("target")).not.toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "Working" })).toBeInTheDocument()
+  })
+})

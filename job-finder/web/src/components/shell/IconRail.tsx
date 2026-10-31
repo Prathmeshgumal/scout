@@ -1,4 +1,4 @@
-import { Briefcase, CalendarClock, Funnel, Laptop, MessagesSquare, Moon, Sun } from "lucide-react"
+import { Briefcase, Funnel, Laptop, Moon, ScrollText, Sun, Target } from "lucide-react"
 import type { ComponentProps } from "react"
 import { LoginPopover } from "@/components/shell/LoginPopover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -8,8 +8,8 @@ import type { Section } from "@/lib/route"
 import { cn } from "@/lib/utils"
 
 const SECTIONS: { id: Section; label: string; icon: typeof Briefcase }[] = [
-  { id: "goals", label: "Goals", icon: MessagesSquare },
-  { id: "mandates", label: "Mandates", icon: CalendarClock },
+  { id: "goals", label: "Goals", icon: Target },
+  { id: "mandates", label: "Mandates", icon: ScrollText },
   { id: "jobs", label: "Jobs", icon: Briefcase },
   { id: "pipeline", label: "Job pipeline", icon: Funnel },
 ]

@@ -1,4 +1,4 @@
-import { Briefcase, CalendarClock, MessageSquare, Moon, Plus, Sun, Funnel, Settings as SettingsIcon } from "lucide-react"
+import { Briefcase, Moon, ScrollText, SquarePen, Sun, Target, Funnel, Settings as SettingsIcon } from "lucide-react"
 import { useEffect } from "react"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import type { GoalSummary, Mandate } from "@/lib/api"
@@ -36,7 +36,7 @@ export function CommandMenu({ open, onOpenChange, goals, mandates, dark, onNew, 
       <CommandList>
         <CommandEmpty>Nothing found.</CommandEmpty>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={run(onNew)}><Plus /> New goal</CommandItem>
+          <CommandItem onSelect={run(onNew)}><SquarePen /> New goal</CommandItem>
           <CommandItem onSelect={run(onJobs)}><Briefcase /> Jobs</CommandItem>
           <CommandItem onSelect={run(onPipeline)}><Funnel /> Job pipeline</CommandItem>
           <CommandItem onSelect={run(onSettings)}><SettingsIcon /> Settings</CommandItem>
@@ -44,12 +44,12 @@ export function CommandMenu({ open, onOpenChange, goals, mandates, dark, onNew, 
         </CommandGroup>
         {goals.length > 0 && (
           <CommandGroup heading="Goals">
-            {goals.filter((g) => !g.home_of).map((g) => <CommandItem key={g.id} value={`${g.title} ${g.id}`} onSelect={run(() => onGoal(g.id))}><MessageSquare /> {g.title}</CommandItem>)}
+            {goals.filter((g) => !g.home_of).map((g) => <CommandItem key={g.id} value={`${g.title} ${g.id}`} onSelect={run(() => onGoal(g.id))}><Target /> {g.title}</CommandItem>)}
           </CommandGroup>
         )}
         {mandates.length > 0 && (
           <CommandGroup heading="Mandates">
-            {mandates.map((m) => <CommandItem key={m.id} value={`${m.title} ${m.id}`} onSelect={run(() => onMandate(m.id))}><CalendarClock /> {m.title}</CommandItem>)}
+            {mandates.map((m) => <CommandItem key={m.id} value={`${m.title} ${m.id}`} onSelect={run(() => onMandate(m.id))}><ScrollText /> {m.title}</CommandItem>)}
           </CommandGroup>
         )}
       </CommandList>
