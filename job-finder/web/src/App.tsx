@@ -11,7 +11,6 @@ import { Welcome } from "@/components/chat/Welcome"
 import { AllJobs } from "@/components/jobs/AllJobs"
 import { JobsTab } from "@/components/jobs/JobsTab"
 import { PipelinePage } from "@/components/pipeline/PipelinePage"
-import { MandateView } from "@/components/mandates/MandateView"
 import { IconRail } from "@/components/shell/IconRail"
 import { ChatList, MandateList } from "@/components/shell/ListPane"
 import { StatusBar } from "@/components/shell/StatusBar"
@@ -61,7 +60,8 @@ export default function App() {
   const textarea = useRef<HTMLTextAreaElement>(null)
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const openId = useRef<string | null>(null)
-  const goalId = route.goalId
+  // The chat of a mandate is a goal: its URL names the mandate, and the list of mandates says which goal.
+  const goalId = route.goalId ?? mandates.find((m) => m.id === route.mandateId)?.home_goal_id ?? null
   openId.current = goalId
 
   const go = useCallback((next: Route) => {
@@ -138,7 +138,7 @@ export default function App() {
             if (event.type === "goal_deleted") { controller.abort(); return }
             dispatch({ type: "event", id, event })
             if (REFRESH_EVENTS.has(event.type) || event.saved) soon()
-            if (event.type === "status_changed") refreshList()
+            if (event.type === "status_changed" || (event.type === "notice" && String(event.trigger ?? "").startsWith("mandate_"))) refreshList()
           }, controller.signal)
         } catch {
           if (controller.signal.aborted) return
@@ -256,16 +256,19 @@ export default function App() {
 
   const goal = summary?.goal
   const homeChat = Boolean(goal?.home_of)
-  const openMandate = mandates.find((m) => m.id === route.mandateId) ?? null
+  // A goal of a mandate and the chat of a mandate are in the list of mandates, not in the list of chats.
+  const openRow = goals?.find((g) => g.id === goalId)
+  const section = route.section === "chats" && (openRow?.mandate_id || openRow?.home_of) ? "mandates" : route.section
   const showList = route.section !== "jobs" && route.section !== "pipeline" && (!narrow || (!goalId && !route.mandateId && !newChat && (route.section === "mandates" || Boolean(goals?.length))))
   const showMain = !narrow || !showList
   const lensDown = statusRead && (!status || (status.career_lens && !["online", "checking", "not_configured"].includes(status.career_lens.state)))
   const wait = report?.waits.flatMap((w) => (w.reason ? [w.reason] : []))[0] ?? null
 
-  const list = route.section === "mandates"
-    ? <MandateList mandates={mandates} goals={goals ?? []} activeId={route.mandateId} activeGoalId={goalId} full={narrow}
-        onOpen={(id) => go({ section: "mandates", goalId: null, mandateId: id, tab: "chat" })} onOpenGoal={(id) => openGoal(id, "jobs")}
-        onNew={startNew} onDelete={(m) => setToDelete({ kind: "mandate", id: m.id, title: m.title })} />
+  const list = section === "mandates"
+    ? <MandateList mandates={mandates} goals={goals ?? []} activeGoalId={goalId} full={narrow}
+        onOpen={(id) => go({ section: "mandates", goalId: null, mandateId: id, tab: "chat" })} onOpenGoal={(id) => openGoal(id)}
+        onNew={startNew} onDelete={(m) => setToDelete({ kind: "mandate", id: m.id, title: m.title })}
+        onDeleteGoal={(g) => setToDelete({ kind: "goal", id: g.id, title: g.title })} />
     : <ChatList goals={goals ?? []} activeId={goalId} full={narrow} onOpen={(id) => openGoal(id)} onNew={startNew}
         onDelete={(g) => setToDelete({ kind: "goal", id: g.id, title: g.title })} />
 
@@ -297,7 +300,7 @@ export default function App() {
     <TooltipProvider delayDuration={200}>
       <div className="app-bg flex h-dvh flex-col overflow-hidden text-[13px] text-foreground">
         <div className="flex min-h-0 flex-1">
-          {!narrow && <IconRail section={route.section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow={false} login={login} />}
+          {!narrow && <IconRail section={section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow={false} login={login} />}
           {showList && list}
           {showMain && (
             <main className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -317,18 +320,13 @@ export default function App() {
               {route.section === "jobs" ? <AllJobs openJob={route.job ?? null} onOpenJob={(job) => go({ section: "jobs", goalId: null, mandateId: null, tab: "chat", job: { goalId: job.goal_id, jobId: job.id } })} onBoard={() => openSection("jobs")} onShowInPipeline={(highlight) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", highlight })} onNewChat={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
                 : route.section === "pipeline" ? <PipelinePage roleKey={route.roleKey ?? null} highlight={route.highlight ?? null} onOpenRole={(roleKey) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", roleKey })} onBoard={() => openSection("pipeline")} onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
                 : goalId ? goalScreen
-                : route.mandateId ? (openMandate
-                  ? <>
-                      {narrow && <div className="p-2"><Button variant="ghost" size="sm" onClick={() => openSection("mandates")}><ChevronLeft aria-hidden /> Mandates</Button></div>}
-                      <MandateView mandate={openMandate} goals={goals ?? []} onOpenGoal={(id) => openGoal(id)} />
-                    </>
-                  : <p className="p-4 text-muted-foreground">Reading the mandate</p>)
-                : route.section === "mandates" ? <p className="m-auto max-w-[320px] p-4 text-center text-muted-foreground">Open a mandate to see its schedule and its runs.</p>
+                : route.mandateId ? <p className="p-4 text-muted-foreground">Reading the mandate</p>
+                : route.section === "mandates" ? <p className="m-auto max-w-[320px] p-4 text-center text-muted-foreground">Open a mandate to see its chat and its goals.</p>
                 : <Welcome composer={composer} hasGoals={Boolean(goals?.length)} onDraft={(text) => { setInput(text); requestAnimationFrame(() => textarea.current?.focus()) }} />}
             </main>
           )}
         </div>
-        {narrow && <IconRail section={route.section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow login={login} />}
+        {narrow && <IconRail section={section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow login={login} />}
         <StatusBar onLogin={() => setLoginOpen(true)} status={status} wait={wait} spend={report ? { used: report.goal.spend_usd, max: report.goal.max_spend_usd } : null}
           running={goals?.filter((g) => g.status === "running").length ?? 0} onCommand={() => setCommandOpen(true)} />
       </div>

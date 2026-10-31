@@ -77,35 +77,62 @@ export function ChatList({ goals, activeId, full, onOpen, onNew, onDelete }: Cha
   )
 }
 
-type MandateProps = {
-  mandates: Mandate[]; goals: GoalSummary[]; activeId: string | null; activeGoalId: string | null; full: boolean
-  onOpen: (id: string) => void; onOpenGoal: (id: string) => void; onNew: () => void; onDelete: (mandate: Mandate) => void
+const SHOWN_GOALS = 5 // the newest goals of a mandate. A button shows the others.
+const BUSY: GoalStatus[] = ["running", "waiting"]
+const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+
+/** What a mandate does now. A paused or ended mandate keeps its status, also while its last goal works. */
+function mandateLine(m: Mandate, working: boolean) {
+  if (m.status === "paused") return "Paused"
+  if (m.status === "ended") return "Ended"
+  if (working) return "Working now"
+  return m.next_run_at ? `Next goal ${when(m.next_run_at)}` : ""
 }
 
-export function MandateList({ mandates, goals, activeId, activeGoalId, full, onOpen, onOpenGoal, onNew, onDelete }: MandateProps) {
+type MandateProps = {
+  mandates: Mandate[]; goals: GoalSummary[]; activeGoalId: string | null; full: boolean
+  onOpen: (id: string) => void; onOpenGoal: (id: string) => void; onNew: () => void
+  onDelete: (mandate: Mandate) => void; onDeleteGoal: (goal: GoalSummary) => void
+}
+
+/** Each mandate opens its chat. Under it are the goals that it started: each one opens its chat, as any other goal. */
+export function MandateList({ mandates, goals, activeGoalId, full, onOpen, onOpenGoal, onNew, onDelete, onDeleteGoal }: MandateProps) {
   const [search, setSearch] = useState("")
-  const [open, setOpen] = useState<Set<string>>(new Set())
+  const [unfolded, setUnfolded] = useState<Map<string, boolean>>(new Map()) // the user's choice for each mandate
+  const [all, setAll] = useState<Set<string>>(new Set())
   const shown = mandates.filter((m) => m.title.toLowerCase().includes(search.toLowerCase()))
-  const toggle = (id: string) => setOpen((now) => { const next = new Set(now); if (!next.delete(id)) next.add(id); return next })
+  const showAll = (id: string) => setAll((now) => { const next = new Set(now); if (!next.delete(id)) next.add(id); return next })
   return (
     <Pane title="Mandates" count={shown.length} onNew={onNew} newLabel="New mandate" full={full} search={search} setSearch={setSearch}>
       {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No mandates match." : "No mandates yet. Ask for work that repeats in a chat, for example 10 roles each weekday."}</p>}
       {shown.map((m) => {
         const runs = goals.filter((g) => g.mandate_id === m.id)
-        const expanded = open.has(m.id)
+          .sort((a, b) => a.created_at.localeCompare(b.created_at))
+          .map((g, i) => ({ goal: g, number: i + 1 }))
+          .reverse()
+        const holdsActive = m.home_goal_id === activeGoalId || runs.some(({ goal }) => goal.id === activeGoalId)
+        const expanded = unfolded.get(m.id) ?? holdsActive
+        const working = runs.some(({ goal }) => BUSY.includes(goal.status))
+        const visible = all.has(m.id) ? runs : runs.slice(0, SHOWN_GOALS)
         return (
           <div key={m.id} className="flex flex-col gap-0.5">
-            <Row title={m.title} meta={m.status} dot={MANDATE_DOT[m.status]} label={m.status} active={m.id === activeId} onOpen={() => onOpen(m.id)} onDelete={() => onDelete(m)}
-              before={(
-                <button type="button" aria-label={`${expanded ? "Hide" : "Show"} the goals of ${m.title}`} aria-expanded={expanded} onClick={() => toggle(m.id)}
+            <Row title={m.title} meta={mandateLine(m, working)} dot={working && m.status === "active" ? DOT.running : MANDATE_DOT[m.status]} label={m.status}
+              active={m.home_goal_id === activeGoalId} onOpen={() => onOpen(m.id)} onDelete={() => onDelete(m)}
+              before={runs.length > 0 ? (
+                <button type="button" aria-label={`${expanded ? "Hide" : "Show"} the goals of ${m.title}`} aria-expanded={expanded} onClick={() => setUnfolded(new Map(unfolded).set(m.id, !expanded))}
                   className="ml-0.5 grid size-5 shrink-0 place-items-center rounded text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
                   <ChevronRight className={cn("size-3.5 transition-transform", expanded && "rotate-90")} aria-hidden />
                 </button>
-              )} />
-            {expanded && runs.length === 0 && <p className="ml-8 py-1 text-[12px] text-muted-foreground">No goals yet.</p>}
-            {expanded && runs.map((g) => (
-              <Row key={g.id} indent title={g.run_number ? `Run ${g.run_number}` : g.title} meta={goalMeta(g)} dot={DOT[g.status]} label={g.status} active={g.id === activeGoalId} onOpen={() => onOpenGoal(g.id)} />
+              ) : undefined} />
+            {expanded && visible.map(({ goal, number }) => (
+              <Row key={goal.id} indent title={goal.title || `Goal ${number}`} meta={`${when(goal.created_at)}, ${goalMeta(goal)}`} dot={DOT[goal.status]} label={goal.status}
+                active={goal.id === activeGoalId} onOpen={() => onOpenGoal(goal.id)} onDelete={() => onDeleteGoal(goal)} />
             ))}
+            {expanded && runs.length > SHOWN_GOALS && (
+              <button type="button" onClick={() => showAll(m.id)} className="ml-3 self-start rounded px-2 py-1 text-[12px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                {all.has(m.id) ? "Show fewer" : `Show ${runs.length - SHOWN_GOALS} older`}
+              </button>
+            )}
           </div>
         )
       })}
