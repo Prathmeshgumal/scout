@@ -62,7 +62,7 @@ function CommandDialog({
         showCloseButton={showCloseButton}
         onCloseAutoFocus={onCloseAutoFocus}
       >
-        {children}
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )
