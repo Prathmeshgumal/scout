@@ -9,8 +9,8 @@ After=graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
-WorkingDirectory=%h/razorpay/career-lens-v2
-ExecStart=%h/razorpay/career-lens-v2/.venv/bin/career-lens supervisor --env-file .env --config deploy/supervisor.json
+WorkingDirectory=%h/razorpay/career-lens
+ExecStart=%h/razorpay/career-lens/.venv/bin/career-lens supervisor --env-file .env --config deploy/supervisor.json
 Restart=on-failure
 RestartSec=15
 KillMode=mixed
