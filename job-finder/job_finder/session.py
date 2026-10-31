@@ -49,7 +49,7 @@ PERSISTENT_ASSISTANT_ERRORS = {
     "invalid_request": "Claude rejected the request (invalid request).",
 }
 TOKEN_AUTH_FAILED = ("Claude authentication failed: the subscription token may have expired. "
-                     "Run `job-finder login`.")
+                     "Sign in again with the Settings button, or run `job-finder login`.")
 USAGE_LIMIT = "Claude usage limit reached; a subscription limit resets on the plan's schedule"
 CONTINUE_DELAY_S = 5.0  # a finished subagent can start a new response just after the goal looks idle
 WAKE_S = 10.0  # a subagent's notification starts a main response a moment later: the goal does not look done meanwhile

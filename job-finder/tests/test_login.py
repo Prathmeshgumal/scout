@@ -1,8 +1,11 @@
 import stat
 
+import httpx
 import pytest
+import respx
 
 from job_finder.login import SetupTokenView, TerminalOutput, find_token, login, save_credential
+from job_finder.login import credential_works as real_credential_works
 
 TOKEN = "sk-ant-oat01-Abc_def-123"
 KEY = "sk-ant-api03-key_456"
@@ -191,3 +194,33 @@ def test_as_a_normal_user_the_saved_file_keeps_its_owner(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "chown", lambda *args: calls.append(args))
     save_credential(env_file(tmp_path), TOKEN)
     assert calls == []
+
+
+CHECK = "https://api.anthropic.com/v1/models"
+
+
+@respx.mock
+def test_the_check_sends_each_login_in_its_own_header():
+    route = respx.get(CHECK).mock(return_value=httpx.Response(200, json={"data": []}))
+    assert real_credential_works(KEY) is True
+    assert route.calls.last.request.headers["x-api-key"] == KEY
+    assert real_credential_works(TOKEN) is True
+    assert route.calls.last.request.headers["authorization"] == f"Bearer {TOKEN}"
+
+
+@respx.mock
+def test_only_a_401_says_that_a_login_is_bad():
+    respx.get(CHECK).mock(side_effect=[httpx.Response(401), httpx.Response(429), httpx.Response(403),
+                                       httpx.Response(500), httpx.ConnectError("down")])
+    assert [real_credential_works(KEY) for _ in range(5)] == [False, True, True, True, True]
+
+
+def test_the_terminal_login_refuses_a_key_that_claude_refuses(tmp_path, monkeypatch):
+    monkeypatch.setattr("job_finder.login.credential_works", lambda value: False)
+    lines = []
+    path = tmp_path / ".env"
+    code = login(path, api_key=True, ask=lambda _: KEY, out=lambda text, kind="info": lines.append(text))
+    assert code == 1
+    assert not path.exists()
+    assert any("did not accept" in line for line in lines)
+    assert not any(KEY in line for line in lines)

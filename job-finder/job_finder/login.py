@@ -16,6 +16,7 @@ import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
+import httpx
 from dotenv import dotenv_values, set_key, unset_key
 from rich.console import Console
 from rich.text import Text
@@ -25,8 +26,15 @@ from .login_status import save_account
 
 TOKEN = re.compile(r"sk-ant-oat[0-9A-Za-z_-]+")
 CREDENTIAL = re.compile(r"sk-ant-(?!oat$)[0-9A-Za-z_-]+")  # one word: a value cannot add a line to .env
+BAD_FORM = "That does not look like a Claude token or an Anthropic API key."
 ENV_NAMES = {"api_key": "ANTHROPIC_API_KEY", "oauth_token": "CLAUDE_CODE_OAUTH_TOKEN"}
-COLUMN_MOVE = re.compile(r"\x1b\[[0-9]*G")  # on a terminal, Claude Code moves the cursor and writes no spaces
+# On a terminal, Claude Code draws with control codes and can write no spaces or line breaks. Each code ends a
+# word. Only a colour code (m) does not: a colour can change inside a word.
+SCREEN_CONTROL = re.compile(r"\x1b\[[0-?]*[ -/]*[@-ln-~]")
+CHECK_URL = "https://api.anthropic.com/v1/models"  # this call uses no Claude usage
+CHECK_TIMEOUT_S = 15.0
+REFUSED = "Claude did not accept this login. Nothing changed."
+TOKEN_SETTLE_S = 0.5  # the terminal output comes in parts: a token is complete when it stops changing
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
 URL_PART = re.compile(r"[A-Za-z0-9%._~&=?/:+#-]+")  # a line that continues a long URL
 PROMPT = "Paste code here if prompted >"
@@ -141,11 +149,30 @@ def run_setup_token(out: Out, code: Callable[[int], None]) -> str:
     return "".join(chunks)
 
 
+def credential_works(value: str) -> bool:
+    """False only when Anthropic refuses the credential. A limit, a server error or no network proves nothing."""
+    is_token = value.startswith("sk-ant-oat")
+    headers = {"anthropic-version": "2023-06-01",
+               **({"authorization": f"Bearer {value}"} if is_token else {"x-api-key": value})}
+    try:
+        return httpx.get(CHECK_URL, headers=headers, timeout=CHECK_TIMEOUT_S).status_code != 401
+    except httpx.HTTPError:
+        return True
+
+
+def check_credential(value: str) -> None:
+    """Raise ValueError when the value has the wrong form, or when Anthropic refuses it."""
+    if not CREDENTIAL.fullmatch(value):
+        raise ValueError(BAD_FORM)
+    if not credential_works(value):
+        raise ValueError(REFUSED)
+
+
 def save_credential(env_file: Path, value: str, *, account_label: str = "", use: bool = False) -> str:
     """Save a token or a key to .env. The other one stays. With use, this login is the one in use.
     With no use, the choice goes: the terminal login says that the API key wins, and that must stay true."""
     if not CREDENTIAL.fullmatch(value):
-        raise ValueError("That does not look like a Claude token or an Anthropic API key.")
+        raise ValueError(BAD_FORM)
     mode = "oauth_token" if value.startswith("sk-ant-oat") else "api_key"
     name = ENV_NAMES[mode]
     if len(account_label) > 120 or any(c in account_label for c in "\r\n") or "sk-ant-" in account_label:
@@ -195,7 +222,7 @@ class SetupTokenFlow:
     def screen(self) -> str:
         with self.lock:
             text = b"".join(self.chunks).decode("utf-8", "replace")
-        return ANSI.sub("", COLUMN_MOVE.sub(" ", text)).replace("\r", "")
+        return ANSI.sub("", SCREEN_CONTROL.sub(" ", text)).replace("\r", "")
 
     def active(self) -> bool:
         return (self.process is not None and self.process.poll() is None
@@ -228,10 +255,14 @@ class SetupTokenFlow:
         time.sleep(0.3)  # Enter in the same write can become a part of the pasted text
         os.write(self.master, b"\r")
         deadline = time.monotonic() + timeout
+        found, since = None, time.monotonic()
         try:
             while time.monotonic() < deadline:
-                if token := find_token(self.screen()):
-                    return token
+                token = find_token(self.screen())
+                if token != found:
+                    found, since = token, time.monotonic()
+                if found and time.monotonic() - since >= TOKEN_SETTLE_S:
+                    return found
                 if self.process.poll() is not None:
                     time.sleep(0.2)  # the last output can still be on its way
                     return find_token(self.screen())
@@ -297,6 +328,7 @@ def login(env_file: Path, *, api_key: bool, ask: Callable[[str], str], out: Out,
         out("! Nothing entered; skipped.", "warn")
         return 1
     try:
+        check_credential(value)
         mode = save_credential(env_file, value, account_label=ask_label())
     except ValueError as exc:
         out(f"! {exc}", "warn")

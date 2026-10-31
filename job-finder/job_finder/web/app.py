@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from typing import Literal
 from urllib.parse import quote, urlsplit
 
+from dotenv import dotenv_values
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,7 +25,7 @@ from ..config import NO_LOGIN, ROOT, Settings, env_file
 from ..deletion import Deleter, MandateChat
 from ..events import Hub, follow
 from ..files import MAX_BYTES, FileRefused, FileStorageError
-from ..login import ENV_NAMES, SetupTokenFlow, choose_credential, save_credential
+from ..login import ENV_NAMES, SetupTokenFlow, check_credential, choose_credential, save_credential
 from ..login_status import LoginStatus
 from ..mandate_store import MandateStore
 from ..models import EFFORT_LABELS, ModelList, effort_label, read_sdk_models
@@ -541,6 +542,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     async def save_login(request: Request, body: LoginBody):
         value = body.credential.strip()
         try:
+            await asyncio.to_thread(check_credential, value)
             mode = save_credential(env_file(), value, account_label=body.account_label, use=True)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None  # from None: the error of the parser can hold the value
@@ -550,10 +552,14 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     async def use_login(request: Request, body: LoginChoice):
         if body.mode not in ENV_NAMES:
             raise HTTPException(404, "There is no login of that type.")
+        value = dotenv_values(env_file()).get(ENV_NAMES[body.mode])
+        if not value:
+            raise HTTPException(409, "That login is not saved.")
         try:
-            choose_credential(env_file(), body.mode)
+            await asyncio.to_thread(check_credential, value)
         except ValueError as exc:
-            raise HTTPException(409, str(exc)) from None
+            raise HTTPException(400, str(exc)) from None
+        choose_credential(env_file(), body.mode)
         return {"mode": body.mode, "restarting": login_saved(request)}
 
     @app.post("/api/login/subscription/start", dependencies=[Depends(this_computer)])
@@ -574,9 +580,10 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         if not token:
             raise HTTPException(400, "Claude did not accept the code. Sign in again.")
         try:
+            await asyncio.to_thread(check_credential, token)
             mode = save_credential(env_file(), token, account_label=body.account_label, use=True)
         except ValueError as exc:
-            raise HTTPException(400, str(exc)) from None
+            raise HTTPException(400, f"{exc} Sign in again.") from None
         return {"mode": mode, "restarting": login_saved(request)}
 
     if STATIC_DIR.is_dir():

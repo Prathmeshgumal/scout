@@ -81,3 +81,9 @@ def make_run(store, pool):
         run = await ms.create_run(mandate, datetime(2026, 10, 8, slot_hour, tzinfo=UTC), 2.0, 1)
         return mandate, run
     return make
+
+
+@pytest.fixture(autouse=True)
+def no_live_login_check(monkeypatch):
+    """A test never asks Anthropic about a credential. A test of the check itself uses respx."""
+    monkeypatch.setattr("job_finder.login.credential_works", lambda value: True)

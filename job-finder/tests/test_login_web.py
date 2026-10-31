@@ -23,11 +23,21 @@ URL = "https://claude.ai/oauth/authorize?code=true&state=abc"
 
 FAKE_CLAUDE = f"""#!{sys.executable}
 import sys
+import time
 print("\\x1b[2JOpen\\x1b[7Gthis\\x1b[12Gpage:\\x1b[18G\\x1b]8;;{URL}\\x07{URL}\\x1b]8;;\\x07")
 print("\\x1b[2GPaste\\x1b[8Gcode\\x1b[13Ghere\\x1b[18Gif\\x1b[21Gprompted\\x1b[30G>", flush=True)
 code = sys.stdin.readline().strip()
 if code == "good-code":
     print("\\x1b[32mYour token:\\x1b[0m {TOKEN}", flush=True)
+elif code == "next-line-code":  # the real screen: a cursor move, not a line break, comes before the next line
+    print("{TOKEN}\\x1b[1BStore\\x1b[7Gthis\\x1b[12Gtoken", flush=True)
+elif code == "redraw-code":  # a redraw writes only the new text, after a code that is not a cursor move
+    print("{TOKEN}\\x1b[?2026l\\x1b[?2026hStor", flush=True)
+elif code == "slow-code":  # the output of the terminal comes in parts
+    print("{TOKEN[:20]}", end="", flush=True)
+    time.sleep(0.2)
+    print("{TOKEN[20:]}", flush=True)
+    time.sleep(5)
 else:
     print("Invalid code", flush=True)
 """
@@ -218,6 +228,45 @@ async def test_a_wrong_code_saves_nothing_and_says_to_start_again(client, env_pa
     assert done.status_code == 400 and "Sign in again" in done.json()["detail"]
     assert not env_path.exists()
     assert client.app.state.restarts == []
+
+
+@pytest.mark.parametrize("code", ["next-line-code", "redraw-code", "slow-code"])
+async def test_the_saved_token_is_only_the_token(client, env_path, fake_claude, code):
+    await client.post("/api/login/subscription/start", headers=LOCAL)
+    done = await client.post("/api/login/subscription/code", json={"code": code}, headers=LOCAL)
+    assert done.status_code == 200
+    assert dotenv_values(env_path)["CLAUDE_CODE_OAUTH_TOKEN"] == TOKEN
+
+
+async def test_a_key_that_claude_refuses_changes_nothing(client, env_path, monkeypatch):
+    save_credential(env_path, TOKEN)
+    before = env_path.read_text()
+    monkeypatch.setattr("job_finder.login.credential_works", lambda value: False)
+    response = await client.post("/api/login", json={"credential": KEY}, headers=LOCAL)
+    assert response.status_code == 400 and "did not accept" in response.json()["detail"]
+    assert KEY not in response.text
+    assert env_path.read_text() == before
+    assert client.app.state.restarts == []
+
+
+async def test_a_sign_in_that_claude_refuses_keeps_the_old_login(client, env_path, fake_claude, monkeypatch):
+    save_credential(env_path, KEY)
+    before = env_path.read_text()
+    await client.post("/api/login/subscription/start", headers=LOCAL)
+    monkeypatch.setattr("job_finder.login.credential_works", lambda value: False)
+    done = await client.post("/api/login/subscription/code", json={"code": "good-code"}, headers=LOCAL)
+    assert done.status_code == 400 and "Sign in again" in done.json()["detail"]
+    assert env_path.read_text() == before
+    assert client.app.state.restarts == []
+
+
+async def test_a_saved_login_that_claude_refuses_is_not_chosen(client, env_path, monkeypatch):
+    save_credential(env_path, KEY)
+    save_credential(env_path, TOKEN)
+    monkeypatch.setattr("job_finder.login.credential_works", lambda value: False)
+    response = await client.post("/api/login/use", json={"mode": "oauth_token"}, headers=LOCAL)
+    assert response.status_code == 400
+    assert "JOB_FINDER_CLAUDE_LOGIN" not in dotenv_values(env_path)
 
 
 async def test_a_code_with_no_sign_in_is_refused(client):

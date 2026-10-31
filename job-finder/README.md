@@ -49,6 +49,8 @@ You can also do this in the web app. Click the **Settings** button at the bottom
 - **Claude Code:** click **Use Claude Code**, authorize, and paste the code. Click **Use another account** to change the account.
 - **API key:** paste the key.
 
+The app asks Anthropic if each login works before it saves the login. If Anthropic refuses the login, the old login stays.
+
 The login that you choose in the web app is the login in use. Only the computer that runs job-finder can change the login.
 
 - With no choice, the API key wins when both are set.
