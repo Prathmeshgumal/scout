@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import type { JobCardData, Report } from "@/lib/api"
-import { JobCard } from "./JobCard"
+import { JobRow } from "./JobRow"
 import { JobGrid } from "./JobGrid"
 import { EmptyRoles } from "./JobsTab"
 import { ProgressHeader } from "./ProgressHeader"
@@ -24,29 +24,28 @@ const report = (fields: Partial<Report> & { status?: Report["goal"]["status"]; r
 
 describe("job card", () => {
   it("shows the facts that it has and leaves out the missing ones", () => {
-    render(<JobCard job={job()} working={IDLE} onOpen={() => {}} />)
-    expect(screen.getByText("Bengaluru · Posted 2 days ago")).toBeInTheDocument()
+    render(<JobRow job={job()} working={IDLE} onOpen={() => {}} />)
+    expect(screen.getByText("Acme Corp · Bengaluru · Posted 2 days ago")).toBeInTheDocument()
     expect(screen.getByText("Fit")).toBeInTheDocument()
-    expect(screen.getByText("Full description read")).toBeInTheDocument()
     expect(screen.queryByText(/null|unknown|N\/A/i)).not.toBeInTheDocument()
   })
 
   it("opens the source safely in a new tab", () => {
-    render(<JobCard job={job()} working={IDLE} onOpen={() => {}} />)
+    render(<JobRow job={job()} working={IDLE} onOpen={() => {}} />)
     const link = screen.getByRole("link", { name: /open role/i })
     expect(link).toHaveAttribute("target", "_blank")
     expect(link).toHaveAttribute("rel", "noopener noreferrer")
   })
 
   it("shows Closed, not a link, for a closed posting", () => {
-    render(<JobCard job={job({ posting_status: "closed" })} working={IDLE} onOpen={() => {}} />)
+    render(<JobRow job={job({ posting_status: "closed" })} working={IDLE} onOpen={() => {}} />)
     expect(screen.getByText("Closed")).toBeInTheDocument()
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
   })
 
   it("opens the detail from the title", async () => {
     const onOpen = vi.fn()
-    render(<JobCard job={job()} working={IDLE} onOpen={onOpen} />)
+    render(<JobRow job={job()} working={IDLE} onOpen={onOpen} />)
     await userEvent.click(screen.getByRole("button", { name: "Senior Backend Engineer" }))
     expect(onOpen).toHaveBeenCalledOnce()
   })

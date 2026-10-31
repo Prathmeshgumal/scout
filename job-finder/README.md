@@ -73,6 +73,24 @@ Use the paperclip in the message box to attach a file to a message. Use the same
 
 MinIO keeps the files. Postgres keeps the facts of each file and its text.
 
+## Track your applications
+
+Open **Jobs** to see the roles of each goal. Click a goal to show its roles. Click **Show all jobs** to see the roles of all goals at once.
+
+Open **Job pipeline** to track your applications. The page has four stages:
+
+| Stage | Meaning |
+|---|---|
+| Fit jobs | An agent marked the role as a fit, or you added the role. |
+| Looking for referral | You look for a person who can refer you. |
+| Applied | You applied to the role. |
+| Responded | The company responded. |
+
+- Choose the stage of a role yourself. The agents do not change it.
+- Click a role to add notes.
+- The funnel counts the roles that reached each stage or a later stage.
+- A role and its notes stay in the pipeline when you delete its goal.
+
 ## Use the command line
 
 ```bash

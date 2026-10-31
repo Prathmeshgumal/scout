@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react"
 import type { JobCardData, Verdict } from "@/lib/api"
-import { EVIDENCE_LABEL, VERDICT_LABEL, isClosed, monogram, monogramHue, stageLabel } from "@/lib/jobs"
+import { VERDICT_LABEL, isClosed, monogram, monogramHue, stageLabel } from "@/lib/jobs"
 import { cn } from "@/lib/utils"
 
 const BADGE: Record<Verdict, string> = {
@@ -41,50 +41,41 @@ type Props = {
   goalTitle?: string
 }
 
-export function JobCard({ job, working, selected, onOpen, goalTitle }: Props) {
-  const facts = [job.location, job.workplace_type, job.posted_at && `Posted ${job.posted_at}`].filter(Boolean)
-  const closed = isClosed(job)
+export function JobRow({ job, working, selected, onOpen, goalTitle }: Props) {
+  const facts = [job.company_name, job.location, job.workplace_type, job.posted_at && `Posted ${job.posted_at}`].filter(Boolean)
   return (
-    <article className={cn("role-card card-in relative flex min-w-0 flex-col gap-2.5 rounded-xl border bg-card p-3.5", selected && "border-violet-500/50")}>
-      <div className="flex min-w-0 items-start gap-3">
-        <Monogram company={job.company_name} />
-        <div className="min-w-0 flex-1">
-          <h3 className="line-clamp-2 text-[14px] leading-[1.3] font-semibold break-words">
-            <button type="button" onClick={() => onOpen(job)} className="text-left outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring">
-              {job.title}
-            </button>
-          </h3>
-          <p className="mt-0.5 truncate text-muted-foreground">{job.company_name}</p>
-        </div>
-        <VerdictBadge verdict={job.fit} stage={stageLabel(job, working)} />
+    <li className={cn("relative grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-2.5 transition-colors hover:bg-muted/50 focus-within:bg-muted/50 sm:grid-cols-[auto_minmax(0,1fr)_auto]", selected && "bg-violet-500/8")}>
+      <Monogram company={job.company_name} />
+      <div className="min-w-0">
+        <h3 className="truncate text-[14px] leading-[1.35] font-medium">
+          <button type="button" onClick={() => onOpen(job)} className="text-left outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-violet-500/50 focus-visible:after:ring-inset">
+            {job.title}
+          </button>
+        </h3>
+        <p className="truncate text-[12.5px] text-muted-foreground">{facts.join(" · ")}</p>
+        {job.fit_reasons && <p className="mt-0.5 line-clamp-1 text-[13px] break-words">{job.fit_reasons}</p>}
+        {goalTitle && <p className="mt-0.5 truncate text-[12px] text-muted-foreground">From {goalTitle}</p>}
       </div>
-      {facts.length > 0 && <p className="truncate text-[12px] text-muted-foreground">{facts.join(" · ")}</p>}
-      {job.fit_reasons && <p className="line-clamp-2 leading-[1.45] break-words">{job.fit_reasons}</p>}
-      {goalTitle && <p className="truncate text-[12px] text-muted-foreground">From {goalTitle}</p>}
-      <div className="mt-auto flex items-center justify-between gap-3 pt-0.5 text-[12px] text-muted-foreground">
-        <span className="min-w-0 truncate">{EVIDENCE_LABEL[job.evidence_level]}</span>
-        {closed ? <span className="shrink-0 font-medium">Closed</span> : (
+      <div className="col-start-2 mt-1.5 flex items-center gap-3 sm:col-start-3 sm:mt-0 sm:self-start">
+        <VerdictBadge verdict={job.fit} stage={stageLabel(job, working)} />
+        {isClosed(job) ? <span className="w-[74px] text-right text-[12px] font-medium text-muted-foreground">Closed</span> : (
           <a href={job.url} target="_blank" rel="noopener noreferrer"
-            className="relative z-10 flex shrink-0 items-center gap-1 rounded text-violet-700 hover:underline dark:text-violet-300">
+            className="relative z-10 flex w-[74px] items-center justify-end gap-1 rounded text-[12px] text-violet-700 hover:underline dark:text-violet-300">
             Open role <ExternalLink className="size-3" aria-hidden />
           </a>
         )}
       </div>
-    </article>
+    </li>
   )
 }
 
-export function SkeletonCards({ count = 6 }: { count?: number }) {
+export function SkeletonRows({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-3" role="status" aria-label="Loading roles">
+    <div className="divide-y rounded-xl border" role="status" aria-label="Loading roles">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="flex flex-col gap-3 rounded-xl border bg-card p-3.5">
-          <div className="flex gap-3">
-            <div className="skeleton size-9 shrink-0" />
-            <div className="flex flex-1 flex-col gap-2 pt-0.5"><div className="skeleton h-3.5 w-4/5" /><div className="skeleton h-3 w-1/2" /></div>
-          </div>
-          <div className="skeleton h-3 w-2/3" />
-          <div className="skeleton h-3 w-full" />
+        <div key={i} className="flex gap-3 px-3 py-2.5">
+          <div className="skeleton size-9 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2 pt-0.5"><div className="skeleton h-3.5 w-1/2" /><div className="skeleton h-3 w-3/4" /></div>
         </div>
       ))}
     </div>

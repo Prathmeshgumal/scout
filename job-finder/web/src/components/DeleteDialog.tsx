@@ -32,7 +32,7 @@ export function DeleteDialog({ target, onClose, onDeleted }: { target: DeleteTar
           <AlertDialogTitle>Delete {target?.title}?</AlertDialogTitle>
           <AlertDialogDescription>
             {preview ? `This deletes ${preview.goals} goal${preview.goals === 1 ? "" : "s"}, ${preview.jobs} role${preview.jobs === 1 ? "" : "s"} and ${preview.notes} application note${preview.notes === 1 ? "" : "s"}. ` : ""}
-            {preview?.working ? "The agents that work on it stop first. " : ""}You cannot undo this.
+            {preview?.working ? "The agents that work on it stop first. " : ""}Roles in the Job pipeline and their notes stay. You cannot undo this.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

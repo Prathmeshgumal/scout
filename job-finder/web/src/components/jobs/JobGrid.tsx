@@ -5,11 +5,11 @@ import { Select } from "@/components/ui/select"
 import type { JobCardData, Verdict } from "@/lib/api"
 import { NO_FILTERS, VERDICT_LABEL, filterJobs, sortJobs, workplaces, type JobFilters } from "@/lib/jobs"
 import { cn } from "@/lib/utils"
-import { JobCard } from "./JobCard"
+import { JobRow } from "./JobRow"
 
 const VERDICTS: (Verdict | "all" | "progress")[] = ["all", "fit", "partial", "unsure", "progress", "not_fit"]
 const PILL_LABEL = (v: (typeof VERDICTS)[number]) => (v === "all" ? "All" : v === "progress" ? "In progress" : VERDICT_LABEL[v])
-const GRID = "grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-3"
+const LIST = "divide-y rounded-xl border bg-card"
 
 type Props = {
   jobs: JobCardData[]
@@ -29,8 +29,8 @@ export function JobGrid({ jobs, working, selectedId, onOpen, showGoal }: Props) 
   const places = workplaces(jobs)
   const main = shown.filter((job) => job.fit !== "not_fit" || filters.verdict === "not_fit")
   const notFit = filters.verdict === "not_fit" ? [] : shown.filter((job) => job.fit === "not_fit")
-  const card = (job: JobCardData) => (
-    <JobCard key={job.id} job={job} working={working} selected={job.id === selectedId} onOpen={onOpen}
+  const row = (job: JobCardData) => (
+    <JobRow key={job.id} job={job} working={working} selected={job.id === selectedId} onOpen={onOpen}
       goalTitle={showGoal ? job.goal_title : undefined} />
   )
   return (
@@ -49,7 +49,7 @@ export function JobGrid({ jobs, working, selectedId, onOpen, showGoal }: Props) 
         </div>
         {places.length > 1 && (
           <Select label="Filter by workplace" value={filters.workplace} onChange={(workplace) => setFilters({ ...filters, workplace })}
-            className="h-7 rounded-md bg-card text-[12px] capitalize"
+            className="h-7 rounded-md bg-card text-[12px]"
             choices={[{ value: "all", label: "Any workplace" }, ...places.map((p) => ({ value: p, label: p[0].toUpperCase() + p.slice(1) }))]} />
         )}
         <div className="relative min-w-[160px] flex-1 sm:max-w-[260px]">
@@ -58,7 +58,7 @@ export function JobGrid({ jobs, working, selectedId, onOpen, showGoal }: Props) 
             onChange={(e) => setFilters({ ...filters, text: e.target.value })} className="h-7 pl-7 text-[12px] md:text-[12px]" />
         </div>
       </div>
-      {main.length > 0 ? <div className={GRID}>{main.map(card)}</div> : shown.length === 0 && (
+      {main.length > 0 ? <ul className={LIST}>{main.map(row)}</ul> : shown.length === 0 && (
         <p className="py-8 text-center text-muted-foreground">No roles match these filters.</p>
       )}
       {notFit.length > 0 && (
@@ -68,7 +68,7 @@ export function JobGrid({ jobs, working, selectedId, onOpen, showGoal }: Props) 
             <ChevronRight className={cn("size-3.5 transition-transform", notFitOpen && "rotate-90")} aria-hidden />
             Not a fit <span className="tabular-nums">{notFit.length}</span>
           </button>
-          {notFitOpen && <div className={cn(GRID, "mt-2")}>{notFit.map(card)}</div>}
+          {notFitOpen && <ul className={cn(LIST, "mt-2")}>{notFit.map(row)}</ul>}
         </section>
       )}
     </div>

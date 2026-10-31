@@ -236,22 +236,6 @@
   --scrollbar-thumb-hover: oklch(1 0 0 / 0.28);
 }
 
-/* A new role card fades in. A card rises on hover, with a soft violet glow. */
-@keyframes card-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
-}
-.card-in {
-  animation: card-in 0.28s ease-out both;
-}
-.role-card {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.role-card:hover,
-.role-card:focus-within {
-  border-color: rgb(168 85 247 / 0.45);
-  box-shadow: 0 0 22px -8px rgb(168 85 247 / 0.45);
-}
 @keyframes skeleton-pulse {
   50% { opacity: 0.45; }
 }
@@ -261,12 +245,8 @@
   animation: skeleton-pulse 1.6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .card-in,
   .skeleton {
     animation: none;
-  }
-  .role-card {
-    transition: none;
   }
 }
 

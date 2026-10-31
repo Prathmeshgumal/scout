@@ -10,6 +10,7 @@ import { ModelPicker } from "@/components/chat/ModelPicker"
 import { Welcome } from "@/components/chat/Welcome"
 import { AllJobs } from "@/components/jobs/AllJobs"
 import { JobsTab } from "@/components/jobs/JobsTab"
+import { PipelinePage } from "@/components/pipeline/PipelinePage"
 import { MandateView } from "@/components/mandates/MandateView"
 import { IconRail } from "@/components/shell/IconRail"
 import { ChatList, MandateList } from "@/components/shell/ListPane"
@@ -254,7 +255,7 @@ export default function App() {
   const goal = summary?.goal
   const homeChat = Boolean(goal?.home_of)
   const openMandate = mandates.find((m) => m.id === route.mandateId) ?? null
-  const showList = route.section !== "jobs" && (!narrow || (!goalId && !route.mandateId && !newChat && (route.section === "mandates" || Boolean(goals?.length))))
+  const showList = route.section !== "jobs" && route.section !== "pipeline" && (!narrow || (!goalId && !route.mandateId && !newChat && (route.section === "mandates" || Boolean(goals?.length))))
   const showMain = !narrow || !showList
   const lensDown = statusRead && (!status || (status.career_lens && !["online", "checking", "not_configured"].includes(status.career_lens.state)))
   const wait = report?.waits.flatMap((w) => (w.reason ? [w.reason] : []))[0] ?? null
@@ -304,7 +305,8 @@ export default function App() {
                   {status ? "career-lens does not answer. The agents cannot search or read pages. Goals wait until it is back." : "The job-finder server does not answer. Start it, then this page continues."}
                 </p>
               )}
-              {route.section === "jobs" ? <AllJobs onNewChat={startNew} />
+              {route.section === "jobs" ? <AllJobs onNewChat={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
+                : route.section === "pipeline" ? <PipelinePage onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
                 : goalId ? goalScreen
                 : route.mandateId ? (openMandate
                   ? <>
@@ -322,7 +324,7 @@ export default function App() {
           running={goals?.filter((g) => g.status === "running").length ?? 0} onCommand={() => setCommandOpen(true)} />
       </div>
       <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} goals={goals ?? []} mandates={mandates} dark={resolved === "dark"}
-        onNew={startNew} onJobs={() => openSection("jobs")} onGoal={(id) => openGoal(id)}
+        onNew={startNew} onJobs={() => openSection("jobs")} onPipeline={() => openSection("pipeline")} onGoal={(id) => openGoal(id)}
         onMandate={(id) => go({ section: "mandates", goalId: null, mandateId: id, tab: "chat" })}
         onToggleTheme={() => choose(resolved === "dark" ? "light" : "dark")} />
       <DeleteDialog target={toDelete} onClose={() => setToDelete(null)} onDeleted={(target) => {

@@ -74,3 +74,38 @@ export function timeAgo(iso: string, now = Date.now()): string {
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
 }
+
+export type GoalGroup = {
+  goalId: string
+  title: string
+  jobs: JobCardData[]
+  counts: { fit: number; partial: number; unsure: number; notFit: number; researched: number; waiting: number }
+}
+
+/** The roles of each goal. The goal with the newest role comes first. */
+export function groupByGoal(jobs: JobCardData[]): GoalGroup[] {
+  const groups = new Map<string, GoalGroup>()
+  for (const job of jobs) {
+    let group = groups.get(job.goal_id)
+    if (!group) {
+      group = { goalId: job.goal_id, title: job.goal_title ?? "Goal", jobs: [], counts: { fit: 0, partial: 0, unsure: 0, notFit: 0, researched: 0, waiting: 0 } }
+      groups.set(job.goal_id, group)
+    }
+    group.jobs.push(job)
+    if (job.fit === "fit") group.counts.fit += 1
+    else if (job.fit === "partial") group.counts.partial += 1
+    else if (job.fit === "unsure") group.counts.unsure += 1
+    else if (job.fit === "not_fit") group.counts.notFit += 1
+    else group.counts.waiting += 1
+    if (job.researched ?? job.researched_at) group.counts.researched += 1
+  }
+  return [...groups.values()]
+}
+
+/** "15 roles: 3 fit, 4 partial, 8 researched". A count of zero stays out. */
+export function groupSummary({ jobs, counts }: GoalGroup): string {
+  const parts = [[counts.fit, "fit"], [counts.partial, "partial"], [counts.unsure, "unsure"], [counts.notFit, "not a fit"], [counts.researched, "researched"]] as const
+  const shown = parts.filter(([n]) => n > 0).map(([n, label]) => `${n} ${label}`)
+  const roles = `${jobs.length} ${jobs.length === 1 ? "role" : "roles"}`
+  return shown.length ? `${roles}: ${shown.join(", ")}` : roles
+}

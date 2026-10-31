@@ -3,7 +3,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import type { JobCardData, Report } from "@/lib/api"
 import { JobGrid } from "./JobGrid"
-import { SkeletonCards } from "./JobCard"
+import { SkeletonRows } from "./JobRow"
 import { JobPanel } from "./JobPanel"
 import { ProgressHeader } from "./ProgressHeader"
 
@@ -13,8 +13,8 @@ export function EmptyRoles({ report, onRetry, onChat }: { report: Report; onRetr
   if (status === "running" || status === "waiting") {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-muted-foreground">No roles saved yet. Cards appear here when the agents save them.</p>
-        <SkeletonCards count={3} />
+        <p className="text-muted-foreground">No roles saved yet. Roles appear here when the agents save them.</p>
+        <SkeletonRows count={3} />
       </div>
     )
   }
@@ -49,7 +49,7 @@ export function NoFit({ report, onChat }: { report: Report; onChat: () => void }
 
 export function JobsTab({ report, tasks, onRetry, onChat }: { report: Report | null; tasks: string[]; onRetry: () => void; onChat: () => void }) {
   const [open, setOpen] = useState<JobCardData | null>(null)
-  if (!report) return <div className="min-h-0 flex-1 overflow-y-auto p-4"><SkeletonCards /></div>
+  if (!report) return <div className="min-h-0 flex-1 overflow-y-auto p-4"><SkeletonRows /></div>
   const working = report.goal.status === "running"
   const finishedNoFit = report.goal.status === "done" && report.jobs.length > 0 && report.funnel.fit === 0
   return (

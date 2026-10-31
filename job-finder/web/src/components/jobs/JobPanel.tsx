@@ -2,9 +2,11 @@ import { Check, Copy, ExternalLink, Loader2, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { getJob, type JobCardData, type JobDetail } from "@/lib/api"
+import { Select } from "@/components/ui/select"
+import { getJob, setPipelineStage, type JobCardData, type JobDetail, type PipelineStage } from "@/lib/api"
 import { EVIDENCE_LABEL, isClosed } from "@/lib/jobs"
-import { Monogram, VerdictBadge } from "./JobCard"
+import { STAGE_CHOICES, canAskApplied } from "@/lib/pipeline"
+import { Monogram, VerdictBadge } from "./JobRow"
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -30,7 +32,8 @@ function shown(value: unknown): string {
   return String(value)
 }
 
-export function JobPanel({ job, onClose }: { job: JobCardData; onClose: () => void }) {
+export function JobPanel({ job, onClose, onStage }: { job: JobCardData; onClose: () => void; onStage?: () => void }) {
+  const [askApplied, setAskApplied] = useState(false)
   const [detail, setDetail] = useState<JobDetail | null>(null)
   const [failed, setFailed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -62,6 +65,18 @@ export function JobPanel({ job, onClose }: { job: JobCardData; onClose: () => vo
     }
   }
 
+  const moveTo = async (stage: PipelineStage | "removed") => {
+    if (!detail) return
+    try {
+      await setPipelineStage(detail.pipeline.role_key, stage)
+      setDetail({ ...detail, pipeline: { ...detail.pipeline, stage: stage === "removed" ? null : stage } })
+      setAskApplied(false)
+      onStage?.()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not change the stage.")
+    }
+  }
+
   const facts = (detail?.research ?? []).flatMap((row) => Object.entries(row.data)
     .filter(([, value]) => value !== null && value !== "" && !(Array.isArray(value) && !value.length))
     .map(([key, value]) => ({ key: `${row.kind}-${key}`, label: labelOf(key), value: shown(value), from: row.from_goal })))
@@ -82,7 +97,7 @@ export function JobPanel({ job, onClose }: { job: JobCardData; onClose: () => vo
           <VerdictBadge verdict={job.fit} stage="No verdict yet" />
           <span className="text-[12px] text-muted-foreground">{EVIDENCE_LABEL[job.evidence_level]}</span>
           {isClosed(job) ? <span className="text-[12px] font-medium">Closed</span> : (
-            <a href={job.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[12px] text-violet-700 hover:underline dark:text-violet-300">
+            <a href={job.url} target="_blank" rel="noopener noreferrer" onClick={() => setAskApplied(true)} className="flex items-center gap-1 text-[12px] text-violet-700 hover:underline dark:text-violet-300">
               Open role <ExternalLink className="size-3" aria-hidden />
             </a>
           )}
@@ -91,6 +106,17 @@ export function JobPanel({ job, onClose }: { job: JobCardData; onClose: () => vo
         {!detail && !failed && <p className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-3.5 animate-spin" aria-hidden /> Reading the role</p>}
         {detail && (
           <>
+            <Section title="Job pipeline">
+              <Select label="Job pipeline stage" value={detail.pipeline.stage ?? "removed"} onChange={(stage) => void moveTo(stage as PipelineStage | "removed")}
+                className="w-full" choices={[{ value: "removed", label: "Not in the pipeline" }, ...STAGE_CHOICES]} />
+              {askApplied && canAskApplied(detail.pipeline.stage) && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-violet-500/10 px-2.5 py-2">
+                  <span className="mr-auto">Did you apply to this role?</span>
+                  <Button size="sm" onClick={() => void moveTo("applied")}>Mark as applied</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAskApplied(false)}>Not yet</Button>
+                </div>
+              )}
+            </Section>
             {detail.fit_reasons && (
               <Section title="Why this verdict">
                 <p className="leading-relaxed break-words">{detail.fit_reasons}</p>

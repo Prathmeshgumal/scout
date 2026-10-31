@@ -114,7 +114,31 @@ export type CompanyResearch = {
 
 export type ApplicationNote = { why_match: string; resume_points: string; gaps: string; created_at: string }
 
+export type PipelineStage = "fit" | "referral" | "applied" | "responded"
+export type PipelineNote = { id: string; text: string; created_at: string }
+
+/** A role in the Job pipeline. job_id and goal_id are null when the goal of the role is deleted. */
+export type PipelineItem = {
+  role_key: string
+  stage: PipelineStage
+  job_id: string | null
+  goal_id: string | null
+  goal_title: string | null
+  title: string
+  company_name: string
+  location: string | null
+  workplace_type: string | null
+  posting_status: string | null
+  url: string
+  evidence_level?: Evidence
+  fit: Verdict | null
+  fit_reasons: string | null
+  updated_at: string | null
+  notes: PipelineNote[]
+}
+
 export type JobDetail = JobCardData & {
+  pipeline: { role_key: string; stage: PipelineStage | null }
   source_url: string | null
   snippet: string | null
   description_text: string | null
@@ -257,6 +281,12 @@ export function uploadFile(file: File, role: "attachment" | "resume" = "attachme
   body.append("role", role)
   return request<FileInfo>("/api/files", { method: "POST", body })
 }
+export const getPipeline = () => request<{ items: PipelineItem[] }>("/api/pipeline")
+export const setPipelineStage = (roleKey: string, stage: PipelineStage | "removed") =>
+  request<unknown>("/api/pipeline/stage", { ...postJson({ role_key: roleKey, stage }), method: "PUT" })
+export const addPipelineNote = (roleKey: string, text: string) =>
+  request<PipelineNote>("/api/pipeline/notes", postJson({ role_key: roleKey, text }))
+export const deletePipelineNote = (id: string) => remove(`/api/pipeline/notes/${id}`)
 export const deleteGoal = (id: string) => remove(`/api/goals/${id}`)
 export const deleteMandate = (id: string) => remove(`/api/mandates/${id}`)
 
