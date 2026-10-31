@@ -66,6 +66,7 @@ class LoginStatus:
     def snapshot(self) -> dict:
         check_error = False
         changed = False
+        saved_modes = {"api_key": False, "oauth_token": False}
         try:
             # Read explicitly so a permission error does not look like an empty configuration.
             if self.path.exists():
@@ -74,9 +75,11 @@ class LoginStatus:
                 configured = self.file_had_auth or any(name in values for name in AUTH_VARS)
                 saved = (values.get("ANTHROPIC_API_KEY") or values.get("CLAUDE_CODE_OAUTH_TOKEN") or "").strip()
                 changed = configured and fingerprint(saved) != self.loaded
+                saved_modes = {"api_key": bool(values.get("ANTHROPIC_API_KEY")),
+                               "oauth_token": bool(values.get("CLAUDE_CODE_OAUTH_TOKEN"))}
             else:
                 changed = self.file_had_auth
         except OSError:
             check_error = True
         return {"account_label": self.label, "saved_at": self.saved_at, "loaded_at": self.loaded_at,
-                "restart_required": changed, "check_error": check_error}
+                "restart_required": changed, "check_error": check_error, "saved": saved_modes}

@@ -5,14 +5,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import shutil
+import signal
 import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -21,6 +24,7 @@ from ..config import NO_LOGIN, ROOT, Settings, env_file
 from ..deletion import Deleter, MandateChat
 from ..events import Hub, follow
 from ..files import MAX_BYTES, FileRefused, FileStorageError
+from ..login import ENV_NAMES, SetupTokenFlow, remove_credential, save_credential
 from ..login_status import LoginStatus
 from ..mandate_store import MandateStore
 from ..models import EFFORT_LABELS, ModelList, effort_label, read_sdk_models
@@ -40,8 +44,20 @@ from .sessions import GoalSessions
 
 log = logging.getLogger(__name__)
 STATIC_DIR = ROOT / "web" / "dist"
+LOOPBACK = {"127.0.0.1", "localhost", "[::1]"}
+RESTART_DELAY_S = 0.5  # the reply must reach the browser first
 STOPPABLE = {"running", "waiting"}
 RETRYABLE = {"failed", "stopped"}
+
+
+class LoginBody(BaseModel):
+    credential: str
+    account_label: str = ""
+
+
+class LoginCode(BaseModel):
+    code: str
+    account_label: str = ""
 
 
 class PipelineMove(BaseModel):
@@ -144,12 +160,16 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
             for task in background:
                 task.cancel()
             await asyncio.gather(*background, return_exceptions=True)
+            app.state.setup_token.close()
             await manager.close_all()
             await s.close()
 
     app = FastAPI(title="job-finder", lifespan=lifespan)
     app.state.services, app.state.sessions = services, sessions
     app.state.career_lens_status = None
+    app.state.setup_token = SetupTokenFlow()
+    # Only a process that has a supervisor can restart itself. Docker Compose sets this name.
+    app.state.restart = (lambda: os.kill(os.getpid(), signal.SIGTERM)) if os.environ.get("JOB_FINDER_SELF_RESTART") else None
 
     def svc(request: Request) -> Services:
         return request.app.state.services
@@ -497,12 +517,68 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
                                  else "not_configured", "checked_at": None}),
                 "open_sessions": manager(request).count}
 
+    # The Claude login. The app has no sign-in of its own, so only this computer can change the login.
+
+    def this_computer(request: Request) -> None:
+        host = request.headers.get("host", "")
+        origin = request.headers.get("origin")
+        if host.rsplit(":", 1)[0] not in LOOPBACK or (origin and urlsplit(origin).netloc != host):
+            raise HTTPException(403, "Change the Claude login from the computer that runs job-finder.")
+
+    def login_saved(request: Request) -> bool:
+        """Start the app again to load the new login. False when the user must do this."""
+        restart = request.app.state.restart
+        if restart is None:
+            return False
+        asyncio.get_running_loop().call_later(RESTART_DELAY_S, restart)
+        return True
+
+    @app.post("/api/login", dependencies=[Depends(this_computer)])
+    async def save_login(request: Request, body: LoginBody):
+        value = body.credential.strip()
+        try:
+            mode = save_credential(env_file(), value, account_label=body.account_label)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None  # from None: the error of the parser can hold the value
+        return {"mode": mode, "restarting": login_saved(request)}
+
+    @app.delete("/api/login/{mode}", dependencies=[Depends(this_computer)])
+    async def remove_login(request: Request, mode: str):
+        if mode not in ENV_NAMES:
+            raise HTTPException(404, "There is no login of that type.")
+        remove_credential(env_file(), mode)
+        return {"restarting": login_saved(request)}
+
+    @app.post("/api/login/subscription/start", dependencies=[Depends(this_computer)])
+    async def start_subscription_login(request: Request):
+        if not shutil.which("claude"):
+            raise HTTPException(409, "Claude Code is not installed here. Run `claude setup-token` and paste the token.")
+        url = await asyncio.to_thread(request.app.state.setup_token.start)
+        if not url:
+            raise HTTPException(502, "Claude Code did not show a sign-in page. Run `claude setup-token` and paste the token.")
+        return {"url": url}
+
+    @app.post("/api/login/subscription/code", dependencies=[Depends(this_computer)])
+    async def finish_subscription_login(request: Request, body: LoginCode):
+        flow = request.app.state.setup_token
+        if not flow.active():
+            raise HTTPException(409, "The sign-in ended. Sign in again.")
+        token = await asyncio.to_thread(flow.finish, body.code.strip())
+        if not token:
+            raise HTTPException(400, "Claude did not accept the code. Sign in again.")
+        try:
+            mode = save_credential(env_file(), token, account_label=body.account_label)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"mode": mode, "restarting": login_saved(request)}
+
     if STATIC_DIR.is_dir():
         @app.get("/goals/{path:path}", include_in_schema=False)
         @app.get("/mandates/{path:path}", include_in_schema=False)
         @app.get("/mandates", include_in_schema=False)
         @app.get("/jobs", include_in_schema=False)
         @app.get("/pipeline", include_in_schema=False)
+        @app.get("/settings", include_in_schema=False)
         async def goal_page(path: str = "") -> FileResponse:
             """A link to a page of the app: the browser app reads the URL."""
             return FileResponse(STATIC_DIR / "index.html")

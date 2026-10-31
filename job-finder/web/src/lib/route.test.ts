@@ -9,6 +9,7 @@ it.each([
   [`/goals/${ID}/jobs`, { section: "chats", goalId: ID, tab: "jobs" }],
   ["/jobs", { section: "jobs", goalId: null }],
   ["/pipeline", { section: "pipeline", goalId: null }],
+  ["/settings", { section: "settings", goalId: null }],
   ["/mandates", { section: "mandates", mandateId: null }],
   [`/mandates/${ID}`, { section: "mandates", mandateId: ID }],
 ])("reads %s and writes the same path", (path, want) => {

@@ -3,21 +3,30 @@
 from __future__ import annotations
 
 import codecs
+import fcntl
 import os
+import pty
 import re
 import shutil
+import struct
 import subprocess
+import termios
+import threading
+import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
-from dotenv import dotenv_values, set_key
+from dotenv import dotenv_values, set_key, unset_key
 from rich.console import Console
 from rich.text import Text
 
-from .config import AUTH_LABELS
+from .config import AUTH_LABELS, AUTH_VARS
 from .login_status import save_account
 
 TOKEN = re.compile(r"sk-ant-oat[0-9A-Za-z_-]+")
+CREDENTIAL = re.compile(r"sk-ant-(?!oat$)[0-9A-Za-z_-]+")  # one word: a value cannot add a line to .env
+ENV_NAMES = {"api_key": "ANTHROPIC_API_KEY", "oauth_token": "CLAUDE_CODE_OAUTH_TOKEN"}
+COLUMN_MOVE = re.compile(r"\x1b\[[0-9]*G")  # on a terminal, Claude Code moves the cursor and writes no spaces
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
 URL_PART = re.compile(r"[A-Za-z0-9%._~&=?/:+#-]+")  # a line that continues a long URL
 PROMPT = "Paste code here if prompted >"
@@ -134,22 +143,118 @@ def run_setup_token(out: Out, code: Callable[[int], None]) -> str:
 
 def save_credential(env_file: Path, value: str, *, account_label: str = "") -> str:
     """Save a token or a key to .env. The other one stays: the user decides what to do with it."""
-    if value.startswith("sk-ant-oat"):
-        mode, name = "oauth_token", "CLAUDE_CODE_OAUTH_TOKEN"
-    elif value.startswith("sk-ant-"):
-        mode, name = "api_key", "ANTHROPIC_API_KEY"
-    else:
+    if not CREDENTIAL.fullmatch(value):
         raise ValueError("That does not look like a Claude token or an Anthropic API key.")
+    mode = "oauth_token" if value.startswith("sk-ant-oat") else "api_key"
+    name = ENV_NAMES[mode]
     if len(account_label) > 120 or any(c in account_label for c in "\r\n") or "sk-ant-" in account_label:
         raise ValueError("Use an account label of 120 characters maximum. Do not enter a credential as the label.")
     env_file.touch(mode=0o600, exist_ok=True)
     set_key(env_file, name, value, quote_mode="never")
-    env_file.chmod(0o600)
-    if os.geteuid() == 0:  # in the container: set_key wrote a new file, and the host user must still edit it
-        folder = env_file.parent.stat()
-        os.chown(env_file, folder.st_uid, folder.st_gid)
+    _protect(env_file)
     save_account(env_file, mode, value, account_label)
     return mode
+
+
+def remove_credential(env_file: Path, mode: str) -> None:
+    """Remove a token or a key from .env. The other settings stay."""
+    if env_file.exists():
+        unset_key(env_file, ENV_NAMES[mode], quote_mode="never")
+        _protect(env_file)
+
+
+def _protect(env_file: Path) -> None:
+    env_file.chmod(0o600)
+    if os.geteuid() == 0:  # in the container: dotenv wrote a new file, and the host user must still edit it
+        folder = env_file.parent.stat()
+        os.chown(env_file, folder.st_uid, folder.st_gid)
+
+
+class SetupTokenFlow:
+    """`claude setup-token` for the web app. The screen of the process stays here: only the URL goes to the browser.
+
+    Claude Code draws this screen only on a terminal, so the process gets a pseudo-terminal. The terminal is wide,
+    so that the URL and the token each stay on one line."""
+
+    COLUMNS = 2000
+    MAX_AGE_S = 600
+
+    def __init__(self) -> None:
+        self.process: subprocess.Popen | None = None
+        self.master: int | None = None
+        self.started = 0.0
+        self.chunks: list[bytes] = []
+        self.lock = threading.Lock()
+
+    def screen(self) -> str:
+        with self.lock:
+            text = b"".join(self.chunks).decode("utf-8", "replace")
+        return ANSI.sub("", COLUMN_MOVE.sub(" ", text)).replace("\r", "")
+
+    def active(self) -> bool:
+        return (self.process is not None and self.process.poll() is None
+                and time.monotonic() - self.started < self.MAX_AGE_S)
+
+    def start(self, timeout: float = 30.0) -> str | None:
+        """Start a new sign-in and return its URL. None when Claude Code shows no URL in time."""
+        self.close()
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 50, self.COLUMNS, 0, 0))
+        # The sign-in must not use the login of the app.
+        env = {name: value for name, value in os.environ.items() if name not in AUTH_VARS}
+        self.process = subprocess.Popen(["claude", "setup-token"], stdin=slave, stdout=slave, stderr=slave, env=env,
+                                        close_fds=True, start_new_session=True)
+        os.close(slave)
+        self.master, self.started, self.chunks = master, time.monotonic(), []
+        threading.Thread(target=self._read, args=(master,), daemon=True).start()
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline and self.process.poll() is None:
+            screen = self.screen()
+            if PROMPT in screen:
+                return sign_in_url(screen)
+            time.sleep(0.05)
+        self.close()
+        return None
+
+    def finish(self, code: str, timeout: float = 30.0) -> str | None:
+        """Give the code to Claude Code and return the new token. None when Claude Code gives no token."""
+        os.write(self.master, code.encode())
+        time.sleep(0.3)  # Enter in the same write can become a part of the pasted text
+        os.write(self.master, b"\r")
+        deadline = time.monotonic() + timeout
+        try:
+            while time.monotonic() < deadline:
+                if token := find_token(self.screen()):
+                    return token
+                if self.process.poll() is not None:
+                    time.sleep(0.2)  # the last output can still be on its way
+                    return find_token(self.screen())
+                time.sleep(0.05)
+            return None
+        finally:
+            self.close()
+
+    def close(self) -> None:
+        if self.process is not None and self.process.poll() is None:
+            self.process.kill()
+            self.process.wait()
+        self.process = None
+        if self.master is not None:
+            try:
+                os.close(self.master)
+            except OSError:
+                pass
+            self.master = None
+        with self.lock:
+            self.chunks = []  # the screen can hold the token
+
+    def _read(self, master: int) -> None:
+        try:
+            while chunk := os.read(master, 4096):
+                with self.lock:
+                    self.chunks.append(chunk)
+        except OSError:  # the process ended, or close() closed the terminal
+            pass
 
 
 def restart_hint(environ: Mapping[str, str] = os.environ) -> str:

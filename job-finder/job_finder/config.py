@@ -10,7 +10,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTH_VARS = ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")
-NO_LOGIN = "Set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN in .env, or run `job-finder login`."
+NO_LOGIN = ("Set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN in .env, or run `job-finder login`, "
+            "or use the Settings page of the web app.")
 AUTH_LABELS = {"api_key": "API key", "oauth_token": "Claude subscription token", "none": "Claude not connected"}
 
 

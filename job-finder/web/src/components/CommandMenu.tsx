@@ -1,4 +1,4 @@
-import { Briefcase, CalendarClock, MessageSquare, Moon, Plus, Sun, Funnel } from "lucide-react"
+import { Briefcase, CalendarClock, MessageSquare, Moon, Plus, Sun, Funnel, Settings as SettingsIcon } from "lucide-react"
 import { useEffect } from "react"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import type { GoalSummary, Mandate } from "@/lib/api"
@@ -12,12 +12,13 @@ type Props = {
   onNew: () => void
   onJobs: () => void
   onPipeline: () => void
+  onSettings: () => void
   onGoal: (id: string) => void
   onMandate: (id: string) => void
   onToggleTheme: () => void
 }
 
-export function CommandMenu({ open, onOpenChange, goals, mandates, dark, onNew, onJobs, onPipeline, onGoal, onMandate, onToggleTheme }: Props) {
+export function CommandMenu({ open, onOpenChange, goals, mandates, dark, onNew, onJobs, onPipeline, onSettings, onGoal, onMandate, onToggleTheme }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
@@ -38,6 +39,7 @@ export function CommandMenu({ open, onOpenChange, goals, mandates, dark, onNew, 
           <CommandItem onSelect={run(onNew)}><Plus /> New chat</CommandItem>
           <CommandItem onSelect={run(onJobs)}><Briefcase /> Jobs</CommandItem>
           <CommandItem onSelect={run(onPipeline)}><Funnel /> Job pipeline</CommandItem>
+          <CommandItem onSelect={run(onSettings)}><SettingsIcon /> Settings</CommandItem>
           <CommandItem onSelect={run(onToggleTheme)}>{dark ? <Sun /> : <Moon />} Use the {dark ? "light" : "dark"} theme</CommandItem>
         </CommandGroup>
         {goals.length > 0 && (

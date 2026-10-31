@@ -7,17 +7,24 @@ const LENS: Record<CareerLensState, string> = {
   access_denied: "career-lens refused the key", not_configured: "career-lens not set up",
 }
 
-type Props = { status: Status | null; wait: string | null; spend: { used: number; max: number } | null; running: number; onCommand: () => void }
+type Props = { status: Status | null; wait: string | null; spend: { used: number; max: number } | null; running: number; onLogin: () => void; onCommand: () => void }
 
-export function StatusBar({ status, wait, spend, running, onCommand }: Props) {
+export function StatusBar({ status, wait, spend, running, onLogin, onCommand }: Props) {
   const lens = status?.career_lens?.state ?? (status ? "checking" : "unreachable")
   const ok = lens === "online"
+  const login = !status ? null : !status.anthropic_configured ? "Not connected" : status.claude_login === "API key" ? "API key" : "Subscription"
   return (
     <footer className="flex h-7 shrink-0 items-center gap-4 overflow-hidden border-t px-3.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
       <span className="flex items-center gap-1.5">
         <i className={cn("size-1.5 rounded-full", ok ? "bg-violet-500 shadow-[0_0_8px] shadow-violet-500" : lens === "checking" ? "bg-muted-foreground" : "bg-red-500")} aria-hidden />
         {status ? LENS[lens] : "Server down"}
       </span>
+      {login && (
+        <button type="button" onClick={onLogin} aria-label={`Claude login: ${login}`}
+          className={cn("rounded outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-violet-500/50", login === "Not connected" && "font-medium text-red-700 dark:text-red-300")}>
+          Claude: {login}
+        </button>
+      )}
       {wait && <span className="min-w-0 truncate text-amber-700 dark:text-amber-300">{wait}</span>}
       <span className="flex-1" />
       {spend && <span className="tabular-nums">${spend.used.toFixed(2)} of ${spend.max.toFixed(2)}</span>}

@@ -1,4 +1,4 @@
-import { Briefcase, CalendarClock, Funnel, Laptop, MessagesSquare, Moon, Sun } from "lucide-react"
+import { Briefcase, CalendarClock, Funnel, Laptop, Settings, MessagesSquare, Moon, Sun } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Theme } from "@/hooks/useTheme"
@@ -10,6 +10,7 @@ const SECTIONS: { id: Section; label: string; icon: typeof Briefcase }[] = [
   { id: "mandates", label: "Mandates", icon: CalendarClock },
   { id: "jobs", label: "Jobs", icon: Briefcase },
   { id: "pipeline", label: "Job pipeline", icon: Funnel },
+  { id: "settings", label: "Settings", icon: Settings },
 ]
 
 const item = "grid size-[34px] place-items-center rounded-[9px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-[17px]"

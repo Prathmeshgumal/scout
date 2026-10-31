@@ -1,4 +1,4 @@
-export type Section = "chats" | "mandates" | "jobs" | "pipeline"
+export type Section = "chats" | "mandates" | "jobs" | "pipeline" | "settings"
 
 /** What the URL opens. A goal has two tabs: Chat and Jobs. */
 export type Route = { section: Section; goalId: string | null; mandateId: string | null; tab: "chat" | "jobs" }
@@ -15,6 +15,7 @@ export function parseRoute(pathname: string): Route {
   if (/^\/mandates\/?$/i.test(pathname)) return { section: "mandates", goalId: null, mandateId: null, tab: "chat" }
   if (/^\/jobs\/?$/i.test(pathname)) return { section: "jobs", goalId: null, mandateId: null, tab: "chat" }
   if (/^\/pipeline\/?$/i.test(pathname)) return { section: "pipeline", goalId: null, mandateId: null, tab: "chat" }
+  if (/^\/settings\/?$/i.test(pathname)) return { section: "settings", goalId: null, mandateId: null, tab: "chat" }
   return { section: "chats", goalId: null, mandateId: null, tab: "chat" }
 }
 
@@ -23,5 +24,6 @@ export function routePath(route: Route): string {
   if (route.mandateId) return `/mandates/${route.mandateId}`
   if (route.section === "mandates") return "/mandates"
   if (route.section === "pipeline") return "/pipeline"
+  if (route.section === "settings") return "/settings"
   return route.section === "jobs" ? "/jobs" : "/"
 }

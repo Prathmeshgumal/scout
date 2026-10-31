@@ -44,8 +44,18 @@ The app applies its database migrations when it starts.
 | Subscription token | `CLAUDE_CODE_OAUTH_TOKEN` | Run `uv run job-finder login` |
 | API key | `ANTHROPIC_API_KEY` | Run `uv run job-finder login --api-key` |
 
+You can also do this on the **Settings** page of the web app.
+
+- **Subscription:** click **Sign in with Claude**, approve the login, and paste the code. You can also paste a token.
+- **API key:** paste the key.
+- **Remove:** remove a saved key to use the subscription again.
+- **Another account:** sign in to that account on claude.ai in your browser. Then click **Sign in with another account**. The new login replaces the old login.
+
+Only the computer that runs job-finder can change the login.
+
 - The API key wins when both are set.
-- Restart `job-finder serve` after a login change.
+- In Docker Compose, the app restarts after a login change. Running goals continue after the restart.
+- Outside Docker, restart `job-finder serve` after a login change.
 
 ## Use the web app
 

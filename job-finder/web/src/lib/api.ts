@@ -70,9 +70,20 @@ export type GoalDetail = {
 
 export type CareerLensState = "checking" | "online" | "unreachable" | "error" | "access_denied" | "not_configured"
 
+export type LoginMode = "api_key" | "oauth_token"
+export type LoginResult = { restarting: boolean; mode?: LoginMode }
+
 export type Status = {
   anthropic_configured: boolean
   claude_login: string
+  claude_account?: {
+    account_label: string | null
+    saved_at: string | null
+    loaded_at: string | null
+    restart_required: boolean
+    check_error: boolean
+    saved?: Record<LoginMode, boolean>
+  }
   career_lens_configured: boolean
   career_lens?: { state: CareerLensState; checked_at: string | null }
   open_sessions: number
@@ -246,6 +257,12 @@ const postJson = (body: unknown): RequestInit => ({
 const userZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export const getStatus = () => request<Status>("/api/status")
+export const saveLogin = (credential: string, label = "") =>
+  request<LoginResult>("/api/login", postJson({ credential, account_label: label }))
+export const removeLogin = (mode: LoginMode) => request<LoginResult>(`/api/login/${mode}`, { method: "DELETE" })
+export const startSubscriptionLogin = () => request<{ url: string }>("/api/login/subscription/start", { method: "POST" })
+export const finishSubscriptionLogin = (code: string, label = "") =>
+  request<LoginResult>("/api/login/subscription/code", postJson({ code, account_label: label }))
 export const listGoals = () => request<GoalSummary[]>("/api/goals")
 export const listJobs = () => request<JobCardData[]>("/api/jobs")
 export const listMandates = () => request<Mandate[]>("/api/mandates")

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { CommandMenu } from "./CommandMenu"
 
-const actions = () => ({ onOpenChange: vi.fn(), onNew: vi.fn(), onJobs: vi.fn(), onPipeline: vi.fn(), onGoal: vi.fn(), onMandate: vi.fn(), onToggleTheme: vi.fn() })
+const actions = () => ({ onOpenChange: vi.fn(), onNew: vi.fn(), onJobs: vi.fn(), onPipeline: vi.fn(), onSettings: vi.fn(), onGoal: vi.fn(), onMandate: vi.fn(), onToggleTheme: vi.fn() })
 
 describe("command menu", () => {
   it("opens and goes to the Job pipeline", async () => {
