@@ -259,7 +259,7 @@ const userZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone
 export const getStatus = () => request<Status>("/api/status")
 export const saveLogin = (credential: string, label = "") =>
   request<LoginResult>("/api/login", postJson({ credential, account_label: label }))
-export const removeLogin = (mode: LoginMode) => request<LoginResult>(`/api/login/${mode}`, { method: "DELETE" })
+export const chooseLogin = (mode: LoginMode) => request<LoginResult>("/api/login/use", postJson({ mode }))
 export const startSubscriptionLogin = () => request<{ url: string }>("/api/login/subscription/start", { method: "POST" })
 export const finishSubscriptionLogin = (code: string, label = "") =>
   request<LoginResult>("/api/login/subscription/code", postJson({ code, account_label: label }))

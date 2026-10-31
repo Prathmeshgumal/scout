@@ -20,7 +20,7 @@ from dotenv import dotenv_values, set_key, unset_key
 from rich.console import Console
 from rich.text import Text
 
-from .config import AUTH_LABELS, AUTH_VARS
+from .config import AUTH_LABELS, AUTH_VARS, LOGIN_CHOICE
 from .login_status import save_account
 
 TOKEN = re.compile(r"sk-ant-oat[0-9A-Za-z_-]+")
@@ -141,8 +141,9 @@ def run_setup_token(out: Out, code: Callable[[int], None]) -> str:
     return "".join(chunks)
 
 
-def save_credential(env_file: Path, value: str, *, account_label: str = "") -> str:
-    """Save a token or a key to .env. The other one stays: the user decides what to do with it."""
+def save_credential(env_file: Path, value: str, *, account_label: str = "", use: bool = False) -> str:
+    """Save a token or a key to .env. The other one stays. With use, this login is the one in use.
+    With no use, the choice goes: the terminal login says that the API key wins, and that must stay true."""
     if not CREDENTIAL.fullmatch(value):
         raise ValueError("That does not look like a Claude token or an Anthropic API key.")
     mode = "oauth_token" if value.startswith("sk-ant-oat") else "api_key"
@@ -151,16 +152,21 @@ def save_credential(env_file: Path, value: str, *, account_label: str = "") -> s
         raise ValueError("Use an account label of 120 characters maximum. Do not enter a credential as the label.")
     env_file.touch(mode=0o600, exist_ok=True)
     set_key(env_file, name, value, quote_mode="never")
+    if use:
+        set_key(env_file, LOGIN_CHOICE, mode, quote_mode="never")
+    elif LOGIN_CHOICE in dotenv_values(env_file):
+        unset_key(env_file, LOGIN_CHOICE, quote_mode="never")
     _protect(env_file)
     save_account(env_file, mode, value, account_label)
     return mode
 
 
-def remove_credential(env_file: Path, mode: str) -> None:
-    """Remove a token or a key from .env. The other settings stay."""
-    if env_file.exists():
-        unset_key(env_file, ENV_NAMES[mode], quote_mode="never")
-        _protect(env_file)
+def choose_credential(env_file: Path, mode: str) -> None:
+    """Use a login that .env already has. The other login stays."""
+    if not dotenv_values(env_file).get(ENV_NAMES[mode]):
+        raise ValueError("That login is not saved.")
+    set_key(env_file, LOGIN_CHOICE, mode, quote_mode="never")
+    _protect(env_file)
 
 
 def _protect(env_file: Path) -> None:

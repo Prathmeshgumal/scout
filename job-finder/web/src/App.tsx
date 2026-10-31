@@ -11,7 +11,6 @@ import { Welcome } from "@/components/chat/Welcome"
 import { AllJobs } from "@/components/jobs/AllJobs"
 import { JobsTab } from "@/components/jobs/JobsTab"
 import { PipelinePage } from "@/components/pipeline/PipelinePage"
-import { SettingsPage } from "@/components/settings/SettingsPage"
 import { MandateView } from "@/components/mandates/MandateView"
 import { IconRail } from "@/components/shell/IconRail"
 import { ChatList, MandateList } from "@/components/shell/ListPane"
@@ -58,6 +57,7 @@ export default function App() {
   const [uploading, setUploading] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null)
+  const [loginOpen, setLoginOpen] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const openId = useRef<string | null>(null)
@@ -184,6 +184,13 @@ export default function App() {
     setNewChat(false)
     go({ section, goalId: null, mandateId: null, tab: "chat" })
   }
+  const login = { open: loginOpen, onOpenChange: setLoginOpen, status, onChanged: () => void getStatus().then(setStatus).catch(() => {}) }
+  // Settings is a popup now. An old /settings link goes to the home page and opens the popup.
+  useEffect(() => {
+    if (route.section !== "settings") return
+    go({ section: "chats", goalId: null, mandateId: null, tab: "chat" })
+    setLoginOpen(true)
+  }, [route.section, go])
 
   const view = goalId ? views[goalId] ?? null : null
   const running = view ? runningAgents(view) : []
@@ -256,7 +263,7 @@ export default function App() {
   const goal = summary?.goal
   const homeChat = Boolean(goal?.home_of)
   const openMandate = mandates.find((m) => m.id === route.mandateId) ?? null
-  const showList = route.section !== "jobs" && route.section !== "pipeline" && route.section !== "settings" && (!narrow || (!goalId && !route.mandateId && !newChat && (route.section === "mandates" || Boolean(goals?.length))))
+  const showList = route.section !== "jobs" && route.section !== "pipeline" && (!narrow || (!goalId && !route.mandateId && !newChat && (route.section === "mandates" || Boolean(goals?.length))))
   const showMain = !narrow || !showList
   const lensDown = statusRead && (!status || (status.career_lens && !["online", "checking", "not_configured"].includes(status.career_lens.state)))
   const wait = report?.waits.flatMap((w) => (w.reason ? [w.reason] : []))[0] ?? null
@@ -296,7 +303,7 @@ export default function App() {
     <TooltipProvider delayDuration={200}>
       <div className="app-bg flex h-dvh flex-col overflow-hidden text-[13px] text-foreground">
         <div className="flex min-h-0 flex-1">
-          {!narrow && <IconRail section={route.section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow={false} />}
+          {!narrow && <IconRail section={route.section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow={false} login={login} />}
           {showList && list}
           {showMain && (
             <main className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -304,7 +311,7 @@ export default function App() {
                 <p role="alert" className="flex items-center gap-2 bg-red-500/10 px-3.5 py-1.5 text-red-800 dark:text-red-200">
                   <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
                   Claude is not connected. The agents cannot start.
-                  <button type="button" onClick={() => openSection("settings")} className="font-medium underline underline-offset-2">Connect Claude</button>
+                  <button type="button" onClick={() => setLoginOpen(true)} className="font-medium underline underline-offset-2">Connect Claude</button>
                 </p>
               )}
               {lensDown && (
@@ -314,7 +321,6 @@ export default function App() {
                 </p>
               )}
               {route.section === "jobs" ? <AllJobs onNewChat={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
-                : route.section === "settings" ? <SettingsPage status={status} onChanged={() => void getStatus().then(setStatus).catch(() => {})} />
                 : route.section === "pipeline" ? <PipelinePage onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
                 : goalId ? goalScreen
                 : route.mandateId ? (openMandate
@@ -328,11 +334,11 @@ export default function App() {
             </main>
           )}
         </div>
-        {narrow && <IconRail section={route.section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow />}
-        <StatusBar onLogin={() => openSection("settings")} status={status} wait={wait} spend={report ? { used: report.goal.spend_usd, max: report.goal.max_spend_usd } : null}
+        {narrow && <IconRail section={route.section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow login={login} />}
+        <StatusBar onLogin={() => setLoginOpen(true)} status={status} wait={wait} spend={report ? { used: report.goal.spend_usd, max: report.goal.max_spend_usd } : null}
           running={goals?.filter((g) => g.status === "running").length ?? 0} onCommand={() => setCommandOpen(true)} />
       </div>
-      <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} onSettings={() => openSection("settings")} goals={goals ?? []} mandates={mandates} dark={resolved === "dark"}
+      <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} onSettings={() => setLoginOpen(true)} goals={goals ?? []} mandates={mandates} dark={resolved === "dark"}
         onNew={startNew} onJobs={() => openSection("jobs")} onPipeline={() => openSection("pipeline")} onGoal={(id) => openGoal(id)}
         onMandate={(id) => go({ section: "mandates", goalId: null, mandateId: id, tab: "chat" })}
         onToggleTheme={() => choose(resolved === "dark" ? "light" : "dark")} />

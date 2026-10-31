@@ -12,7 +12,7 @@ type Props = { status: Status | null; wait: string | null; spend: { used: number
 export function StatusBar({ status, wait, spend, running, onLogin, onCommand }: Props) {
   const lens = status?.career_lens?.state ?? (status ? "checking" : "unreachable")
   const ok = lens === "online"
-  const login = !status ? null : !status.anthropic_configured ? "Not connected" : status.claude_login === "API key" ? "API key" : "Subscription"
+  const login = !status ? null : !status.anthropic_configured ? "Not connected" : status.claude_login === "API key" ? "API key" : "Claude Code"
   return (
     <footer className="flex h-7 shrink-0 items-center gap-4 overflow-hidden border-t px-3.5 text-[11.5px] whitespace-nowrap text-muted-foreground">
       <span className="flex items-center gap-1.5">

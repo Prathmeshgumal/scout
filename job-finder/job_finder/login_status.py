@@ -11,7 +11,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-from .config import AUTH_VARS, Settings
+from .config import AUTH_VARS, LOGIN_CHOICE, Settings
 
 
 def fingerprint(value: str) -> str:
@@ -54,7 +54,7 @@ class LoginStatus:
 
     def __init__(self, settings: Settings, path: Path):
         self.path = path
-        value = settings.anthropic_api_key or settings.claude_oauth_token
+        value = settings.credential
         self.loaded = fingerprint(value)
         self.loaded_at = datetime.now(UTC).isoformat() if value else None
         row = read_metadata(path).get(settings.auth_mode)
@@ -73,7 +73,9 @@ class LoginStatus:
                 with self.path.open() as source:
                     values = dotenv_values(stream=source, interpolate=False)
                 configured = self.file_had_auth or any(name in values for name in AUTH_VARS)
-                saved = (values.get("ANTHROPIC_API_KEY") or values.get("CLAUDE_CODE_OAUTH_TOKEN") or "").strip()
+                key, token = values.get("ANTHROPIC_API_KEY"), values.get("CLAUDE_CODE_OAUTH_TOKEN")
+                chosen = token if values.get(LOGIN_CHOICE) == "oauth_token" else None
+                saved = (chosen or key or token or "").strip()
                 changed = configured and fingerprint(saved) != self.loaded
                 saved_modes = {"api_key": bool(values.get("ANTHROPIC_API_KEY")),
                                "oauth_token": bool(values.get("CLAUDE_CODE_OAUTH_TOKEN"))}

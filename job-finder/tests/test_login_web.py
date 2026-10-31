@@ -2,13 +2,15 @@
 
 import json
 import sys
+from dataclasses import replace
 
 import httpx
 import pytest
 from dotenv import dotenv_values
 
+from job_finder.config import Settings, claude_env
 from job_finder.login import SetupTokenFlow, save_credential
-from job_finder.login_status import read_metadata
+from job_finder.login_status import LoginStatus, read_metadata
 from job_finder.web.app import create_app
 from job_finder.web.sessions import GoalSessions
 
@@ -112,7 +114,7 @@ async def test_only_this_computer_can_change_the_login(client, env_path, headers
     for call in (client.post("/api/login", json={"credential": KEY}, headers=headers),
                  client.post("/api/login/subscription/start", headers=headers),
                  client.post("/api/login/subscription/code", json={"code": "x"}, headers=headers),
-                 client.delete("/api/login/api_key", headers=headers)):
+                 client.post("/api/login/use", json={"mode": "api_key"}, headers=headers)):
         assert (await call).status_code == 403
     assert not env_path.exists()
 
@@ -124,21 +126,67 @@ async def test_status_says_what_is_saved_and_never_shows_a_credential(client):
     assert KEY not in response.text
 
 
-async def test_a_saved_login_can_be_removed(client, env_path):
+async def test_the_user_can_choose_a_saved_login(client, env_path):
     save_credential(env_path, KEY)
     save_credential(env_path, TOKEN)
-    response = await client.delete("/api/login/api_key", headers=LOCAL)
-    assert response.json() == {"restarting": True}
+    response = await client.post("/api/login/use", json={"mode": "oauth_token"}, headers=LOCAL)
+    assert response.status_code == 200 and response.json() == {"mode": "oauth_token", "restarting": True}
     values = dotenv_values(env_path)
-    assert "ANTHROPIC_API_KEY" not in values and values["CLAUDE_CODE_OAUTH_TOKEN"] == TOKEN
-    assert (await client.delete("/api/login/nothing", headers=LOCAL)).status_code == 404
+    assert values["JOB_FINDER_CLAUDE_LOGIN"] == "oauth_token"
+    assert values["ANTHROPIC_API_KEY"] == KEY and values["CLAUDE_CODE_OAUTH_TOKEN"] == TOKEN
+    assert client.app.state.restarts == []  # the restart comes after the reply
 
 
-async def test_removing_a_login_keeps_the_other_settings(client, env_path):
-    env_path.write_text("OTHER=1\n")
+async def test_a_login_that_is_not_saved_cannot_be_chosen(client, env_path):
     save_credential(env_path, KEY)
-    await client.delete("/api/login/api_key", headers=LOCAL)
-    assert dotenv_values(env_path)["OTHER"] == "1"
+    assert (await client.post("/api/login/use", json={"mode": "oauth_token"}, headers=LOCAL)).status_code == 409
+    assert (await client.post("/api/login/use", json={"mode": "nothing"}, headers=LOCAL)).status_code == 404
+    assert "JOB_FINDER_CLAUDE_LOGIN" not in dotenv_values(env_path)
+
+
+async def test_a_new_login_from_the_web_app_is_the_one_in_use(client, env_path):
+    save_credential(env_path, KEY)
+    await client.post("/api/login", json={"credential": TOKEN}, headers=LOCAL)
+    assert dotenv_values(env_path)["JOB_FINDER_CLAUDE_LOGIN"] == "oauth_token"
+    await client.post("/api/login", json={"credential": KEY}, headers=LOCAL)
+    assert dotenv_values(env_path)["JOB_FINDER_CLAUDE_LOGIN"] == "api_key"
+
+
+async def test_the_sign_in_makes_the_subscription_the_login_in_use(client, env_path, fake_claude):
+    save_credential(env_path, KEY)
+    await client.post("/api/login/subscription/start", headers=LOCAL)
+    await client.post("/api/login/subscription/code", json={"code": "good-code"}, headers=LOCAL)
+    assert dotenv_values(env_path)["JOB_FINDER_CLAUDE_LOGIN"] == "oauth_token"
+
+
+def test_the_choice_decides_the_login_of_the_agents(app_settings):
+    both = replace(app_settings, anthropic_api_key=KEY, claude_oauth_token=TOKEN)
+    assert both.auth_mode == "api_key"  # with no choice, the API key wins
+    chosen = replace(both, claude_login="oauth_token")
+    assert chosen.auth_mode == "oauth_token"
+    assert claude_env(chosen) == {"CLAUDE_CODE_OAUTH_TOKEN": TOKEN}
+    assert replace(chosen, claude_oauth_token="").auth_mode == "api_key"  # a choice with no credential has no effect
+
+
+def test_the_choice_comes_from_the_environment():
+    assert Settings.from_env({"JOB_FINDER_CLAUDE_LOGIN": "oauth_token"}).claude_login == "oauth_token"
+
+
+def test_the_terminal_login_clears_the_choice(tmp_path):
+    path = tmp_path / ".env"
+    save_credential(path, TOKEN, use=True)
+    save_credential(path, KEY)
+    assert "JOB_FINDER_CLAUDE_LOGIN" not in dotenv_values(path)
+
+
+def test_the_status_compares_the_login_that_was_chosen(app_settings, tmp_path):
+    path = tmp_path / ".env"
+    save_credential(path, KEY)
+    save_credential(path, TOKEN, use=True)
+    settings = replace(app_settings, anthropic_api_key=KEY, claude_oauth_token=TOKEN, claude_login="oauth_token")
+    assert LoginStatus(settings, path).snapshot()["restart_required"] is False
+    other = replace(app_settings, anthropic_api_key=KEY, claude_oauth_token=TOKEN, claude_login="api_key")
+    assert LoginStatus(other, path).snapshot()["restart_required"] is True
 
 
 async def test_the_subscription_sign_in_gives_the_url_then_saves_the_token(client, env_path, fake_claude):

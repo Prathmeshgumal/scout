@@ -24,7 +24,7 @@ from ..config import NO_LOGIN, ROOT, Settings, env_file
 from ..deletion import Deleter, MandateChat
 from ..events import Hub, follow
 from ..files import MAX_BYTES, FileRefused, FileStorageError
-from ..login import ENV_NAMES, SetupTokenFlow, remove_credential, save_credential
+from ..login import ENV_NAMES, SetupTokenFlow, choose_credential, save_credential
 from ..login_status import LoginStatus
 from ..mandate_store import MandateStore
 from ..models import EFFORT_LABELS, ModelList, effort_label, read_sdk_models
@@ -53,6 +53,10 @@ RETRYABLE = {"failed", "stopped"}
 class LoginBody(BaseModel):
     credential: str
     account_label: str = ""
+
+
+class LoginChoice(BaseModel):
+    mode: str
 
 
 class LoginCode(BaseModel):
@@ -537,17 +541,20 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     async def save_login(request: Request, body: LoginBody):
         value = body.credential.strip()
         try:
-            mode = save_credential(env_file(), value, account_label=body.account_label)
+            mode = save_credential(env_file(), value, account_label=body.account_label, use=True)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None  # from None: the error of the parser can hold the value
         return {"mode": mode, "restarting": login_saved(request)}
 
-    @app.delete("/api/login/{mode}", dependencies=[Depends(this_computer)])
-    async def remove_login(request: Request, mode: str):
-        if mode not in ENV_NAMES:
+    @app.post("/api/login/use", dependencies=[Depends(this_computer)])
+    async def use_login(request: Request, body: LoginChoice):
+        if body.mode not in ENV_NAMES:
             raise HTTPException(404, "There is no login of that type.")
-        remove_credential(env_file(), mode)
-        return {"restarting": login_saved(request)}
+        try:
+            choose_credential(env_file(), body.mode)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return {"mode": body.mode, "restarting": login_saved(request)}
 
     @app.post("/api/login/subscription/start", dependencies=[Depends(this_computer)])
     async def start_subscription_login(request: Request):
@@ -567,7 +574,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         if not token:
             raise HTTPException(400, "Claude did not accept the code. Sign in again.")
         try:
-            mode = save_credential(env_file(), token, account_label=body.account_label)
+            mode = save_credential(env_file(), token, account_label=body.account_label, use=True)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None
         return {"mode": mode, "restarting": login_saved(request)}

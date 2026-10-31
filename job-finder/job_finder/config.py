@@ -10,8 +10,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTH_VARS = ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")
+LOGIN_CHOICE = "JOB_FINDER_CLAUDE_LOGIN"  # the login that the user chose in the web app
 NO_LOGIN = ("Set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN in .env, or run `job-finder login`, "
-            "or use the Settings page of the web app.")
+            "or use the Settings button of the web app.")
 AUTH_LABELS = {"api_key": "API key", "oauth_token": "Claude subscription token", "none": "Claude not connected"}
 
 
@@ -67,13 +68,20 @@ class Settings:
     read_effort: str = "medium"
     career_lens_freshness: str = "7d"
     claude_oauth_token: str = ""  # a Claude subscription token from `claude setup-token`
+    claude_login: str = ""  # api_key or oauth_token: the login that the user chose. Empty: the API key wins.
 
     @property
     def auth_mode(self) -> str:
-        """The Claude credential to use. The API key wins when both are set."""
+        """The Claude credential to use. The choice of the user wins. With no choice, the API key wins."""
+        if self.claude_login == "oauth_token" and self.claude_oauth_token:
+            return "oauth_token"
         if self.anthropic_api_key:
             return "api_key"
         return "oauth_token" if self.claude_oauth_token else "none"
+
+    @property
+    def credential(self) -> str:
+        return {"api_key": self.anthropic_api_key, "oauth_token": self.claude_oauth_token}.get(self.auth_mode, "")
 
     @property
     def auth_label(self) -> str:
@@ -115,6 +123,7 @@ class Settings:
             read_effort=get("JOB_FINDER_READ_EFFORT", "medium"),
             career_lens_freshness=_freshness(get("CAREER_LENS_FRESHNESS", "7d")),
             claude_oauth_token=get("CLAUDE_CODE_OAUTH_TOKEN"),
+            claude_login=get(LOGIN_CHOICE),
         )
 
 
