@@ -139,15 +139,15 @@ describe("the icons of the lists", () => {
     expect(screen.getByRole("img", { name: "Ended" })).toBeInTheDocument()
   })
 
-  it("shows a green dot while a goal of the mandate works", () => {
+  it("keeps the scroll and adds a green dot while a goal of the mandate works", () => {
     show({ goals: [run(1, { status: "running" })] })
     expect(screen.getByRole("img", { name: "Working now" })).toBeInTheDocument()
-    expect(icon("scroll-text")).not.toBeInTheDocument()
+    expect(icon("scroll-text")).toBeInTheDocument()
   })
 
-  it("gives a goal of a mandate only a status icon", () => {
+  it("gives a goal of a mandate a target and a status icon", () => {
     show({ goals: [run(1, { status: "running" })], activeGoalId: "home" })
-    expect(icon("target")).not.toBeInTheDocument()
+    expect(icon("target")).toBeInTheDocument()
     expect(screen.getByRole("img", { name: "Working" })).toBeInTheDocument()
   })
 })

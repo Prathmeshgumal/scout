@@ -16,18 +16,20 @@ function StatusIcon({ status }: { status: GoalStatus }) {
   return null
 }
 
-/** A green dot with ripples while a goal of the mandate works. Else an icon of the state of the mandate. */
+/** A scroll, with a green dot with ripples while a goal of the mandate works. A paused or ended mandate shows its state. */
 function MandateIcon({ status, working }: { status: Mandate["status"]; working: boolean }) {
   if (status === "paused") return <Pause role="img" aria-label="Paused" className={ICON} />
   if (status === "ended") return <CircleStop role="img" aria-label="Ended" className={ICON} />
-  if (working) {
-    return (
-      <span role="img" aria-label="Working now" className="relative mx-1 size-2 shrink-0 rounded-full bg-emerald-500">
-        <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 motion-reduce:animate-none" />
-      </span>
-    )
-  }
-  return <ScrollText aria-hidden className={ICON} />
+  return (
+    <span className="relative shrink-0">
+      <ScrollText aria-hidden className={ICON} />
+      {working && (
+        <span role="img" aria-label="Working now" className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-background">
+          <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 motion-reduce:animate-none" />
+        </span>
+      )}
+    </span>
+  )
 }
 
 function Row({ title, meta, icon, status, active, indent, onOpen, onDelete, before }: {
@@ -141,7 +143,7 @@ export function MandateList({ mandates, goals, activeGoalId, full, onOpen, onOpe
                 </button>
               ) : undefined} />
             {expanded && visible.map(({ goal, number }) => (
-              <Row key={goal.id} indent title={goal.title || `Goal ${number}`} meta={`${when(goal.created_at)}, ${goalMeta(goal)}`} status={<StatusIcon status={goal.status} />}
+              <Row key={goal.id} indent title={goal.title || `Goal ${number}`} meta={`${when(goal.created_at)}, ${goalMeta(goal)}`} icon={<Target aria-hidden className={ICON} />} status={<StatusIcon status={goal.status} />}
                 active={goal.id === activeGoalId} onOpen={() => onOpenGoal(goal.id)} onDelete={() => onDeleteGoal(goal)} />
             ))}
             {expanded && runs.length > SHOWN_GOALS && (
