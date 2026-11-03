@@ -1,9 +1,14 @@
-import { Check, ChevronLeft, ChevronRight, Copy, ExternalLink } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, CircleStop, Copy, ExternalLink } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 import { Problem, Status } from "@/components/Status"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { usePoll } from "@/hooks/usePoll"
-import { type RequestDetail, type RunEvent, requestDetail, requestResult, screenshotUrl } from "@/lib/api"
+import { type RequestDetail, type RunEvent, cancelRequest, requestDetail, requestResult, screenshotUrl } from "@/lib/api"
 import { elapsed, isFinished, kindText, waitText, when, words } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -16,7 +21,7 @@ function took(start: string | null, end: string | null): string | null {
 
 export function RequestDetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const [finished, setFinished] = useState(false)
-  const { data, error } = usePoll(async () => {
+  const { data, error, refresh } = usePoll(async () => {
     const value = await requestDetail(id)
     setFinished(isFinished(value.status))
     return value
@@ -71,14 +76,14 @@ export function RequestDetailView({ id, onBack }: { id: string; onBack: () => vo
             )}
             {data.extraction && <Result id={id} />}
           </div>
-          <Facts data={data} />
+          <Facts data={data} onChange={refresh} />
         </div>
       )}
     </div>
   )
 }
 
-function Facts({ data }: { data: RequestDetail }) {
+function Facts({ data, onChange }: { data: RequestDetail; onChange: () => void }) {
   const wait = data.status === "queued" ? waitText(data.wait_reason) : null
   const duration = took(data.started_at, data.finished_at)
   const link = data.url?.startsWith("http") ? data.url : null
@@ -99,6 +104,7 @@ function Facts({ data }: { data: RequestDetail }) {
         {data.extraction && <Fact label="Result">{words(data.extraction.outcome)}</Fact>}
       </dl>
       <div className="flex flex-col gap-2 border-t pt-4">
+        {!isFinished(data.status) && !data.cancel_requested_at && <CancelButton id={data.request_id} onDone={onChange} />}
         <CopyId id={data.request_id} />
         {link && (
           <Button variant="outline" size="sm" asChild>
@@ -107,6 +113,40 @@ function Facts({ data }: { data: RequestDetail }) {
         )}
       </div>
     </aside>
+  )
+}
+
+/** Stop the request. A queued request closes at once. Its worker stops running work. */
+function CancelButton({ id, onDone }: { id: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const cancel = async () => {
+    setBusy(true)
+    try {
+      const answer = await cancelRequest(id)
+      toast.success(answer.cancel === "cancelled" ? "The request is cancelled." : "The worker is stopping the request.")
+      onDone()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "The server did not answer.")
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" size="sm" disabled={busy}><CircleStop aria-hidden /> Cancel the request</Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancel this request?</AlertDialogTitle>
+          <AlertDialogDescription>The work stops. Each caller that waits for this request gets a cancelled answer.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep it</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={() => void cancel()}>Cancel the request</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 

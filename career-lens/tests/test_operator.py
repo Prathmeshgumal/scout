@@ -305,3 +305,50 @@ def test_the_console_gives_no_file_outside_its_folder(anonymous, built):
 def test_a_missing_build_says_so(anonymous, tmp_path, monkeypatch):
     monkeypatch.setattr(console, "DIST", tmp_path / "none")
     assert anonymous.get("/console").status_code == 503
+
+
+# Cancel from the console
+
+
+def _cancel_state(app, rid):
+    return app.execute(text("SELECT status, cancel_requested_at FROM scrape_request WHERE id = :r"),
+                       {"r": rid}).one()
+
+
+def test_cancel_closes_a_queued_request_at_once(operator, app):
+    rid = _request(app, status="queued")
+    response = operator.post(f"/operator/api/requests/{rid}/cancel")
+    assert response.status_code == 200
+    assert (response.json()["status"], response.json()["cancel"]) == ("cancelled", "cancelled")
+    row = _cancel_state(app, rid)
+    assert row.status == "cancelled" and row.cancel_requested_at is not None
+
+
+def test_cancel_asks_the_worker_to_stop_running_work(operator, app):
+    rid = _request(app, status="running")
+    response = operator.post(f"/operator/api/requests/{rid}/cancel")
+    assert response.status_code == 202
+    assert (response.json()["status"], response.json()["cancel"]) == ("running", "stopping")
+    assert _cancel_state(app, rid).cancel_requested_at is not None
+
+
+def test_cancel_stops_work_that_a_customer_still_waits_for(operator, app):
+    rid = _request(app, status="assigned")
+    app.execute(text("INSERT INTO request_interest (request_id, created_at) VALUES (:r, :t)"),
+                {"r": rid, "t": NOW})
+    assert operator.post(f"/operator/api/requests/{rid}/cancel").status_code == 202
+
+
+def test_cancel_refuses_a_finished_or_unknown_request(operator, app):
+    rid = _request(app, status="succeeded")
+    assert operator.post(f"/operator/api/requests/{rid}/cancel").status_code == 409
+    assert _cancel_state(app, rid).cancel_requested_at is None
+    assert operator.post("/operator/api/requests/rq-none/cancel").status_code == 404
+
+
+def test_cancel_needs_a_session(anonymous, application, app_url, app):
+    rid = _request(app, status="queued")
+    assert anonymous.post(f"/operator/api/requests/{rid}/cancel").status_code == 401
+    customer = customer_client(application, app_url)
+    assert customer.post(f"/operator/api/requests/{rid}/cancel").status_code == 401
+    assert _cancel_state(app, rid).status == "queued"

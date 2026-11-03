@@ -8,12 +8,13 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import Connection, text
 
 from ..store import blobs
 from ..store.schema.core import KINDS, STATUSES
 from . import serialise, v1
-from .db import database
+from .db import database, write
 from .operator_auth import require_operator
 
 MAX_LIMIT = 100
@@ -107,6 +108,28 @@ def request_detail(request_id: str, connection: Db) -> dict:
         } for row in events],
         "screenshots": [{"id": row.id, "capture_id": row.capture_id, "ordinal": row.ordinal} for row in screenshots],
     }
+
+
+@router.post("/requests/{request_id}/cancel")
+def cancel_request(request_id: str, connection: Db) -> JSONResponse:
+    """Stop a request from the console, also when customers still wait for it.
+
+    A queued request closes here with 200. Assigned and running work gets 202:
+    its worker sees the cancel and writes the ending.
+    """
+    with write(connection) as writable:
+        row = writable.execute(text("""
+            SELECT status, cancel_requested_at FROM scrape_request WHERE id = :r FOR UPDATE
+        """), {"r": request_id}).one_or_none()
+        if row is None:
+            raise HTTPException(404, {"code": "not_found"})
+        if row.status not in v1.CANCELLABLE:
+            raise HTTPException(409, f"The request is {row.status}. Only queued and running requests can stop.")
+        code = v1._stop(writable, request_id, row, detail="the operator cancelled this request")
+        status = writable.execute(text("SELECT status FROM scrape_request WHERE id = :r"),
+                                  {"r": request_id}).scalar_one()
+    return JSONResponse({"request_id": request_id, "status": status,
+                         "cancel": "cancelled" if code == 200 else "stopping"}, status_code=code)
 
 
 @router.get("/requests/{request_id}/result")

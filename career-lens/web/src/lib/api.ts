@@ -158,6 +158,7 @@ export const signIn = (password: string) => call<void>("/login", send("POST", { 
 export const signOut = () => call<void>("/logout", send("POST"))
 export const overview = () => call<Overview>("/overview")
 export const requestDetail = (id: string) => call<RequestDetail>(`/requests/${encodeURIComponent(id)}`)
+export const cancelRequest = (id: string) => call<{ status: string; cancel: "cancelled" | "stopping" }>(`/requests/${encodeURIComponent(id)}/cancel`, send("POST"))
 export const requestResult = (id: string) => call<unknown>(`/requests/${encodeURIComponent(id)}/result`)
 export const screenshotUrl = (id: string) => `/operator/api/artifacts/${encodeURIComponent(id)}`
 
