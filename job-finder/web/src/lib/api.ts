@@ -1,3 +1,4 @@
+import type { Positions } from "./board-order"
 export type GoalStatus = "running" | "waiting" | "done" | "capped" | "failed" | "stopped"
 
 export type GoalEvent = { seq: number | null; at?: string | null; type: string } & Record<string, unknown>
@@ -324,4 +325,12 @@ export async function watchGoal(id: string, after: number, onEvent: (event: Goal
     buffer = parsed.rest
     parsed.events.forEach(onEvent)
   }
+}
+
+export type BoardName = "pipeline" | "jobs"
+export const getBoardOrder = (board: BoardName) => request<{ positions: Positions }>(`/api/board-order/${board}`)
+/** The server answers 204 with no body. */
+export async function saveBoardOrder(board: BoardName, column: string, keys: string[]): Promise<void> {
+  const response = await fetch(`/api/board-order/${board}`, { ...postJson({ column, keys }), method: "PUT" })
+  if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
 }

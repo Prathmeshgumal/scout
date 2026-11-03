@@ -1,12 +1,19 @@
+import {
+  DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type CollisionDetection, type DragEndEvent,
+} from "@dnd-kit/core"
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { ChevronLeft, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import { useBoardOrder } from "@/components/board/useBoardOrder"
 import { RolePage } from "@/components/pipeline/RolePage"
 import { useJobDetail, usePipeline } from "@/components/pipeline/usePipeline"
 import { listJobs, type JobCardData, type PipelineStage, type Verdict } from "@/lib/api"
 import { NO_FILTERS, VERDICT_LABEL, filterJobs, groupByGoal, isClosed, stageLabel, workplaces } from "@/lib/jobs"
+import { inOrder, moveCard, placeVisible } from "@/lib/board-order"
 import { cn } from "@/lib/utils"
 import { SkeletonRows, VerdictBadge } from "./JobRow"
 import { ROLE_CARD, ROLE_CARD_ACTIVE, RoleCardBody } from "./RoleCardBody"
@@ -22,6 +29,20 @@ const BOARD: { id: ColumnId; label: string; dot: string }[] = [
   { id: "progress", label: "In progress", dot: "border border-dashed border-muted-foreground" },
   { id: "not_fit", label: VERDICT_LABEL.not_fit, dot: "bg-muted-foreground/50" },
 ]
+
+const SCREEN_READER_HELP = { draggable: "To open this role, press Enter. To change its priority, press Space, move it up or down with the arrow keys, and press Space again." }
+
+/** A card of the board. Drag it up or down to change its place in its column. */
+function JobCard({ job, onOpen }: { job: JobCardData; onOpen: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({ id: job.id, attributes: { roleDescription: "draggable role" } })
+  return (
+    <button ref={setNodeRef} type="button" {...attributes} {...listeners} onClick={onOpen} style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn(ROLE_CARD, ROLE_CARD_ACTIVE, "touch-manipulation", isDragging && "relative z-10 shadow-lg ring-1 ring-violet-500/45")}>
+      <RoleCardBody company={job.company_name} title={job.title} location={job.location} posted={job.posted_at} closed={isClosed(job)}
+        badge={job.fit ? undefined : <VerdictBadge verdict={null} stage={stageLabel(job, NOT_WORKING)} />} />
+    </button>
+  )
+}
 
 type JobPageProps = {
   job: JobCardData
@@ -64,7 +85,7 @@ type Props = {
   onOpenGoal: (id: string) => void
 }
 
-/** All roles as a board, with one column for each verdict. The agents give the verdict, so the cards do not move. */
+/** All roles as a board, with one column for each verdict. The agents give the verdict, so a card stays in its column; the user drags it up or down to set its priority. */
 export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewGoal, onOpenGoal }: Props) {
   const [jobs, setJobs] = useState<JobCardData[] | null>(null)
   const [failed, setFailed] = useState(false)
@@ -85,7 +106,27 @@ export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewGo
   const goals = useMemo(() => groupByGoal(jobs ?? []), [jobs])
   const places = useMemo(() => workplaces(jobs ?? []), [jobs])
   const shown = useMemo(() => (jobs ?? []).filter((job) => goal === "all" || job.goal_id === goal), [jobs, goal])
-  const inColumn = (id: ColumnId) => filterJobs(shown, { ...NO_FILTERS, verdict: id, workplace, text })
+  const order = useBoardOrder("jobs")
+  const inColumn = (id: ColumnId) => inOrder(filterJobs(shown, { ...NO_FILTERS, verdict: id, workplace, text }), (job) => job.id, id, order.positions)
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates, keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] } }),
+  )
+  const columnOf = (id: string) => BOARD.find((column) => inColumn(column.id).some((job) => job.id === id))?.id ?? null
+  // A card stays in its column: only the cards of that column count.
+  const sameColumn: CollisionDetection = (args) => {
+    const column = columnOf(String(args.active.id))
+    return closestCenter({ ...args, droppableContainers: args.droppableContainers.filter((c) => columnOf(String(c.id)) === column) })
+  }
+  const drop = ({ active, over }: DragEndEvent) => {
+    const column = columnOf(String(active.id))
+    if (!over || !column || over.id === active.id) return
+    const visible = inColumn(column).map((job) => job.id)
+    const moved = moveCard({ [column]: visible }, String(active.id), column, visible.indexOf(String(over.id)))[column]
+    const full = inOrder(filterJobs(jobs ?? [], { ...NO_FILTERS, verdict: column }), (job) => job.id, column, order.positions).map((job) => job.id)
+    void order.save(column, placeVisible(full, moved))
+  }
 
   if (openJob) {
     const job = jobs?.find((row) => row.id === openJob.jobId && row.goal_id === openJob.goalId)
@@ -144,27 +185,24 @@ export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewGo
                 </h2>
               ))}
             </div>
+            <DndContext sensors={sensors} collisionDetection={sameColumn} onDragEnd={drop} accessibility={{ screenReaderInstructions: SCREEN_READER_HELP }}>
             <div className={cn(COLUMNS, "flex-1")}>
               {BOARD.map((column) => {
                 const rows = inColumn(column.id)
                 return (
                   <section key={column.id} aria-label={column.label} className="rounded-xl bg-muted/35 p-1.5">
                     {rows.length === 0 ? <p className="px-2 py-3 text-[12.5px] text-muted-foreground">No roles</p> : (
-                      <ul className="flex flex-col gap-1.5">
-                        {rows.map((job) => (
-                          <li key={job.id}>
-                            <button type="button" onClick={() => onOpenJob(job)} className={cn(ROLE_CARD, ROLE_CARD_ACTIVE)}>
-                              <RoleCardBody company={job.company_name} title={job.title} location={job.location} posted={job.posted_at} closed={isClosed(job)}
-                                badge={job.fit ? undefined : <VerdictBadge verdict={null} stage={stageLabel(job, NOT_WORKING)} />} />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                      <SortableContext items={rows.map((job) => job.id)} strategy={verticalListSortingStrategy}>
+                        <ul className="flex flex-col gap-1.5">
+                          {rows.map((job) => <li key={job.id}><JobCard job={job} onOpen={() => onOpenJob(job)} /></li>)}
+                        </ul>
+                      </SortableContext>
                     )}
                   </section>
                 )
               })}
             </div>
+            </DndContext>
           </div>
         </div>
       )}

@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
+from ..board_order import BOARDS, BoardOrder
 from ..config import NO_LOGIN, ROOT, Settings, env_file
 from ..deletion import Deleter, MandateChat
 from ..events import Hub, follow
@@ -63,6 +64,18 @@ class LoginChoice(BaseModel):
 class LoginCode(BaseModel):
     code: str
     account_label: str = ""
+
+
+class BoardColumnOrder(BaseModel):
+    column: str = Field(min_length=1, max_length=40)
+    keys: list[str] = Field(max_length=2000)
+
+    @field_validator("keys")
+    @classmethod
+    def no_repeats(cls, keys: list[str]) -> list[str]:
+        if len(set(keys)) != len(keys) or any(not k or len(k) > 500 for k in keys):
+            raise ValueError("Give each card once, with a key of 1 to 500 characters.")
+        return keys
 
 
 class PipelineMove(BaseModel):
@@ -367,6 +380,20 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
 
     def pipeline(request: Request) -> PipelineStore:
         return PipelineStore(svc(request).store.pool)
+
+    def board_or_404(board: str) -> str:
+        if board not in BOARDS:
+            raise HTTPException(404, "There is no board with that name.")
+        return board
+
+    @app.get("/api/board-order/{board}")
+    async def board_order(board: str, request: Request) -> dict:
+        """The places of the cards that the user moved up or down, for each column."""
+        return {"positions": await BoardOrder(svc(request).store.pool).positions(board_or_404(board))}
+
+    @app.put("/api/board-order/{board}", status_code=204)
+    async def save_board_order(board: str, body: BoardColumnOrder, request: Request) -> None:
+        await BoardOrder(svc(request).store.pool).save(board_or_404(board), body.column, body.keys)
 
     @app.get("/api/pipeline")
     async def pipeline_items(request: Request) -> dict:

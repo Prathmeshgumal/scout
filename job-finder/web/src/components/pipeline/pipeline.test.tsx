@@ -83,6 +83,18 @@ describe("Job pipeline board", () => {
     expect(within(screen.getByRole("region", { name: "Responded" })).getByText("No roles")).toBeInTheDocument()
   })
 
+  it("shows the roles of a column in the order that the user chose", async () => {
+    serve({
+      "/api/pipeline": { items: [item(), item({ role_key: "b", title: "Second Role" }), item({ role_key: "c", title: "New Role" })] },
+      "/api/board-order/pipeline": { positions: { b: { column: "fit", position: 0 }, "acme|go|pune": { column: "fit", position: 1 } } },
+    })
+    render(page())
+    const fit = await screen.findByRole("region", { name: "Fit jobs" })
+    await waitFor(() => expect(within(fit).getAllByRole("button").map((b) => b.textContent)).toEqual([
+      expect.stringContaining("New Role"), expect.stringContaining("Second Role"), expect.stringContaining("Go Engineer"),
+    ]))
+  })
+
   it("opens the page of a role on a click", async () => {
     serve({ "/api/pipeline": { items: [item()] } })
     const onOpenRole = vi.fn()
@@ -268,6 +280,13 @@ describe("Jobs page", () => {
     expect(within(screen.getByRole("region", { name: "Partial" })).getByText("Partial Role")).toBeInTheDocument()
     expect(within(screen.getByRole("region", { name: "In progress" })).getByText("Data Engineer")).toBeInTheDocument()
     expect(within(screen.getByRole("region", { name: "Not a fit" })).getByText("Bad Role")).toBeInTheDocument()
+  })
+
+  it("shows the roles of a verdict in the order that the user chose", async () => {
+    serve({ "/api/jobs": [job(), job({ id: "j2", title: "Top Role" })], "/api/board-order/jobs": { positions: { j2: { column: "fit", position: 0 }, j1: { column: "fit", position: 1 } } } })
+    render(board())
+    const fit = await screen.findByRole("region", { name: "Fit" })
+    await waitFor(() => expect(within(fit).getAllByRole("button")[0]).toHaveTextContent("Top Role"))
   })
 
   it("filters by goal and by text", async () => {

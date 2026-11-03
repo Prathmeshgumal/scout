@@ -3,6 +3,7 @@ import { useState } from "react"
 import { SkeletonRows } from "@/components/jobs/JobRow"
 import { Button } from "@/components/ui/button"
 import type { PipelineItem, PipelineStage, RemovedItem } from "@/lib/api"
+import { useBoardOrder } from "@/components/board/useBoardOrder"
 import { PipelineBoard } from "./PipelineBoard"
 import { RolePage } from "./RolePage"
 import { useJobDetail, usePipeline } from "./usePipeline"
@@ -36,6 +37,7 @@ function PipelineRole({ item, ...rest }: RoleProps) {
 /** The roles that the user tracks: a board of stages, and a page for each role. */
 export function PipelinePage({ roleKey, highlight = null, onOpenRole, onBoard, onOpenGoal, onJobs }: Props) {
   const { items, removed, failed, read, move, pause } = usePipeline()
+  const order = useBoardOrder("pipeline")
   const [showRemoved, setShowRemoved] = useState(false)
   const removedCount = removed?.length ?? 0
   // A note that is not saved stays when the user goes back to the board.
@@ -65,7 +67,7 @@ export function PipelinePage({ roleKey, highlight = null, onOpenRole, onBoard, o
       <header className="flex shrink-0 items-start justify-between gap-4 px-6 pt-4">
         <div className="min-w-0">
           <h1 className="text-[17px] font-semibold">Job pipeline</h1>
-          <p className="text-muted-foreground">Drag a role to change its stage. The bands count every role that reached a stage, including those further along.</p>
+          <p className="text-muted-foreground">Drag a role to change its stage, or up and down to change its priority. The bands count every role that reached a stage, including those further along.</p>
         </div>
         {(removedCount > 0 || showRemoved) && (
           <Button variant={showRemoved ? "secondary" : "outline"} size="sm" aria-pressed={showRemoved} onClick={() => setShowRemoved(!showRemoved)}>
@@ -83,7 +85,8 @@ export function PipelinePage({ roleKey, highlight = null, onOpenRole, onBoard, o
         </div>
       )}
       {items && (items.length > 0 || removedCount > 0) && (
-        <PipelineBoard items={items} removed={showRemoved ? removed ?? [] : null} highlight={highlight} onOpen={onOpenRole} onDragging={pause} onMove={(item, stage) => void move(item, stage)} />
+        <PipelineBoard items={items} removed={showRemoved ? removed ?? [] : null} highlight={highlight} onOpen={onOpenRole} onDragging={pause} positions={order.positions}
+          onMove={(item, stage, keys) => { if (stage !== item.stage) void move(item, stage); void order.save(stage, keys) }} />
       )}
     </div>
   )

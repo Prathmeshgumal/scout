@@ -28,7 +28,7 @@ async def pool(database_url):
     pool = await open_pool(database_url)
     async with pool.connection() as conn:
         await conn.execute("TRUNCATE mandates, goals, goal_events, scrapes, companies, company_research, jobs, "
-                           "application_notes, rejected_jobs, company_job_reads, subagent_tasks, files, pipeline_jobs, pipeline_notes CASCADE")
+                           "application_notes, rejected_jobs, company_job_reads, subagent_tasks, files, pipeline_jobs, pipeline_notes, board_order CASCADE")
     yield pool
     await pool.close()
 

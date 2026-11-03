@@ -145,3 +145,6 @@ Table("pipeline_notes", metadata, _id(),
       Column("pipeline_job_id", UUID(as_uuid=False), ForeignKey("pipeline_jobs.id", ondelete="CASCADE"), nullable=False),
       Column("text", Text, nullable=False), Column("created_at", TZ, nullable=False),
       Index("pipeline_notes_job", "pipeline_job_id", "created_at"))
+
+Table("board_order", metadata, Column("board", Text, primary_key=True), Column("item_key", Text, primary_key=True),
+      Column("column_id", Text, nullable=False), Column("position", Integer, nullable=False))
