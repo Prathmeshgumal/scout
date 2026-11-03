@@ -21,9 +21,9 @@ export function StageIcon({ index, total }: { index: number; total: number }) {
   )
 }
 
-const WIDTH = 108
-const STEP = 46
-const GAP = 3
+const WIDTH = 176
+const STEP = 76
+const GAP = 4
 
 /** The funnel of the pipeline, beside the board. A row shows the roles that reached the stage, the share of the first stage, and the name. */
 export function Funnel({ steps, className }: { steps: FunnelStep[]; className?: string }) {
@@ -31,10 +31,10 @@ export function Funnel({ steps, className }: { steps: FunnelStep[]; className?: 
   const width = (reached: number) => (top ? Math.max(reached ? 8 : 0, (reached / top) * WIDTH) : 0)
   return (
     <section aria-label="Pipeline funnel" className={className}>
-      <h2 className="font-semibold">Funnel</h2>
+      <h2 className="text-base font-semibold">Funnel</h2>
       {top === 0 ? <p className="mt-2 text-muted-foreground">The funnel appears when the pipeline has a role.</p> : (
         <>
-          <div className="mt-4 flex gap-3">
+          <div className="mt-5 flex gap-5">
             <svg width={WIDTH} height={steps.length * (STEP + GAP) - GAP} className="shrink-0" aria-hidden>
               {steps.map((step, i) => {
                 const upper = width(step.reached)
@@ -53,15 +53,15 @@ export function Funnel({ steps, className }: { steps: FunnelStep[]; className?: 
               {steps.map((step) => (
                 <li key={step.id} className="flex flex-col justify-center" style={{ height: STEP }}>
                   <span className="flex items-baseline gap-1.5">
-                    <span className="text-[18px] leading-tight font-semibold tabular-nums">{step.reached}</span>
-                    {step.share !== null && <span className="text-[12px] text-muted-foreground tabular-nums">{step.share}%</span>}
+                    <span className="text-[26px] leading-tight font-semibold tabular-nums">{step.reached}</span>
+                    {step.share !== null && <span className="text-sm text-muted-foreground tabular-nums">{step.share}%</span>}
                   </span>
-                  <span className="text-[12px] leading-tight text-muted-foreground">{step.label}</span>
+                  <span className="mt-0.5 text-sm leading-tight text-muted-foreground">{step.label}</span>
                 </li>
               ))}
             </ol>
           </div>
-          <p className="mt-4 text-[12px] leading-snug text-muted-foreground">Each stage counts the roles that reached it or a later stage. Removed roles are not counted.</p>
+          <p className="mt-5 text-[13px] leading-snug text-muted-foreground">Each stage counts the roles that reached it or a later stage. Removed roles are not counted.</p>
         </>
       )}
     </section>

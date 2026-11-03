@@ -203,7 +203,7 @@ export function PipelineBoard({ items, removed, highlight, positions, onMove, on
             </div>
           </div>
         </div>
-        <aside className="hidden w-[272px] shrink-0 overflow-y-auto border-l p-4 lg:block">
+        <aside className="hidden w-[380px] shrink-0 overflow-y-auto border-l p-6 lg:block">
           <Funnel steps={steps} />
         </aside>
       </div>
