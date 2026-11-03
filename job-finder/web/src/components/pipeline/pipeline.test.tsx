@@ -40,13 +40,13 @@ describe("funnel numbers", () => {
 
   it("shows each stage with its number as text", () => {
     const items = [item(), item({ stage: "applied" })]
-    render(<Funnel steps={funnelOf(items)} counts={{ fit: 1, referral: 0, applied: 1, responded: 0 }} />)
+    render(<Funnel steps={funnelOf(items)} />)
     const funnel = screen.getByRole("region", { name: "Pipeline funnel" })
     expect(within(funnel).getByText("Applied")).toBeInTheDocument()
     expect(within(funnel).getAllByText("50%")).toHaveLength(2)
     expect(within(funnel).getByText("0%")).toBeInTheDocument()
     expect(within(funnel).getByText("Fit jobs")).toBeInTheDocument()
-    expect(within(funnel).getAllByText("2 reached")).toHaveLength(1)
+    expect(within(funnel).getByText("2")).toBeInTheDocument()
   })
 })
 
@@ -111,8 +111,8 @@ describe("Job pipeline board", () => {
     await userEvent.click(screen.getByRole("button", { name: /Removed/ }))
     expect(within(screen.getByRole("region", { name: "Removed" })).getByText("Old Role")).toBeInTheDocument()
     const funnel = screen.getByRole("region", { name: "Pipeline funnel" })
-    expect(within(funnel).getByText("Not in the funnel")).toBeInTheDocument()
-    expect(within(funnel).getAllByText("1 reached").length).toBeGreaterThan(0)
+    expect(within(funnel).queryByText("Old Role")).not.toBeInTheDocument()
+    expect(within(funnel).getByText(/Removed roles are not counted/)).toBeInTheDocument()
   })
 
   it("keeps the board when all roles are removed", async () => {

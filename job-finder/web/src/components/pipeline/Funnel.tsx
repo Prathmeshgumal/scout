@@ -1,7 +1,6 @@
 import type { FunnelStep } from "@/lib/pipeline"
 import { cn } from "@/lib/utils"
 
-const BAND = 28
 // One hue that deepens stage by stage.
 const FILLS = [
   "fill-violet-300 dark:fill-violet-800",
@@ -22,39 +21,49 @@ export function StageIcon({ index, total }: { index: number; total: number }) {
   )
 }
 
-type Props = { steps: FunnelStep[]; counts: Record<string, number>; className?: string; children?: React.ReactNode }
+const WIDTH = 108
+const STEP = 46
+const GAP = 3
 
-/** The head of the board. Each stage has its name, the roles in it now, and one piece of a band that narrows from left to right. */
-export function Funnel({ steps, counts, className, children }: Props) {
+/** The funnel of the pipeline, beside the board. A row shows the roles that reached the stage, the share of the first stage, and the name. */
+export function Funnel({ steps, className }: { steps: FunnelStep[]; className?: string }) {
   const top = steps[0]?.reached ?? 0
-  const height = (reached: number) => (top && reached ? Math.max(3, (reached / top) * BAND) : 0)
+  const width = (reached: number) => (top ? Math.max(reached ? 8 : 0, (reached / top) * WIDTH) : 0)
   return (
     <section aria-label="Pipeline funnel" className={className}>
-      <ol className="contents">
-        {steps.map((step, i) => {
-          const upper = height(step.reached)
-          const lower = height(steps[i + 1]?.reached ?? step.reached)
-          const c = BAND / 2
-          return (
-            <li key={step.id} className="flex min-w-0 flex-col gap-1.5 px-2">
-              <h2 className="flex items-center gap-2 font-medium">
-                <StageIcon index={i} total={steps.length} />
-                <span className="truncate">{step.label}</span>
-                <span className="text-muted-foreground tabular-nums"><span className="sr-only">Roles here: </span>{counts[step.id] ?? 0}</span>
-              </h2>
-              <svg viewBox={`0 0 100 ${BAND}`} preserveAspectRatio="none" className="h-7 w-full" aria-hidden>
-                <rect x="0" y={c - 0.5} width="100" height="1" className="fill-border" />
-                {step.reached > 0 && <polygon className={cn(FILLS[i])} points={`0,${c - upper / 2} 100,${c - lower / 2} 100,${c + lower / 2} 0,${c + upper / 2}`} />}
-              </svg>
-              <p className="flex items-baseline justify-between gap-2 text-[12px] text-muted-foreground tabular-nums">
-                <span>{step.reached} reached</span>
-                {step.share !== null && <span>{step.share}%</span>}
-              </p>
-            </li>
-          )
-        })}
-        {children}
-      </ol>
+      <h2 className="font-semibold">Funnel</h2>
+      {top === 0 ? <p className="mt-2 text-muted-foreground">The funnel appears when the pipeline has a role.</p> : (
+        <>
+          <div className="mt-4 flex gap-3">
+            <svg width={WIDTH} height={steps.length * (STEP + GAP) - GAP} className="shrink-0" aria-hidden>
+              {steps.map((step, i) => {
+                const upper = width(step.reached)
+                const lower = width(steps[i + 1]?.reached ?? step.reached)
+                const y = i * (STEP + GAP)
+                const c = WIDTH / 2
+                return (
+                  <polygon key={step.id} className={cn(FILLS[i], "transition-[points] duration-300")}
+                    points={`${c - upper / 2},${y} ${c + upper / 2},${y} ${c + lower / 2},${y + STEP} ${c - lower / 2},${y + STEP}`}>
+                    <title>{`${step.label}: ${step.reached}`}</title>
+                  </polygon>
+                )
+              })}
+            </svg>
+            <ol className="flex min-w-0 flex-1 flex-col" style={{ gap: GAP }}>
+              {steps.map((step) => (
+                <li key={step.id} className="flex flex-col justify-center" style={{ height: STEP }}>
+                  <span className="flex items-baseline gap-1.5">
+                    <span className="text-[18px] leading-tight font-semibold tabular-nums">{step.reached}</span>
+                    {step.share !== null && <span className="text-[12px] text-muted-foreground tabular-nums">{step.share}%</span>}
+                  </span>
+                  <span className="text-[12px] leading-tight text-muted-foreground">{step.label}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <p className="mt-4 text-[12px] leading-snug text-muted-foreground">Each stage counts the roles that reached it or a later stage. Removed roles are not counted.</p>
+        </>
+      )}
     </section>
   )
 }

@@ -67,7 +67,7 @@ export function PipelinePage({ roleKey, highlight = null, onOpenRole, onBoard, o
       <header className="flex shrink-0 items-start justify-between gap-4 px-6 pt-4">
         <div className="min-w-0">
           <h1 className="text-[17px] font-semibold">Job pipeline</h1>
-          <p className="text-muted-foreground">Drag a role to change its stage, or up and down to change its priority. The bands count every role that reached a stage, including those further along.</p>
+          <p className="text-muted-foreground">Drag a role to change its stage, or up and down to change its priority.</p>
         </div>
         {(removedCount > 0 || showRemoved) && (
           <Button variant={showRemoved ? "secondary" : "outline"} size="sm" aria-pressed={showRemoved} onClick={() => setShowRemoved(!showRemoved)}>

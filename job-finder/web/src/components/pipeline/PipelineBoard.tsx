@@ -13,7 +13,7 @@ import { isClosed } from "@/lib/jobs"
 import { inOrder, moveCard, type Columns, type Positions } from "@/lib/board-order"
 import { STAGES, funnelOf } from "@/lib/pipeline"
 import { cn } from "@/lib/utils"
-import { Funnel } from "./Funnel"
+import { Funnel, StageIcon } from "./Funnel"
 
 const COLUMNS = "grid grid-cols-[repeat(4,minmax(248px,1fr))] gap-2"
 const COLUMNS_WITH_REMOVED = "grid grid-cols-[repeat(4,minmax(248px,1fr))_minmax(220px,0.8fr)] gap-2"
@@ -178,25 +178,34 @@ export function PipelineBoard({ items, removed, highlight, positions, onMove, on
   return (
     <DndContext sensors={sensors} collisionDetection={collision} onDragStart={start} onDragOver={over} onDragEnd={end} onDragCancel={stop}
       accessibility={{ announcements, screenReaderInstructions: SCREEN_READER_HELP }}>
-      <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
-        <div className={cn("flex min-h-full flex-col", removed ? "min-w-[1252px]" : "min-w-[1016px]")}>
-          <Funnel steps={steps} counts={counts} className={cn(grid, "sticky top-0 z-10 bg-background py-3")}>
-            {removed && (
-              <li className="flex min-w-0 flex-col gap-1.5 px-2">
-                <h2 className="flex items-center gap-2 font-medium text-muted-foreground">
+      <div className="flex min-h-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto px-4 pb-4">
+          <div className={cn("flex min-h-full flex-col", removed ? "min-w-[1252px]" : "min-w-[1016px]")}>
+            <div className={cn(grid, "sticky top-0 z-10 bg-background py-3")}>
+              {STAGES.map((stage, i) => (
+                <h2 key={stage.id} className="flex items-center gap-2 px-2 font-medium">
+                  <StageIcon index={i} total={STAGES.length} />
+                  <span className="truncate">{stage.label}</span>
+                  <span className="text-muted-foreground tabular-nums"><span className="sr-only">Roles here: </span>{counts[stage.id] ?? 0}</span>
+                </h2>
+              ))}
+              {removed && (
+                <h2 className="flex items-center gap-2 px-2 font-medium text-muted-foreground">
                   <Archive className="size-3.5 shrink-0" aria-hidden />
                   <span className="truncate">{REMOVED.label}</span>
                   <span className="tabular-nums"><span className="sr-only">Roles here: </span>{removed.length}</span>
                 </h2>
-                <p className="flex h-7 items-center text-[12px] text-muted-foreground">Not in the funnel</p>
-              </li>
-            )}
-          </Funnel>
-          <div className={cn(grid, "flex-1")}>
-            {STAGES.map((stage) => <Column key={stage.id} stage={stage} rows={rowsOf(stage.id)} lit={lit} onOpen={onOpen} />)}
-            {removed && <Column stage={REMOVED} rows={rowsOf(REMOVED.id)} lit={lit} onOpen={onOpen} />}
+              )}
+            </div>
+            <div className={cn(grid, "flex-1")}>
+              {STAGES.map((stage) => <Column key={stage.id} stage={stage} rows={rowsOf(stage.id)} lit={lit} onOpen={onOpen} />)}
+              {removed && <Column stage={REMOVED} rows={rowsOf(REMOVED.id)} lit={lit} onOpen={onOpen} />}
+            </div>
           </div>
         </div>
+        <aside className="hidden w-[272px] shrink-0 overflow-y-auto border-l p-4 lg:block">
+          <Funnel steps={steps} />
+        </aside>
       </div>
       <DragOverlay dropAnimation={null}>
         {active && <div className={cn(ROLE_CARD, "cursor-grabbing shadow-lg ring-1 ring-violet-500/45")}><CardBody item={active} /></div>}
