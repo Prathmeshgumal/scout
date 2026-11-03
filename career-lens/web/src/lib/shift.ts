@@ -34,3 +34,12 @@ export function shiftBody(schedule: Schedule) {
     days: schedule.days.map((day) => (day.working ? day : { ...day, lunch_minutes: 0, break_count: 0, break_minutes: 0 })),
   }
 }
+
+/** The times that a shift can start or end: each 15 minutes, and 23:59 for the end of the day. */
+export function timeChoices(current: string | null): string[] {
+  const times = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`)
+  times.push("23:59")
+  const now = current?.slice(0, 5)
+  if (now && !times.includes(now)) times.push(now)
+  return times.sort()
+}

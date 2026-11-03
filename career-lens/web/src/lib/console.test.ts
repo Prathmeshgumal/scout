@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { ago, statusTone, waitText } from "./format"
 import { parseRoute, routePath } from "./route"
-import { blankShift, shiftBody, shiftText } from "./shift"
+import { blankShift, shiftBody, shiftText, timeChoices } from "./shift"
 
 describe("route", () => {
   it("reads and writes each page", () => {
@@ -41,5 +41,13 @@ describe("shift", () => {
     const shift = blankShift()
     shift.days[0] = { ...shift.days[0], working: false, start_local: null, end_local: null }
     expect(shiftBody(shift).days[0].lunch_minutes).toBe(0)
+  })
+})
+
+describe("shift times", () => {
+  it("offers each 15 minutes, the end of the day, and a saved time that is not in the list", () => {
+    expect(timeChoices(null)).toHaveLength(97)
+    expect(timeChoices(null)).toContain("23:59")
+    expect(timeChoices("09:10:00")).toContain("09:10")
   })
 })

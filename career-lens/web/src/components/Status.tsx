@@ -15,7 +15,7 @@ export function Status({ status, tone }: { status: string; tone?: keyof typeof T
 
 export function Page({ title, note, children, actions }: { title: string; note?: string; children: React.ReactNode; actions?: React.ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-7">
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-7">
       <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
@@ -37,4 +37,22 @@ export const fieldClass = "h-9 w-full rounded-lg border bg-transparent px-2.5 te
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">{label}{children}</label>
+}
+
+/** A box that holds one thing, such as a worker or an account. Its rows have lines between them. */
+export function Panel({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return <section aria-label={label} className={cn("divide-y overflow-hidden rounded-xl border bg-card", className)}>{children}</section>
+}
+
+/** A row of a panel: the name and a short note on the left, the controls on the right. */
+export function SettingRow({ title, note, children }: { title: string; note?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-x-6 gap-y-3 px-4 py-3.5 md:grid-cols-[200px_minmax(0,1fr)] md:items-center">
+      <div className="min-w-0">
+        <h3 className="text-sm font-medium">{title}</h3>
+        {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
 }
