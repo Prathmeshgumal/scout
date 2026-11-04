@@ -95,7 +95,7 @@ function ShiftEditor({ account, onClose, onDone }: { account: Account; onClose: 
         <div className="w-64"><Field label="Time zone"><input required value={shift.timezone} onChange={(e) => setShift({ ...shift, timezone: e.target.value })} className={fieldClass} /></Field></div>
         <label className="flex h-9 items-center gap-2 text-sm">
           <Switch checked={shift.enabled} onChange={(enabled) => setShift({ ...shift, enabled })} />
-          {shift.enabled ? "The shift is on" : "The shift is off. The account does not scrape."}
+          {shift.enabled ? "Use this schedule" : "Schedule not in use. The account does not scrape."}
         </label>
       </div>
       <div className={cn("overflow-x-auto", !shift.enabled && "opacity-50")}>

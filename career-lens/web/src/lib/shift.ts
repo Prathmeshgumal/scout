@@ -16,7 +16,7 @@ export const blankShift = (): Schedule => ({
 /** One line for a shift. Days with the same hours stay together. */
 export function shiftText(schedule: Schedule | null): string {
   if (!schedule) return "No shift. This account does not scrape."
-  if (!schedule.enabled) return "The shift is off."
+  if (!schedule.enabled) return "The schedule is not in use."
   const working = schedule.days.filter((day) => day.working)
   if (!working.length) return "No working days."
   const hours = new Map<string, string[]>()

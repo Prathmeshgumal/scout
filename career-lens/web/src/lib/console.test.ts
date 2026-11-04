@@ -51,3 +51,7 @@ describe("shift times", () => {
     expect(timeChoices("09:10:00")).toContain("09:10")
   })
 })
+
+it("says that a turned-off schedule is not in use, and does not call it a shift that is off", () => {
+  expect(shiftText({ ...blankShift(), enabled: false })).toBe("The schedule is not in use.")
+})
