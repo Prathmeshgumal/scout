@@ -1,4 +1,4 @@
-export type Section = "goals" | "mandates" | "jobs" | "pipeline"
+export type Section = "goals" | "mandates" | "jobs" | "pipeline" | "metrics"
 
 export type GoalTab = "chat" | "jobs" | "activity"
 
@@ -31,6 +31,7 @@ export function parseRoute(pathname: string): Route {
   const role = ROLE.exec(pathname)
   if (role) return { section: "pipeline", goalId: null, mandateId: null, tab: "chat", roleKey: decoded(role[1]) }
   if (/^\/pipeline\/?$/i.test(pathname)) return { section: "pipeline", goalId: null, mandateId: null, tab: "chat" }
+  if (/^\/metrics\/?$/i.test(pathname)) return { section: "metrics", goalId: null, mandateId: null, tab: "chat" }
   return { section: "goals", goalId: null, mandateId: null, tab: "chat" }
 }
 
@@ -38,6 +39,7 @@ export function routePath(route: Route): string {
   if (route.goalId) return `/goals/${route.goalId}${route.tab === "chat" ? "" : `/${route.tab}`}`
   if (route.mandateId) return `/mandates/${route.mandateId}`
   if (route.section === "mandates") return "/mandates"
+  if (route.section === "metrics") return "/metrics"
   if (route.section === "pipeline") return route.roleKey ? `/pipeline/${encodeURIComponent(route.roleKey)}` : "/pipeline"
   if (route.section === "jobs") return route.job ? `/jobs/${route.job.goalId}/${route.job.jobId}` : "/jobs"
   return "/"

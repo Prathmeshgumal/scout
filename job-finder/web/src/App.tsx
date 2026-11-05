@@ -12,6 +12,7 @@ import { AllJobs } from "@/components/jobs/AllJobs"
 import { JobsTab } from "@/components/jobs/JobsTab"
 import { ActivityTab } from "@/components/activity/ActivityTab"
 import { PipelinePage } from "@/components/pipeline/PipelinePage"
+import { MetricsPage } from "@/components/metrics/MetricsPage"
 import { IconRail } from "@/components/shell/IconRail"
 import { GoalList, MandateList } from "@/components/shell/ListPane"
 import { SignIn } from "@/components/shell/SignIn"
@@ -268,7 +269,7 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
   // A goal of a mandate and the chat of a mandate are in the list of mandates, not in the list of chats.
   const openRow = goals?.find((g) => g.id === goalId)
   const section = route.section === "goals" && (openRow?.mandate_id || openRow?.home_of) ? "mandates" : route.section
-  const showList = route.section !== "jobs" && route.section !== "pipeline" && (!narrow || (!goalId && !route.mandateId && !newGoal && (route.section === "mandates" || Boolean(goals?.length))))
+  const showList = route.section !== "jobs" && route.section !== "pipeline" && route.section !== "metrics" && (!narrow || (!goalId && !route.mandateId && !newGoal && (route.section === "mandates" || Boolean(goals?.length))))
   const showMain = !narrow || !showList
   const lensDown = statusRead && (!status || (status.career_lens && !["online", "checking", "not_configured"].includes(status.career_lens.state)))
   const wait = report?.waits.flatMap((w) => (w.reason ? [w.reason] : []))[0] ?? null
@@ -331,6 +332,7 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
               )}
               {route.section === "jobs" ? <AllJobs openJob={route.job ?? null} onOpenJob={(job) => go({ section: "jobs", goalId: null, mandateId: null, tab: "chat", job: { goalId: job.goal_id, jobId: job.id } })} onBoard={() => openSection("jobs")} onShowInPipeline={(highlight) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", highlight })} onNewGoal={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
                 : route.section === "pipeline" ? <PipelinePage roleKey={route.roleKey ?? null} highlight={route.highlight ?? null} onOpenRole={(roleKey) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", roleKey })} onBoard={() => openSection("pipeline")} onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
+                : route.section === "metrics" ? <MetricsPage />
                 : goalId ? goalScreen
                 : route.mandateId ? <p className="p-4 text-muted-foreground">Reading the mandate</p>
                 : route.section === "mandates" ? <p className="m-auto max-w-[320px] p-4 text-center text-muted-foreground">Open a mandate to see its chat and its goals.</p>

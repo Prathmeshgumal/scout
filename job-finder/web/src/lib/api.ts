@@ -410,3 +410,25 @@ export type StepDetail = { input: unknown; output: string | null; truncated: boo
 export const getStep = (goalId: string, stepId: string) => request<StepDetail>(`/api/goals/${goalId}/steps/${encodeURIComponent(stepId)}`)
 /** All stored events of a goal, one JSON object on each line. Use it with download(). */
 export const eventLogPath = (goalId: string) => `/api/goals/${goalId}/events.jsonl`
+
+export type EvalRunRow = {
+  id: string; suite: string; model: string; prompt_sha: string; total: number; passed: number; score: number
+  cost_usd: number; duration_s: number; summary: Record<string, unknown>; created_at: string
+}
+export type Metrics = {
+  days: number
+  totals: {
+    goals: number; mandate_goals: number; spend_usd: number; roles: number; fit_roles: number; cost_per_fit_usd: number | null
+    done: number; stopped: number; failed: number; running: number; median_busy_s: number | null; p90_busy_s: number | null
+  }
+  daily: { day: string; goals: number; spend_usd: number; fit_roles: number }[]
+  by_model: { model: string; goals: number; spend_usd: number; fit_roles: number }[]
+  verdicts: { model: string; verdict: string; roles: number }[]
+  scrapes: { kind: string; total: number; succeeded: number; failed: number; cancelled: number; pending: number; median_wait_s: number | null; p90_wait_s: number | null }[]
+  failure_kinds: { kind: string; source: "scrape" | "tool"; count: number }[]
+  tools: { tool: string; calls: number; failed: number }[]
+  agents: { agent: string; runs: number; failed: number; median_s: number | null }[]
+  refused: { pages: number; search_results: number; goals: number }
+  evals: { latest: EvalRunRow[]; runs: EvalRunRow[] }
+}
+export const getMetrics = (days: number) => request<Metrics>(`/api/metrics?days=${days}&tz=${encodeURIComponent(userZone())}`)

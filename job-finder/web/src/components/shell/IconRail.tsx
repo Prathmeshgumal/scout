@@ -1,4 +1,4 @@
-import { Briefcase, Funnel, Laptop, LogOut, Moon, ScrollText, Sun, Target } from "lucide-react"
+import { Briefcase, ChartColumn, Funnel, Laptop, LogOut, Moon, ScrollText, Sun, Target } from "lucide-react"
 import type { ComponentProps } from "react"
 import { LoginPopover } from "@/components/shell/LoginPopover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -12,6 +12,7 @@ const SECTIONS: { id: Section; label: string; icon: typeof Briefcase }[] = [
   { id: "mandates", label: "Mandates", icon: ScrollText },
   { id: "jobs", label: "Jobs", icon: Briefcase },
   { id: "pipeline", label: "Job pipeline", icon: Funnel },
+  { id: "metrics", label: "Metrics", icon: ChartColumn },
 ]
 
 const item = "grid size-[34px] place-items-center rounded-[9px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-[17px]"

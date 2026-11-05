@@ -29,6 +29,7 @@ from ..files import MAX_BYTES, FileRefused, FileStorageError
 from ..login import ENV_NAMES, SetupTokenFlow, check_credential, choose_credential, save_credential
 from ..login_status import LoginStatus
 from ..mandate_store import MandateStore
+from ..metrics import metrics as read_metrics
 from ..models import EFFORT_LABELS, ModelList, effort_label, read_sdk_models
 from ..options import retry_message
 from ..page_reader import PageReader
@@ -272,6 +273,11 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         levels = chosen["efforts"] or effort_levels(menu)  # a model without levels keeps the effort and ignores it
         if effort is not None and effort not in levels:
             raise HTTPException(422, f"{chosen['label']} has these effort levels: {', '.join(levels)}.")
+
+    @app.get("/api/metrics")
+    async def metrics(request: Request, days: int = 30, tz: str = "UTC") -> dict:
+        """Cost, time, results, failures and eval scores of the goals of the last `days` days."""
+        return await read_metrics(svc(request).store.pool, days, known_zone(tz) or "UTC")
 
     @app.get("/api/models")
     async def models() -> dict:
@@ -645,6 +651,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         @app.get("/jobs", include_in_schema=False)
         @app.get("/pipeline/{path:path}", include_in_schema=False)
         @app.get("/pipeline", include_in_schema=False)
+        @app.get("/metrics", include_in_schema=False)
         async def goal_page(path: str = "") -> FileResponse:
             """A link to a page of the app: the browser app reads the URL."""
             return FileResponse(STATIC_DIR / "index.html")
