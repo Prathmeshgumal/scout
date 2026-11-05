@@ -12,6 +12,7 @@ from ..config import Settings
 from ..events import Recorder
 from ..files import FileStore
 from ..page_reader import PageReader
+from ..site_policy import resolve_host
 from ..store import Store
 
 
@@ -38,3 +39,6 @@ class ToolContext:
     on_change: Callable[[], None] | None = None  # the goal became a home chat: reopen its session
     files: FileStore | None = None  # the files that the user uploaded
     waiting: set[str] = field(default_factory=set)  # the session's: career-lens requests that a tool waits on now
+    resolve: Callable[[str], list[str]] = resolve_host  # the addresses of a host name, for the site policy
+    blocked: int = 0  # the pages that read_page refused in this session
+    on_block_limit: Callable[[str], None] | None = None  # stops the goal after too many refused pages

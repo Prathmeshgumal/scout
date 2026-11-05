@@ -113,6 +113,7 @@ class GoalSession:
         self._continuing: asyncio.Task | None = None  # a "continue toward the target" message about to be sent
         self.needs_reopen = False  # the goal became a home chat: the next message opens a session with the home tools
         self._waking: asyncio.Task | None = None  # a subagent finished: the main agent answers its notification soon
+        self.halting: asyncio.Task | None = None  # too many refused pages: the stop of the goal
 
     # Opening and closing
 
@@ -169,7 +170,8 @@ class GoalSession:
                           poll_timeout_s=self.settings.web_wait_minutes * 60,
                           scrape_wait_s=self.settings.scrape_wait_minutes * 60,
                           reader=PageReader.for_settings(self.settings), settings=self.settings,
-                          on_change=self._mark_reopen, waiting=self.waiting, files=self.files)
+                          on_change=self._mark_reopen, waiting=self.waiting, files=self.files,
+                          on_block_limit=self.block_limit)
         hooks = build_hooks(goal, self.store, self._notice, closed=closed, guard=self.guard)
         resume = resume if resume is not None else goal["sdk_session_id"]
         options = build_options(self.settings, goal, ctx, hooks, budget=budget, max_turns=max_turns, resume=resume)
@@ -265,6 +267,11 @@ class GoalSession:
             await self.interrupt()
         await self._notice(reason)
         await self._fix("stopped", reason)
+
+    def block_limit(self, reason: str) -> None:
+        """A tool refused too many pages. The tool call is still running, so the stop runs after it, as a task."""
+        if self.halting is None or self.halting.done():
+            self.halting = asyncio.create_task(self.halt(reason))
 
     async def _cancel_scrapes(self, waiting: list[str], *, not_read: bool = False) -> None:
         """Cancel the pending scrapes of the goal, and the requests that its tool calls wait on, in career-lens too.
