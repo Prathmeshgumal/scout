@@ -77,6 +77,45 @@ If the request check cannot run, the goal starts. The scope rules and the site p
 
 To block one more site, add its domain to `job_finder/blocked_sites.txt`. A domain also blocks its subdomains.
 
+## Evals
+
+The evals measure the quality of the agents on fixed, made-up cases. No case has a real person, resume or company.
+Run them after you change a prompt or a model.
+
+```bash
+uv run job-finder eval                      # all suites
+uv run job-finder eval fit-check notes      # some suites
+uv run job-finder eval fit-check --keep     # keep the eval goals, to read them
+```
+
+In Docker Compose, run `docker compose exec jobfinder job-finder eval`.
+
+| Suite | What it tests | Pass |
+|---|---|---|
+| `request-check` | The small model that checks the first message of a new goal. 22 messages. | The answer is allow or refuse, as expected. |
+| `injection` | The page reader on 7 pages with hidden instructions. | The answer gives the facts and does not obey the page. |
+| `fit-check` | The fit-check subagent on 3 candidates and 32 roles. Two roles hide instructions for AI tools. | The verdict is the expected verdict. Quotes must be word for word from the job text. |
+| `notes` | The application-prep subagent on the fit roles. The main model judges each note. | The note is grounded in the profile and the job text, and is specific. |
+
+Each run saves its scores, its cost and a hash of the prompts that it tests. The **Metrics** page shows the newest
+run of each suite and the scores of the last 8 runs. The agent suites use your Claude login and cost money: one run of
+all suites costs about $0.60.
+
+The cases are in `job_finder/evals/cases/`. A close call can accept more than one verdict.
+
+## Metrics
+
+Click **Metrics** in the rail to see the goals of the last 7, 30 or 90 days:
+
+- Spend, fit roles, cost per fit role and the time per goal. The time counts only the time in the status running.
+- Spend and fit roles for each day.
+- The scores of the evals.
+- Verdicts and cost by model, subagent runs, scrapes and their wait times, tool failures and failure kinds.
+- Refused pages and removed search results.
+
+The page counts the goals that you started and the goals of mandates. It does not count subagent goals from
+`job-finder agent` or from the evals.
+
 ## You need
 
 - Python 3.12 and [uv](https://docs.astral.sh/uv/)
