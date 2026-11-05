@@ -1,12 +1,47 @@
 # career-lens
 
-A small scraping service. It reads LinkedIn people and companies, runs Google
-searches and captures single pages, using a real Chrome on your own machine.
-Results are kept as an append-only history and served as JSON.
+career-lens gives an agent the web data that a plain search cannot get. It is the data tool set of
+[job-finder](../job-finder), and any other program can use its API too.
 
-Each scrape goes request → capture → observation. A section reports `partial`,
-`absent`, `not_captured` or `failed` separately, so "nothing there" and "did not
-look" never look the same.
+| Tool | What it gets |
+|---|---|
+| LinkedIn job search | The roles that match keywords, a location, a date and a workplace type |
+| LinkedIn job | One posting with its full description and its status: open or closed |
+| LinkedIn company | The company facts and every page of its open jobs |
+| LinkedIn person | The facts of one profile |
+| Google search | The results of one search |
+| Page | The text of any public page, such as a careers page |
+
+career-lens uses a real Chrome on your own computer, signed in to your own LinkedIn accounts. That is why it sees
+what a search API cannot see. It also costs less: there is no paid scraping API, and each result goes into an
+append-only history. A second request for a fresh page gets the saved result at once, with no new scrape.
+
+career-lens protects your accounts. Each account works only in its shift, with a pacing gap between visits.
+A challenge or a rate limit stops that site for a cooldown. A sign-in that needs you waits in the console.
+
+Each scrape goes request → capture → observation. A section reports `partial`, `absent`, `not_captured` or
+`failed` separately, so "nothing there" and "did not look" never look the same.
+
+## Inside career-lens
+
+![career-lens inside](docs/diagrams/architecture.svg)
+
+| Part | Work |
+|---|---|
+| API | `/v1` for agents, with an API key and a rate limit. `/operator/api` for the console. It also serves the console. |
+| Control | The dispatcher, the recovery of expired claims and the day plans of the accounts. |
+| Postgres | Requests, attempts, the append-only history, accounts, shifts and the job queue. |
+| MinIO | Page captures, screenshots and run logs. |
+| Supervisor | One for each computer. It starts one process for each worker and restarts a worker that stops. |
+| Worker | One Chrome profile, with its LinkedIn account and its Google budget. It runs one job at a time. |
+
+## One request, step by step
+
+![One request, step by step](docs/diagrams/request-sequence.svg)
+
+## How the dispatcher picks a worker
+
+![How the dispatcher picks a worker](docs/diagrams/dispatch-flow.svg)
 
 ## Setup
 
