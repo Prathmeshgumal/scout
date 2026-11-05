@@ -38,6 +38,10 @@ systemctl --user enable --now "$PWD/deploy/career-lens-worker.service"
 journalctl --user -u career-lens-worker -f
 ```
 
+## Rate limit
+
+Each API key has a token bucket on the customer API (`/v1`). The bucket holds 120 calls and gets 2 calls back each second. A call with no token gets `429` and a `Retry-After` header. Each `/v1` answer has `RateLimit-Limit` and `RateLimit-Remaining`. Change the values in `.env` with `CAREER_LENS_RATE_LIMIT_BURST` and `CAREER_LENS_RATE_LIMIT_PER_SECOND`, then start the API again. The buckets are in memory, so a restart fills them.
+
 ## The console
 
 Open <http://127.0.0.1:8090/console> and sign in with the operator password.
