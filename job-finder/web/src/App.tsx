@@ -300,7 +300,7 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
         )}
       </header>
       {route.tab === "activity" && !homeChat
-        ? <ActivityTab goalId={goalId} events={view?.events ?? []} status={view?.status ?? goal?.status ?? "done"} initialStep={route.step ?? null} />
+        ? <ActivityTab goalId={goalId} events={view?.events ?? []} status={view?.status ?? goal?.status ?? "done"} initialStep={route.step ?? null} maxSpend={goal?.max_spend_usd} />
         : route.tab === "jobs" && !homeChat
         ? <JobsTab report={report} tasks={summary?.tasks.map((t) => t.name) ?? []} onRetry={() => void control(retryGoal)} onChat={() => go({ ...route, tab: "chat" })} />
         : <ChatView view={view} reason={goal?.status_reason ?? null} thinking={thinking} readOnly={Boolean(goal?.agent)} timeLimit={summary?.time_limit ?? null}

@@ -1,15 +1,20 @@
 import { ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, Check, Download, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { download, eventLogPath, getStep, type GoalEvent, type GoalStatus, type StepDetail } from "@/lib/api"
 import { buildActivity, firstStep, matches, nextStep, type Activity, type Filter, type Run, type Step } from "@/lib/activity"
+import { agentsOf, buildTimeline, mapState, NAMES, type LensRequest } from "@/lib/system-map"
 import { cn } from "@/lib/utils"
 import { AgentDot, StateIcon, STATE_WORD, agentColor, duration } from "./agents"
+import { MapPane, Segmented } from "./map/MapPane"
+import { ReplayBar, useReplay } from "./map/replay"
 
 export const TREE_KEY = "job-finder-activity-tree"
 export const LANES_KEY = "job-finder-activity-lanes"
+export const VIEW_KEY = "job-finder-activity-view"
+type View = "map" | "step"
 /** The height of the lanes in pixels. The smallest height shows the time line and one lane. */
 const LANES_MIN = 64
 const LANES_MAX = 520
@@ -43,6 +48,23 @@ function readTree(): boolean {
   }
 }
 
+function readView(): View | null {
+  try {
+    const value = localStorage.getItem(VIEW_KEY)
+    return value === "map" || value === "step" ? value : null
+  } catch {
+    return null
+  }
+}
+
+function saveView(view: View) {
+  try {
+    localStorage.setItem(VIEW_KEY, view)
+  } catch {
+    // The choice then lasts only while the page is open.
+  }
+}
+
 function saveTree(shown: boolean) {
   try {
     localStorage.setItem(TREE_KEY, shown ? "shown" : "hidden")
@@ -64,13 +86,24 @@ function useNow(running: boolean): number {
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
-type Props = { goalId: string; events: GoalEvent[]; status: GoalStatus; initialStep?: string | null }
+type Props = { goalId: string; events: GoalEvent[]; status: GoalStatus; initialStep?: string | null; maxSpend?: number | null }
 
-/** All the work of a goal: a step list, the detail of one step, and one lane for each agent. */
-export function ActivityTab({ goalId, events, status, initialStep }: Props) {
+/**
+ * All the work of a goal: a step list, the system map or the detail of one step, and one lane for each agent. The map
+ * replays the goal; the lanes show the replay time.
+ */
+export function ActivityTab({ goalId, events, status, initialStep, maxSpend }: Props) {
   const running = status === "running"
   const now = useNow(running)
   const activity = useMemo(() => buildActivity(events, status, now), [events, status, now])
+  const timeline = useMemo(() => buildTimeline(events, status, now), [events, status, now])
+  const [viewChoice, setViewChoice] = useState(readView)
+  // The map is the default for a goal with career-lens requests. The last choice of the user wins.
+  const view: View = viewChoice ?? (timeline.requests.length ? "map" : "step")
+  const replay = useReplay(activity.start, activity.end)
+  const onMap = view === "map"
+  const state = useMemo(() => (onMap ? mapState(timeline, replay.t, replay.move) : null), [onMap, timeline, replay.t, replay.move])
+  const agents = useMemo(() => agentsOf(timeline), [timeline])
   const [chosen, setChosen] = useState<string | null>(initialStep ?? null)
   const [filter, setFilter] = useState<Filter>({ query: "", kind: "all" })
   const [treeShown, setTreeShown] = useState(readTree)
@@ -99,11 +132,22 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
     // Only a new selection opens rows. A row that the user closes later stays closed.
   }, [selectedId])
 
-  const toggleRow = (key: string) => setClosed((keys) => {
+  const toggleRow = useCallback((key: string) => setClosed((keys) => {
     const next = new Set(keys)
     if (!next.delete(key)) next.add(key)
     return next
-  })
+  }), [])
+  const seek = replay.seek
+  // On the map, a step also moves the replay to the start of the step.
+  const select = useCallback((id: string) => {
+    setChosen(id)
+    const step = activity.steps.find((s) => s.id === id)
+    if (onMap && step) seek(step.startedAt)
+  }, [activity.steps, onMap, seek])
+  const changeView = (next: View) => {
+    setViewChoice(next)
+    saveView(next)
+  }
   const collapseAll = () => setClosed(new Set(activity.answers.flatMap((a) => a.items.flatMap((i) => (i.kind === "run" ? [`run:${i.run.id}`] : [])))))
 
   const toggleTree = () => {
@@ -142,6 +186,7 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
           ))}
         </div>
         <div className="flex-1" />
+        <Segmented label="View" value={view} onChange={changeView} options={[["map", "Map"], ["step", "Step detail"]]} />
         <Button variant="outline" size="sm" className="h-7 text-[12px]" onClick={() => void saveLog()}>
           <Download aria-hidden /> Download log
         </Button>
@@ -165,13 +210,20 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
                     <PanelLeftClose aria-hidden />
                   </Button>
                 </div>
-                <StepTree activity={activity} filter={filter} selectedId={selectedId} closed={closed} onToggle={toggleRow} onSelect={setChosen} />
+                <StepTree activity={activity} filter={filter} selectedId={selectedId} closed={closed} onToggle={toggleRow} onSelect={select} />
               </aside>
             )}
-            <StepPane goalId={goalId} activity={activity} step={selected} onSelect={setChosen} onShowTree={treeShown ? undefined : toggleTree} />
+            {onMap && state ? (
+              <MapPane agents={agents} state={state} maxSpend={maxSpend} onShowTree={treeShown ? undefined : toggleTree}
+                crumb={state.step ? `${NAMES[state.step.agent] ?? state.step.agent} › ${state.step.label}` : "The goal has not started"} toolbar={null} />
+            ) : (
+              <StepPane goalId={goalId} activity={activity} step={selected} onSelect={setChosen} onShowTree={treeShown ? undefined : toggleTree} />
+            )}
           </div>
+          {onMap && <ReplayBar replay={replay} start={activity.start} end={activity.end} running={running} />}
           <LanesHandle height={lanesHeight} onResize={resize} />
-          <Lanes activity={activity} filter={filter} selectedId={selectedId} running={running} height={lanesHeight} onSelect={setChosen} />
+          <Lanes activity={activity} filter={filter} selectedId={selectedId} running={running} height={lanesHeight} onSelect={select}
+            requests={timeline.requests} playhead={onMap ? replay.t : null} onSeek={onMap ? seek : undefined} />
         </>
       )}
     </div>
@@ -218,7 +270,7 @@ type TreeProps = {
  * Three levels: a message, then the agent runs and the main agent's steps, then the steps of a run.
  * A line on the left joins the steps of one run.
  */
-function StepTree({ activity, filter, selectedId, closed, onToggle, onSelect }: TreeProps) {
+const StepTree = memo(function StepTree({ activity, filter, selectedId, closed, onToggle, onSelect }: TreeProps) {
   const filtered = filter.kind !== "all" || filter.query.trim() !== ""
   const selectedRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -286,7 +338,7 @@ function StepTree({ activity, filter, selectedId, closed, onToggle, onSelect }: 
       })}
     </div>
   )
-}
+})
 
 type Loaded = { id: string; detail: StepDetail | null; error: string | null }
 
@@ -432,7 +484,19 @@ function LanesHandle({ height, onResize }: { height: number; onResize: (height: 
   )
 }
 
-type LanesProps = { activity: Activity; filter: Filter; selectedId: string | null; running: boolean; height: number; onSelect: (id: string) => void }
+type LanesProps = {
+  activity: Activity
+  filter: Filter
+  selectedId: string | null
+  running: boolean
+  height: number
+  onSelect: (id: string) => void
+  requests: LensRequest[]
+  /** The replay time of the map. Null: no playhead. */
+  playhead: number | null
+  /** A click on a lane moves the replay to that time. */
+  onSeek?: (t: number) => void
+}
 
 /** The space above and below the lanes: the time line (20 px) and the bottom padding (8 px). The gap between lanes is 4 px. */
 const LANES_CHROME = 28
@@ -440,12 +504,20 @@ const LANE_GAP = 4
 const LANE_MIN = 16
 const LANE_MAX = 64
 
-function Lanes({ activity, filter, selectedId, running, height, onSelect }: LanesProps) {
-  const count = Math.max(activity.agents.length, 1)
+function Lanes({ activity, filter, selectedId, running, height, onSelect, requests, playhead, onSeek }: LanesProps) {
+  const queued = requests.filter((r) => !r.cached)
+  const count = Math.max(activity.agents.length + (queued.length ? 1 : 0), 1)
   // The lanes share the height. A lane does not become thinner than 16 px; more lanes then scroll.
   const thickness = Math.min(LANE_MAX, Math.max(LANE_MIN, (height - LANES_CHROME - LANE_GAP * (count - 1)) / count))
   const span = Math.max(activity.end - activity.start, 1000)
-  const pos = (t: number) => ((t - activity.start) / span) * 100
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek || e.target !== e.currentTarget) return
+    const r = e.currentTarget.getBoundingClientRect()
+    if (r.width) onSeek(activity.start + ((e.clientX - r.left) / r.width) * span)
+  }
+  const head = playhead === null ? null : (
+    <span aria-hidden className="pointer-events-none absolute inset-y-[-2px] w-0.5 bg-foreground" style={{ left: `${Math.min(100, Math.max(0, ((playhead - activity.start) / span) * 100))}%` }} />
+  )
   return (
     <section aria-label="Agent lanes" style={{ height }} className="flex shrink-0 flex-col px-3 pb-2 text-[11px]">
       <div className="flex h-5 shrink-0 items-center justify-between text-muted-foreground" style={{ paddingLeft: LANE_LABEL }}>
@@ -458,27 +530,68 @@ function Lanes({ activity, filter, selectedId, running, height, onSelect }: Lane
             <span className="flex shrink-0 items-center gap-1.5 truncate pr-2" style={{ width: LANE_LABEL }}>
               <AgentDot agent={agent} /> <span className="truncate">{agent}</span>
             </span>
-            <div className="relative h-full flex-1 rounded-sm bg-muted/50">
-              {activity.steps.filter((s) => s.agent === agent).map((step) => {
-                const end = step.endedAt ?? (step.state === "running" ? activity.end : step.startedAt)
-                const left = pos(step.startedAt)
-                const width = Math.max(pos(end) - left, 0.6)
-                const dim = !matches(step, filter)
-                return (
-                  <button key={step.id} type="button" onClick={() => onSelect(step.id)} title={`${step.label} (${STATE_WORD[step.state]})`}
-                    aria-label={`${step.label}, ${agent}, ${STATE_WORD[step.state]}`} aria-pressed={step.id === selectedId}
-                    style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
-                    className={cn("absolute inset-y-0.5 min-w-1 rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      agentColor(step.agent), dim ? "opacity-20" : "opacity-80 hover:opacity-100",
-                      step.state === "failed" && "ring-2 ring-red-600 dark:ring-red-400",
-                      step.id === selectedId && "opacity-100 ring-2 ring-foreground ring-offset-1 ring-offset-background")} />
-                )
-              })}
+            <div className={cn("relative h-full flex-1 rounded-sm bg-muted/50", onSeek && "cursor-pointer")} onClick={seek}>
+              <LaneBars activity={activity} agent={agent} filter={filter} selectedId={selectedId} onSelect={onSelect} />
               {running && <span aria-hidden className="absolute inset-y-[-2px] right-0 w-px bg-foreground/60" />}
+              {head}
             </div>
           </div>
         ))}
+        {queued.length > 0 && (
+          <div data-lane="career-lens" className="flex shrink-0 items-center" style={{ height: thickness }}>
+            <span className="flex shrink-0 items-center gap-1.5 truncate pr-2" style={{ width: LANE_LABEL }}
+              title="Striped: the request waits in the career-lens queue. Solid: a Chrome worker reads the page.">
+              <span aria-hidden className="inline-block size-2 shrink-0 rounded-full bg-sky-500 dark:bg-sky-400" />
+              <span className="truncate">career-lens queue</span>
+            </span>
+            <div className={cn("relative h-full flex-1 rounded-sm bg-muted/50", onSeek && "cursor-pointer")} onClick={seek}>
+              <QueueBars requests={queued} start={activity.start} end={activity.end} span={span} />
+              {head}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )
 }
+
+type BarsProps = { activity: Activity; agent: string; filter: Filter; selectedId: string | null; onSelect: (id: string) => void }
+
+const LaneBars = memo(function LaneBars({ activity, agent, filter, selectedId, onSelect }: BarsProps) {
+  const span = Math.max(activity.end - activity.start, 1000)
+  const pos = (t: number) => ((t - activity.start) / span) * 100
+  return activity.steps.filter((s) => s.agent === agent).map((step) => {
+    const end = step.endedAt ?? (step.state === "running" ? activity.end : step.startedAt)
+    const left = pos(step.startedAt)
+    const width = Math.max(pos(end) - left, 0.6)
+    const dim = !matches(step, filter)
+    return (
+      <button key={step.id} type="button" onClick={() => onSelect(step.id)} title={`${step.label} (${STATE_WORD[step.state]})`}
+        aria-label={`${step.label}, ${agent}, ${STATE_WORD[step.state]}`} aria-pressed={step.id === selectedId}
+        style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
+        className={cn("absolute inset-y-0.5 min-w-1 rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          agentColor(step.agent), dim ? "opacity-20" : "opacity-80 hover:opacity-100",
+          step.state === "failed" && "ring-2 ring-red-600 dark:ring-red-400",
+          step.id === selectedId && "opacity-100 ring-2 ring-foreground ring-offset-1 ring-offset-background")} />
+    )
+  })
+})
+
+/** For each career-lens request: the wait in the queue (striped), then the work of a worker (solid). */
+const QueueBars = memo(function QueueBars({ requests, start, end, span }: { requests: LensRequest[]; start: number; end: number; span: number }) {
+  const pos = (t: number) => Math.min(100, Math.max(0, ((t - start) / span) * 100))
+  return requests.map((r) => {
+    const picked = r.startAt ?? r.endAt ?? end
+    const done = r.endAt ?? end
+    return (
+      <span key={r.id} title={`${r.tool}: ${r.target}`}>
+        <span aria-hidden className="absolute inset-y-0.5 rounded-[3px] bg-[repeating-linear-gradient(45deg,var(--color-muted-foreground)_0_3px,transparent_3px_6px)] opacity-50"
+          style={{ left: `${pos(r.submitAt)}%`, width: `${Math.max(pos(picked) - pos(r.submitAt), 0.3)}%` }} />
+        {r.startAt !== null && (
+          <span aria-hidden className="absolute inset-y-0.5 rounded-[3px] bg-sky-500 opacity-70 dark:bg-sky-400"
+            style={{ left: `${pos(r.startAt)}%`, width: `${Math.max(pos(done) - pos(r.startAt), 0.3)}%` }} />
+        )}
+      </span>
+    )
+  })
+})
