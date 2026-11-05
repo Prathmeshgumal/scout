@@ -133,7 +133,7 @@ export function SystemMap({ agents, state, look, selected, onSelect, maxSpend, s
     ["Checked", state.board.checked, false], ["Fit", state.board.fit, true]]
   const shown = state.workers.slice(0, WORKERS.length)
   const more = state.workers.length - shown.length
-  const liSign = state.linkedin === "open" ? "In use now" : state.linkedin === "used" ? "Used in this goal" : "Not used in this goal"
+  const liSign = state.linkedin === "open" ? "In use now" : state.linkedin === "used" ? "Used in this mission" : "Not used in this mission"
   const edges: [string, string, string][] = [["claude", "main", "Messages API"], ["main", "reader", ""], ["main", "jar", "cost"],
     ["gate", "dispatcher", "HTTPS /v1 + key"], ["dispatcher", "queue", "ticket"], ["dispatcher", "history", "fresh copy?"],
     ["queue", "w0", ""], ["w0", "google", "Chrome"], ["w0", "linkedin", ""], ["w1", "careers", ""], ["w0", "history", "save page"]]
@@ -224,7 +224,7 @@ export function SystemMap({ agents, state, look, selected, onSelect, maxSpend, s
       </>, { className: state.reader ? "working" : "idle" })}
       {node("archive", P.archive, <>
         <div className="px"><div className="cabinet"><i /><i /><i /><i /></div><span className="lbl">Archive</span></div>
-        {bp("Postgres", "goals · roles · steps")}
+        {bp("Postgres", "missions · roles · steps")}
       </>)}
       {node("gate", P.gate, <>
         <div className="px"><div className={cn("door", state.gate)} /><span className="lbl">Gate</span></div>

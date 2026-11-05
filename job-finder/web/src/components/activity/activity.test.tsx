@@ -215,7 +215,7 @@ describe("activity tab", () => {
     expect(download).toHaveBeenCalledWith("/api/goals/g1/events.jsonl")
   })
 
-  it("tells the user when the goal has no steps yet", () => {
+  it("tells the user when the mission has no steps yet", () => {
     render(<ActivityTab goalId="g1" events={[]} status="running" />)
     expect(screen.getByText("No steps yet. Steps show here when the agents start to work.")).toBeInTheDocument()
   })

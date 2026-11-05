@@ -94,7 +94,7 @@ export function groupByGoal(jobs: JobCardData[]): GoalGroup[] {
   for (const job of jobs) {
     let group = groups.get(job.goal_id)
     if (!group) {
-      group = { goalId: job.goal_id, title: job.goal_title ?? "Goal", jobs: [], counts: { fit: 0, partial: 0, unsure: 0, notFit: 0, researched: 0, waiting: 0 } }
+      group = { goalId: job.goal_id, title: job.goal_title ?? "Mission", jobs: [], counts: { fit: 0, partial: 0, unsure: 0, notFit: 0, researched: 0, waiting: 0 } }
       groups.set(job.goal_id, group)
     }
     group.jobs.push(job)

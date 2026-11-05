@@ -38,7 +38,7 @@ beforeEach(() => {
 })
 
 describe("activity map", () => {
-  it("opens on the map for a goal with career-lens requests, at the end of the goal", () => {
+  it("opens on the map for a mission with career-lens requests, at the end of the mission", () => {
     render(<ActivityTab goalId="g1" events={EVENTS} status="done" maxSpend={0.5} />)
     expect(map()).toBeInTheDocument()
     expect(within(map()).getByRole("button", { name: "Sage: job-research" })).toHaveTextContent("Acme is a fit")
@@ -46,7 +46,7 @@ describe("activity map", () => {
     expect(screen.getByRole("list", { name: "Requests and results" })).toHaveTextContent("Scout → Sage")
   })
 
-  it("opens on the step detail for a goal without career-lens requests", () => {
+  it("opens on the step detail for a mission without career-lens requests", () => {
     render(<ActivityTab goalId="g1" events={PLAIN} status="done" />)
     expect(screen.getByRole("region", { name: "Step detail" })).toBeInTheDocument()
   })

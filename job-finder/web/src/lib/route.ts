@@ -6,8 +6,8 @@ export type GoalTab = "chat" | "jobs" | "activity"
 export type Route = { section: Section; goalId: string | null; mandateId: string | null; tab: GoalTab; step?: string | null; roleKey?: string | null; job?: { goalId: string; jobId: string } | null; highlight?: string | null }
 
 const ID = "([0-9a-f-]{36})"
-const GOAL = new RegExp(`^/goals/${ID}(/jobs|/activity)?/?$`, "i")
-const MANDATE = new RegExp(`^/mandates/${ID}/?$`, "i")
+const GOAL = new RegExp(`^/(?:missions|goals)/${ID}(/jobs|/activity)?/?$`, "i")
+const MANDATE = new RegExp(`^/(?:schedules|mandates)/${ID}/?$`, "i")
 const JOB = new RegExp(`^/jobs/${ID}/${ID}/?$`, "i")
 const ROLE = /^\/pipeline\/([^/]+)\/?$/i
 
@@ -24,7 +24,7 @@ export function parseRoute(pathname: string): Route {
   if (goal) return { section: "goals", goalId: goal[1].toLowerCase(), mandateId: null, tab: goal[2] ? (goal[2].slice(1).toLowerCase() as GoalTab) : "chat" }
   const mandate = MANDATE.exec(pathname)
   if (mandate) return { section: "mandates", goalId: null, mandateId: mandate[1].toLowerCase(), tab: "chat" }
-  if (/^\/mandates\/?$/i.test(pathname)) return { section: "mandates", goalId: null, mandateId: null, tab: "chat" }
+  if (/^\/(?:schedules|mandates)\/?$/i.test(pathname)) return { section: "mandates", goalId: null, mandateId: null, tab: "chat" }
   const job = JOB.exec(pathname)
   if (job) return { section: "jobs", goalId: null, mandateId: null, tab: "chat", job: { goalId: job[1].toLowerCase(), jobId: job[2].toLowerCase() } }
   if (/^\/jobs\/?$/i.test(pathname)) return { section: "jobs", goalId: null, mandateId: null, tab: "chat" }
@@ -36,9 +36,9 @@ export function parseRoute(pathname: string): Route {
 }
 
 export function routePath(route: Route): string {
-  if (route.goalId) return `/goals/${route.goalId}${route.tab === "chat" ? "" : `/${route.tab}`}`
-  if (route.mandateId) return `/mandates/${route.mandateId}`
-  if (route.section === "mandates") return "/mandates"
+  if (route.goalId) return `/missions/${route.goalId}${route.tab === "chat" ? "" : `/${route.tab}`}`
+  if (route.mandateId) return `/schedules/${route.mandateId}`
+  if (route.section === "mandates") return "/schedules"
   if (route.section === "metrics") return "/metrics"
   if (route.section === "pipeline") return route.roleKey ? `/pipeline/${encodeURIComponent(route.roleKey)}` : "/pipeline"
   if (route.section === "jobs") return route.job ? `/jobs/${route.job.goalId}/${route.job.jobId}` : "/jobs"

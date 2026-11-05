@@ -88,8 +88,8 @@ export function GoalList({ goals, activeId, full, onOpen, onNew, onDelete }: Goa
   const words = search.toLowerCase()
   const shown = goals.filter((g) => !g.mandate_id && !g.home_of && g.title.toLowerCase().includes(words))
   return (
-    <Pane title="Goals" count={shown.length} onNew={onNew} newLabel="New goal" full={full} search={search} setSearch={setSearch}>
-      {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No goals match." : "No goals yet. Start one to find roles."}</p>}
+    <Pane title="Missions" count={shown.length} onNew={onNew} newLabel="New mission" full={full} search={search} setSearch={setSearch}>
+      {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No missions match." : "No missions yet. Start one to find roles."}</p>}
       {shown.map((g) => <Row key={g.id} title={g.title} meta={goalMeta(g)} icon={<Target aria-hidden className={ICON} />} status={<StatusIcon status={g.status} />} active={g.id === activeId} onOpen={() => onOpen(g.id)} onDelete={() => onDelete(g)} />)}
     </Pane>
   )
@@ -104,7 +104,7 @@ function mandateLine(m: Mandate, working: boolean) {
   if (m.status === "paused") return "Paused"
   if (m.status === "ended") return "Ended"
   if (working) return "Working now"
-  return m.next_run_at ? `Next goal ${when(m.next_run_at)}` : ""
+  return m.next_run_at ? `Next mission ${when(m.next_run_at)}` : ""
 }
 
 type MandateProps = {
@@ -121,8 +121,8 @@ export function MandateList({ mandates, goals, activeGoalId, full, onOpen, onOpe
   const shown = mandates.filter((m) => m.title.toLowerCase().includes(search.toLowerCase()))
   const showAll = (id: string) => setAll((now) => { const next = new Set(now); if (!next.delete(id)) next.add(id); return next })
   return (
-    <Pane title="Mandates" count={shown.length} onNew={onNew} newLabel="New mandate" full={full} search={search} setSearch={setSearch}>
-      {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No mandates match." : "No mandates yet. Ask for work that repeats, for example 10 roles each weekday."}</p>}
+    <Pane title="Schedules" count={shown.length} onNew={onNew} newLabel="New schedule" full={full} search={search} setSearch={setSearch}>
+      {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">{search ? "No schedules match." : "No schedules yet. Ask for work that repeats, for example 10 roles each weekday."}</p>}
       {shown.map((m) => {
         const runs = goals.filter((g) => g.mandate_id === m.id)
           .sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -137,13 +137,13 @@ export function MandateList({ mandates, goals, activeGoalId, full, onOpen, onOpe
             <Row title={m.title} meta={mandateLine(m, working)} icon={<MandateIcon status={m.status} working={working} />}
               active={m.home_goal_id === activeGoalId} onOpen={() => onOpen(m.id)} onDelete={() => onDelete(m)}
               before={runs.length > 0 ? (
-                <button type="button" aria-label={`${expanded ? "Hide" : "Show"} the goals of ${m.title}`} aria-expanded={expanded} onClick={() => setUnfolded(new Map(unfolded).set(m.id, !expanded))}
+                <button type="button" aria-label={`${expanded ? "Hide" : "Show"} the missions of ${m.title}`} aria-expanded={expanded} onClick={() => setUnfolded(new Map(unfolded).set(m.id, !expanded))}
                   className="ml-0.5 grid size-5 shrink-0 place-items-center rounded text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
                   <ChevronRight className={cn("size-3.5 transition-transform", expanded && "rotate-90")} aria-hidden />
                 </button>
               ) : undefined} />
             {expanded && visible.map(({ goal, number }) => (
-              <Row key={goal.id} indent title={goal.title || `Goal ${number}`} meta={`${when(goal.created_at)}, ${goalMeta(goal)}`} icon={<Target aria-hidden className={ICON} />} status={<StatusIcon status={goal.status} />}
+              <Row key={goal.id} indent title={goal.title || `Mission ${number}`} meta={`${when(goal.created_at)}, ${goalMeta(goal)}`} icon={<Target aria-hidden className={ICON} />} status={<StatusIcon status={goal.status} />}
                 active={goal.id === activeGoalId} onOpen={() => onOpenGoal(goal.id)} onDelete={() => onDeleteGoal(goal)} />
             ))}
             {expanded && runs.length > SHOWN_GOALS && (

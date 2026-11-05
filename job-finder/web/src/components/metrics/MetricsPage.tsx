@@ -189,7 +189,7 @@ export function MetricsPage() {
         <header className="flex flex-wrap items-center gap-3">
           <div className="mr-auto">
             <h1 className="text-[22px] leading-tight font-semibold">Metrics</h1>
-            <p className="text-sm text-muted-foreground">Cost, time, results and quality of the goals that you started.</p>
+            <p className="text-sm text-muted-foreground">Cost, time, results and quality of the missions that you started.</p>
           </div>
           <div role="group" aria-label="Period" className="inline-flex rounded-md border p-0.5">
             {PERIODS.map((p) => (
@@ -210,11 +210,11 @@ export function MetricsPage() {
         {data && t && (
           <>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-              <Tile label="Spend" value={money(t.spend_usd)} sub={`${t.goals} goals, ${t.mandate_goals} from mandates`} />
+              <Tile label="Spend" value={money(t.spend_usd)} sub={`${t.goals} missions, ${t.mandate_goals} from schedules`} />
               <Tile label="Fit roles" value={t.fit_roles} sub={`of ${t.roles} roles found`} />
               <Tile label="Cost per fit role" value={money(t.cost_per_fit_usd)} />
-              <Tile label="Time per goal" value={duration(t.median_busy_s)} sub={`median; 90% under ${duration(t.p90_busy_s)}`} />
-              <Tile label="Goals" value={`${t.done} done`} sub={`${t.stopped} stopped, ${t.failed} failed, ${t.running} running`} />
+              <Tile label="Time per mission" value={duration(t.median_busy_s)} sub={`median; 90% under ${duration(t.p90_busy_s)}`} />
+              <Tile label="Missions" value={`${t.done} done`} sub={`${t.stopped} stopped, ${t.failed} failed, ${t.running} running`} />
               <Tile label="Refused pages" value={data.refused.pages} sub={`${data.refused.search_results} search results removed`} />
             </div>
 
@@ -226,8 +226,8 @@ export function MetricsPage() {
             <Evals latest={data.evals.latest} runs={data.evals.runs} />
 
             <div className="grid gap-3 lg:grid-cols-2">
-              <Section title="Models" sub="Spend and verdicts by the model of the goal.">
-                <Table head={["Model", "Goals", "Spend", "Fit", "Partial", "Not fit", "Unsure", "Cost per fit"]} empty="No goals in this period."
+              <Section title="Models" sub="Spend and verdicts by the model of the mission.">
+                <Table head={["Model", "Missions", "Spend", "Fit", "Partial", "Not fit", "Unsure", "Cost per fit"]} empty="No missions in this period."
                   rows={models.map((model) => {
                     const m = data.by_model.find((row) => row.model === model)
                     return [model.replace(/^claude-/, ""), m?.goals ?? 0, money(m?.spend_usd ?? 0), ...VERDICTS.slice(0, 4).map((v) => verdictCount(model, v)),

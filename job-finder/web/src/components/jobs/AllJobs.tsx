@@ -137,7 +137,7 @@ export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewGo
       <div className="flex flex-col items-start gap-3 p-5">
         {!jobs && !failed && <SkeletonRows count={3} />}
         {failed && !jobs && <p className="text-red-700 dark:text-red-300">Could not read the roles. The page tries again in 10 seconds.</p>}
-        {jobs && <p className="text-muted-foreground">This role does not exist. Its goal can be deleted.</p>}
+        {jobs && <p className="text-muted-foreground">This role does not exist. Its mission can be deleted.</p>}
         <Button size="sm" variant="outline" onClick={onBoard}><ChevronLeft aria-hidden /> Jobs</Button>
       </div>
     )
@@ -150,8 +150,8 @@ export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewGo
         {jobs && jobs.length > 0 && (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             {goals.length > 1 && (
-              <Select label="Filter by goal" value={goal} onChange={setGoal} className="h-8 max-w-[260px] rounded-md bg-card text-[13px]"
-                choices={[{ value: "all", label: "All goals" }, ...goals.map((g) => ({ value: g.goalId, label: g.title }))]} />
+              <Select label="Filter by mission" value={goal} onChange={setGoal} className="h-8 max-w-[260px] rounded-md bg-card text-[13px]"
+                choices={[{ value: "all", label: "All missions" }, ...goals.map((g) => ({ value: g.goalId, label: g.title }))]} />
             )}
             {places.length > 1 && (
               <Select label="Filter by workplace" value={workplace} onChange={setWorkplace} className="h-8 rounded-md bg-card text-[13px]"
@@ -169,8 +169,8 @@ export function AllJobs({ openJob, onOpenJob, onBoard, onShowInPipeline, onNewGo
       {jobs?.length === 0 && (
         <div className="flex flex-col items-start gap-2 px-6 py-6">
           <p className="font-medium">No roles yet.</p>
-          <p className="text-muted-foreground">Start a goal and say what you want. The roles of each goal appear here.</p>
-          <Button size="sm" onClick={onNewGoal}>Start a goal</Button>
+          <p className="text-muted-foreground">Start a mission and say what you want. The roles of each mission appear here.</p>
+          <Button size="sm" onClick={onNewGoal}>Start a mission</Button>
         </div>
       )}
       {jobs && jobs.length > 0 && (

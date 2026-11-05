@@ -21,7 +21,7 @@ export function EmptyRoles({ report, onRetry, onChat }: { report: Report; onRetr
   if (status === "failed" || status === "stopped" || status === "capped") {
     return (
       <div className="flex flex-col items-start gap-2 py-6">
-        <p className="font-medium">{status === "failed" ? "This goal failed before it saved a role." : status === "stopped" ? "You stopped this goal before it saved a role." : "This goal reached its limit before it saved a role."}</p>
+        <p className="font-medium">{status === "failed" ? "This mission failed before it saved a role." : status === "stopped" ? "You stopped this mission before it saved a role." : "This mission reached its limit before it saved a role."}</p>
         {reason && <p className="text-muted-foreground break-words">{reason}</p>}
         {status !== "capped" && <Button size="sm" variant="outline" onClick={onRetry}><RotateCcw aria-hidden /> Retry</Button>}
       </div>

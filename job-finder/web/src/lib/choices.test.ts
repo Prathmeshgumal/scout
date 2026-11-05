@@ -3,9 +3,9 @@ import { splitChoices } from "./choices"
 
 describe("splitChoices", () => {
   it("takes the choices from the last line of a reply", () => {
-    expect(splitChoices("| Status | active |\n\nStart it?\n[[Start mandate | Change settings]]")).toEqual({
+    expect(splitChoices("| Status | active |\n\nStart it?\n[[Start schedule | Change settings]]")).toEqual({
       text: "| Status | active |\n\nStart it?",
-      choices: [{ label: "Start mandate", danger: false }, { label: "Change settings", danger: false }],
+      choices: [{ label: "Start schedule", danger: false }, { label: "Change settings", danger: false }],
     })
   })
 
@@ -39,8 +39,8 @@ describe("splitChoices", () => {
   })
 
   it("marks a choice that starts with ! as one that cannot be undone", () => {
-    expect(splitChoices("End it?\n[[ !End mandate | Keep mandate]]").choices).toEqual([
-      { label: "End mandate", danger: true }, { label: "Keep mandate", danger: false },
+    expect(splitChoices("End it?\n[[ !End schedule | Keep schedule]]").choices).toEqual([
+      { label: "End schedule", danger: true }, { label: "Keep schedule", danger: false },
     ])
   })
 })

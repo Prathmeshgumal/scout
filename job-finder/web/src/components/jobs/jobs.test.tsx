@@ -105,7 +105,7 @@ describe("progress header", () => {
     expect(screen.queryByRole("button", { name: /warning/ })).not.toBeInTheDocument()
   })
 
-  it("uses the moving border only while the goal runs", () => {
+  it("uses the moving border only while the mission runs", () => {
     const { container, rerender } = render(<ProgressHeader report={report()} />)
     expect(container.querySelector(".glow-border")).not.toBeNull()
     rerender(<ProgressHeader report={report({ status: "done" })} />)
@@ -113,7 +113,7 @@ describe("progress header", () => {
   })
 })
 
-describe("a goal with no roles", () => {
+describe("a mission with no roles", () => {
   it("offers a retry and gives the reason after a failure", async () => {
     const onRetry = vi.fn()
     render(<EmptyRoles report={report({ status: "failed", reason: "Usage limit" })} onRetry={onRetry} onChat={() => {}} />)
@@ -122,7 +122,7 @@ describe("a goal with no roles", () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
-  it("says what was searched when a finished goal has nothing", () => {
+  it("says what was searched when a finished mission has nothing", () => {
     render(<EmptyRoles report={report({ status: "done", searches: ["go engineer pune"] })} onRetry={() => {}} onChat={() => {}} />)
     expect(screen.getByText("No role fit this search.")).toBeInTheDocument()
     expect(screen.getByText("go engineer pune")).toBeInTheDocument()

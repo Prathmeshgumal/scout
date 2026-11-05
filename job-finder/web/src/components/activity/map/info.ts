@@ -2,8 +2,8 @@
 export type Info = { title: string; area: string; text: string[]; tech: string }
 
 export const INFO: Record<string, Info> = {
-  main: { title: "Scout: main agent", area: "job-finder", tech: "Claude Agent SDK · the model of the goal",
-    text: ["Scout reads your message, writes the brief and gives work to the subagents. Scout decides when the goal is complete.",
+  main: { title: "Scout: main agent", area: "job-finder", tech: "Claude Agent SDK · the model of the mission",
+    text: ["Scout reads your message, writes the brief and gives work to the subagents. Scout decides when the mission is complete.",
       "Scout does not search the web. The subagents do that through career-lens."] },
   "candidate-profile": { title: "Iris: candidate-profile", area: "subagent", tech: "tools: read_file, save_profile",
     text: ["Iris reads your text and your files, and writes your candidate profile. Judge and Penn use this profile."] },
@@ -22,13 +22,13 @@ export const INFO: Record<string, Info> = {
     text: ["A job page can be very long. The small model reads the page and gives the agent only the part that the agent asked for.",
       "This keeps each step cheap."] },
   jar: { title: "Spend jar", area: "job-finder", tech: "max_spend_usd",
-    text: ["The jar fills with the cost of each answer. The red line is the spend limit of the goal.",
+    text: ["The jar fills with the cost of each answer. The red line is the spend limit of the mission.",
       "Near the limit, Scout starts no new work and writes the final answer."] },
   board: { title: "Job board", area: "your roles", tech: "save_jobs → save_job_research → save_fit",
     text: ["Each card is one role. A role moves from Found to Researched to Checked. The green cards are fit roles.",
       "The Jobs tab shows the same roles."] },
   archive: { title: "Archive", area: "Postgres", tech: "job_finder database · goal_events",
-    text: ["The archive keeps the goals, the roles, the notes and each step. This is why you can replay a goal that ended."] },
+    text: ["The archive keeps the missions, the roles, the notes and each step. This is why you can replay a mission that ended."] },
   gate: { title: "Gate: guardrails", area: "job-finder", tech: "site_policy · request_check",
     text: ["The gate checks each address before it leaves job-finder. It refuses local and private addresses, and blocked sites.",
       "A refused request does not go to career-lens."] },
@@ -43,7 +43,7 @@ export const INFO: Record<string, Info> = {
       "career-lens does not say which worker took a request, so the map does not name it."] },
   history: { title: "History", area: "career-lens", tech: "status: satisfied",
     text: ["career-lens keeps each page that a worker reads. A request for a page that is fresh in the history gets the saved copy at once.",
-      "The number counts the requests of this goal that the history answered."] },
+      "The number counts the requests of this mission that the history answered."] },
   google: { title: "Google", area: "the web", tech: "google_search",
     text: ["Search results. Hunter and Sage use Google to find roles and job pages."] },
   linkedin: { title: "LinkedIn", area: "the web", tech: "search_linkedin_jobs · scrape_linkedin_job · scrape_company",
@@ -53,5 +53,5 @@ export const INFO: Record<string, Info> = {
 }
 
 export function infoFor(id: string): Info {
-  return INFO[id] ?? { title: id, area: "subagent", tech: `agent: ${id}`, text: ["A subagent of this goal. The map shows its steps from the events."] }
+  return INFO[id] ?? { title: id, area: "subagent", tech: `agent: ${id}`, text: ["A subagent of this mission. The map shows its steps from the events."] }
 }

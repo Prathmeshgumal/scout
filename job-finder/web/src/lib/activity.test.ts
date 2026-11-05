@@ -43,7 +43,7 @@ describe("activity", () => {
     expect(byId.m2.state).toBe("running")
   })
 
-  it("shows a step that still runs as stopped once the goal stopped", () => {
+  it("shows a step that still runs as stopped once the mission stopped", () => {
     const a = buildActivity(EVENTS, "stopped", T0 + 40_000)
     expect(a.steps.find((s) => s.id === "m2")?.state).toBe("stopped")
     const research = a.answers[0].items[2]

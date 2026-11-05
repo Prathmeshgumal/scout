@@ -216,7 +216,7 @@ export function ActivityTab({ goalId, events, status, initialStep, maxSpend }: P
             )}
             {onMap && state ? (
               <MapPane agents={agents} state={state} maxSpend={maxSpend} onShowTree={treeShown ? undefined : toggleTree}
-                crumb={state.step ? `${NAMES[state.step.agent] ?? state.step.agent} › ${state.step.label}` : "The goal has not started"} toolbar={null} />
+                crumb={state.step ? `${NAMES[state.step.agent] ?? state.step.agent} › ${state.step.label}` : "The mission has not started"} toolbar={null} />
             ) : (
               <StepPane goalId={goalId} activity={activity} step={selected} onSelect={setChosen} onShowTree={treeShown ? undefined : toggleTree} />
             )}
@@ -377,7 +377,7 @@ function StepPane({ goalId, activity, step, onSelect, onShowTree }: PaneProps) {
         {showTree}
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12px] text-muted-foreground">
-            {answer ? `Message ${answer.n}` : "Goal"} › {step.runId ? step.agent : "main agent"}
+            {answer ? `Message ${answer.n}` : "Mission"} › {step.runId ? step.agent : "main agent"}
           </p>
           <h3 className="mt-0.5 break-words text-[15px] font-medium">{step.label}</h3>
         </div>

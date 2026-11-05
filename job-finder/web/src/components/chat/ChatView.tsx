@@ -92,7 +92,7 @@ export function ChatView({ view, reason, thinking, readOnly, timeLimit, onChoose
           </div>
         )}
         {readOnly
-          ? <p className="rounded-xl border bg-card p-3 text-muted-foreground">This is a test goal of one subagent. Continue it in the terminal with job-finder agent.</p>
+          ? <p className="rounded-xl border bg-card p-3 text-muted-foreground">This is a test mission of one subagent. Continue it in the terminal with job-finder agent.</p>
           : composer}
       </div>
     </div>

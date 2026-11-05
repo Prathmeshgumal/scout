@@ -96,7 +96,7 @@ export function FileMenu({ goalId, onAttach, onBusy }: Props) {
           {files.length > 0 && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="font-normal text-muted-foreground">Files of this goal</DropdownMenuLabel>
+              <DropdownMenuLabel className="font-normal text-muted-foreground">Files of this mission</DropdownMenuLabel>
               {files.map((file) => (
                 <DropdownMenuItem key={file.id} onSelect={() => save(file.id)}>
                   <Download /><span className="truncate">{file.name}</span>

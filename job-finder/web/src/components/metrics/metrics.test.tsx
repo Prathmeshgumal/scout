@@ -66,7 +66,7 @@ describe("the metrics page", () => {
     const tile = (label: string) => (screen.getByText(label).parentElement as HTMLElement)
     await screen.findByText("Cost per fit role")
     expect(within(tile("Cost per fit role")).getByText("$0.400")).toBeInTheDocument()
-    expect(within(tile("Time per goal")).getByText("21 min")).toBeInTheDocument()
+    expect(within(tile("Time per mission")).getByText("21 min")).toBeInTheDocument()
     const evals = screen.getByRole("region", { name: "Evals" })
     expect(within(evals).getByText("Fit check")).toBeInTheDocument()
     expect(within(evals).getByText("30/32")).toBeInTheDocument()

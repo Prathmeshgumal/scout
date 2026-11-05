@@ -38,7 +38,7 @@ it("sends the token on a call", async () => {
   expect(sentAuth(fetcher)).toBe("Bearer made-up-token")
 })
 
-it("sends the token on the stream of a goal", async () => {
+it("sends the token on the stream of a mission", async () => {
   saveToken("made-up-token")
   const fetcher = vi.fn(async () => new Response("", { status: 200 }))
   vi.stubGlobal("fetch", fetcher)

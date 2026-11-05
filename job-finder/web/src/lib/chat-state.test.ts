@@ -50,7 +50,7 @@ describe("chat state", () => {
     expect(view.messages).toEqual([])
   })
 
-  it("shows a stopped goal's line as stopped", () => {
+  it("shows a stopped mission's line as stopped", () => {
     const view = fromEvents("stopped", [ev(1, "agent_started", { tool_use_id: "a1", name: "fit-check" })])
     const line = view.messages[0].parts[0]
     expect(line.kind === "agent" && shownState(line, "stopped")).toBe("stopped")
@@ -69,8 +69,8 @@ describe("chat state", () => {
   })
 
   it("shows a notice for the user, with its reason", () => {
-    const view = fromEvents("running", [ev(1, "notice", { text: "Mandate paused: the last 3 goals failed.", trigger: "mandate_paused" })])
-    expect(view.messages[0].parts).toEqual([{ kind: "notice", text: "Mandate paused: the last 3 goals failed." }])
+    const view = fromEvents("running", [ev(1, "notice", { text: "Schedule paused: the last 3 missions failed.", trigger: "mandate_paused" })])
+    expect(view.messages[0].parts).toEqual([{ kind: "notice", text: "Schedule paused: the last 3 missions failed." }])
   })
 
   it("keeps the messages for the main agent away from the user", () => {

@@ -322,7 +322,7 @@ export function mapState(tl: Timeline, t: number, move: number): MapState {
   if (agents.main.mode !== "working" && busyRuns.length) {
     agents.main = { mode: "waiting", text: `Waiting for ${busyRuns.map((r) => NAMES[r.agent] ?? r.agent).join(", ")}`, queued: 0 }
   }
-  if (t >= tl.end && tl.steps.length && agents.main.mode !== "working") agents.main = { mode: "done", text: "The goal ended", queued: 0 }
+  if (t >= tl.end && tl.steps.length && agents.main.mode !== "working") agents.main = { mode: "done", text: "The mission ended", queued: 0 }
   // Claude thinks for an agent that works and does not wait for career-lens.
   const lens = new Set([...tickets, ...workers].map((x) => x.request.agent))
   const claude = Object.entries(agents).some(([name, a]) => (a.mode === "working" || a.mode === "thinking") && !lens.has(name))

@@ -158,7 +158,7 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
           failures += 1
         }
       }
-      if (!controller.signal.aborted) toast.error("Lost the connection to the server. Open this goal again to catch up.")
+      if (!controller.signal.aborted) toast.error("Lost the connection to the server. Open this mission again to catch up.")
     })()
     return () => {
       controller.abort()
@@ -286,9 +286,9 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
     <>
       <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
         {narrow && <Button variant="ghost" size="icon" className="size-7" aria-label="Back to the list" onClick={() => openSection("goals")}><ChevronLeft /></Button>}
-        <h2 className="min-w-0 flex-1 truncate font-medium">{route.tab === "jobs" && !homeChat ? "" : report?.title ?? goal?.title ?? "Goal"}</h2>
+        <h2 className="min-w-0 flex-1 truncate font-medium">{route.tab === "jobs" && !homeChat ? "" : report?.title ?? goal?.title ?? "Mission"}</h2>
         {!homeChat && (
-          <div role="tablist" aria-label="Goal view" className="flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.5">
+          <div role="tablist" aria-label="Mission view" className="flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.5">
             {(["chat", "jobs", "activity"] as const).map((tab) => (
               <button key={tab} role="tab" type="button" aria-selected={route.tab === tab} onClick={() => go({ ...route, tab, step: null })}
                 className={cn("h-6 rounded-md px-2.5 text-[12px] capitalize outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -327,15 +327,15 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
               {lensDown && (
                 <p role="alert" className="flex items-center gap-2 bg-red-500/10 px-3.5 py-1.5 text-red-800 dark:text-red-200">
                   {status ? <TriangleAlert className="size-3.5 shrink-0" aria-hidden /> : <ServerCrash className="size-3.5 shrink-0" aria-hidden />}
-                  {status ? "career-lens does not answer. The agents cannot search or read pages. Goals wait until it is back." : "The job-finder server does not answer. Start it, then this page continues."}
+                  {status ? "career-lens does not answer. The agents cannot search or read pages. Missions wait until it is back." : "The job-finder server does not answer. Start it, then this page continues."}
                 </p>
               )}
               {route.section === "jobs" ? <AllJobs openJob={route.job ?? null} onOpenJob={(job) => go({ section: "jobs", goalId: null, mandateId: null, tab: "chat", job: { goalId: job.goal_id, jobId: job.id } })} onBoard={() => openSection("jobs")} onShowInPipeline={(highlight) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", highlight })} onNewGoal={startNew} onOpenGoal={(id) => openGoal(id, "jobs")} />
                 : route.section === "pipeline" ? <PipelinePage roleKey={route.roleKey ?? null} highlight={route.highlight ?? null} onOpenRole={(roleKey) => go({ section: "pipeline", goalId: null, mandateId: null, tab: "chat", roleKey })} onBoard={() => openSection("pipeline")} onOpenGoal={(id) => openGoal(id, "jobs")} onJobs={() => openSection("jobs")} />
                 : route.section === "metrics" ? <MetricsPage />
                 : goalId ? goalScreen
-                : route.mandateId ? <p className="p-4 text-muted-foreground">Reading the mandate</p>
-                : route.section === "mandates" ? <p className="m-auto max-w-[320px] p-4 text-center text-muted-foreground">Open a mandate to see its chat and its goals.</p>
+                : route.mandateId ? <p className="p-4 text-muted-foreground">Reading the schedule</p>
+                : route.section === "mandates" ? <p className="m-auto max-w-[320px] p-4 text-center text-muted-foreground">Open a schedule to see its chat and its missions.</p>
                 : <Welcome composer={composer} hasGoals={Boolean(goals?.length)} onDraft={(text) => { setInput(text); requestAnimationFrame(() => textarea.current?.focus()) }} />}
             </main>
           )}

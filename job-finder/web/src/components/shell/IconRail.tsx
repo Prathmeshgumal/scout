@@ -8,8 +8,8 @@ import type { Section } from "@/lib/route"
 import { cn } from "@/lib/utils"
 
 const SECTIONS: { id: Section; label: string; icon: typeof Briefcase }[] = [
-  { id: "goals", label: "Goals", icon: Target },
-  { id: "mandates", label: "Mandates", icon: ScrollText },
+  { id: "goals", label: "Missions", icon: Target },
+  { id: "mandates", label: "Schedules", icon: ScrollText },
   { id: "jobs", label: "Jobs", icon: Briefcase },
   { id: "pipeline", label: "Job pipeline", icon: Funnel },
   { id: "metrics", label: "Metrics", icon: ChartColumn },

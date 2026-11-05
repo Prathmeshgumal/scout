@@ -240,10 +240,10 @@ describe("Role page", () => {
     expect(onBoard).toHaveBeenCalled()
   })
 
-  it("keeps a role whose goal is deleted, with no link to the goal", async () => {
+  it("keeps a role whose mission is deleted, with no link to the mission", async () => {
     serve({ "/api/pipeline": { items: [item({ job_id: null, goal_id: null, stage: "applied" })] } })
     render(page({ roleKey: "acme|go|pune" }))
-    expect(await screen.findByText("The goal of this role is deleted.")).toBeInTheDocument()
+    expect(await screen.findByText("The mission of this role is deleted.")).toBeInTheDocument()
     expect(screen.getByText("Matches Go.")).toBeInTheDocument()
   })
 
@@ -269,7 +269,7 @@ describe("Jobs page", () => {
   const open = { goalId: "g1", jobId: "j1" }
   const detail = { pipeline: { role_key: "acme|go|pune", stage: null }, source: "job_board", fit_reasons: null, fit_evidence: [], description_text: null, snippet: null, research: [], notes: [], note: null }
 
-  it("groups roles by goal", () => {
+  it("groups roles by mission", () => {
     expect(groupByGoal(jobs).map((g) => g.title)).toEqual(["Go roles", "Data roles"])
   })
 
@@ -289,10 +289,10 @@ describe("Jobs page", () => {
     await waitFor(() => expect(within(fit).getAllByRole("button")[0]).toHaveTextContent("Top Role"))
   })
 
-  it("filters by goal and by text", async () => {
+  it("filters by mission and by text", async () => {
     serve({ "/api/jobs": jobs })
     render(board())
-    await userEvent.click(await screen.findByRole("combobox", { name: "Filter by goal" }))
+    await userEvent.click(await screen.findByRole("combobox", { name: "Filter by mission" }))
     await userEvent.click(await screen.findByRole("option", { name: "Data roles" }))
     expect(screen.queryByText("Go Engineer")).not.toBeInTheDocument()
     expect(screen.getByText("Data Engineer")).toBeInTheDocument()

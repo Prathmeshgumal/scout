@@ -4,21 +4,21 @@ import { deleteText } from "./delete"
 const preview = { goals: 1, jobs: 12, notes: 1, working: false }
 
 describe("deleteText", () => {
-  it("says that a goal delete removes its jobs from the Jobs page and keeps the pipeline", () => {
+  it("says that a mission delete removes its jobs from the Jobs page and keeps the pipeline", () => {
     expect(deleteText("goal", preview)).toBe(
-      "This deletes the goal, its chat, 12 jobs and 1 application note. "
+      "This deletes the mission, its chat, 12 jobs and 1 application note. "
       + "These jobs leave the Jobs page. Jobs in the Job pipeline stay, with their notes. You cannot undo this.")
   })
 
-  it("names the goals of a mandate", () => {
+  it("names the missions of a schedule", () => {
     expect(deleteText("mandate", { ...preview, goals: 3, notes: 0 })).toBe(
-      "This deletes the mandate, its chat, its 3 goals, 12 jobs and 0 application notes. "
+      "This deletes the schedule, its chat, its 3 missions, 12 jobs and 0 application notes. "
       + "These jobs leave the Jobs page. Jobs in the Job pipeline stay, with their notes. You cannot undo this.")
   })
 
   it("does not talk about the Jobs page when no job goes", () => {
     expect(deleteText("goal", { ...preview, jobs: 0, notes: 0 })).toBe(
-      "This deletes the goal, its chat, 0 jobs and 0 application notes. You cannot undo this.")
+      "This deletes the mission, its chat, 0 jobs and 0 application notes. You cannot undo this.")
   })
 
   it("says that the agents stop first", () => {

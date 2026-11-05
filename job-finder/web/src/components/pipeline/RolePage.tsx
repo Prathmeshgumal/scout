@@ -195,10 +195,10 @@ export function RolePage({ role, roleKey, stage, stageKnown, notes, detail, fail
             <dl className="flex flex-col gap-2.5 border-t pt-4">
               <Fact label="Verdict"><VerdictBadge verdict={role.fit} stage={noVerdict} /></Fact>
               {evidence && <Fact label="Evidence">{EVIDENCE_LABEL[evidence]}</Fact>}
-              <Fact label="Goal">
+              <Fact label="Mission">
                 {goalId
-                  ? <button type="button" className="rounded text-left break-words outline-none hover:underline focus-visible:ring-2 focus-visible:ring-violet-500/40" onClick={() => onOpenGoal(goalId)}>{role.goal_title ?? "Open goal"}</button>
-                  : <span className="text-muted-foreground">The goal of this role is deleted.</span>}
+                  ? <button type="button" className="rounded text-left break-words outline-none hover:underline focus-visible:ring-2 focus-visible:ring-violet-500/40" onClick={() => onOpenGoal(goalId)}>{role.goal_title ?? "Open mission"}</button>
+                  : <span className="text-muted-foreground">The mission of this role is deleted.</span>}
               </Fact>
               {detail && <Fact label="Source">{detail.source.replace(/_/g, " ")}</Fact>}
               {detail?.observed_at && <Fact label="Seen">{new Date(detail.observed_at).toLocaleDateString(undefined, { dateStyle: "medium" })}</Fact>}

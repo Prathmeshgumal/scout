@@ -18,6 +18,6 @@ describe("command menu", () => {
     render(<CommandMenu open goals={[]} mandates={[]} dark={false} {...actions()} />)
     await userEvent.type(await screen.findByRole("combobox"), "pipeline")
     expect(screen.getByRole("option", { name: "Job pipeline" })).toBeInTheDocument()
-    expect(screen.queryByRole("option", { name: "New goal" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("option", { name: "New mission" })).not.toBeInTheDocument()
   })
 })

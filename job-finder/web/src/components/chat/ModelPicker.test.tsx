@@ -7,8 +7,8 @@ import { ModelPicker } from "./ModelPicker"
 const ALL = ["low", "medium", "high", "xhigh", "max"]
 const models = [
   { id: "claude-fable-5-1", label: "Fable 5.1", detail: "For the hardest research", efforts: ALL, badge: "Requires usage credits" },
-  { id: "claude-opus-5-5", label: "Opus 5.5", detail: "For complex goals", efforts: ALL },
-  { id: "claude-sonnet-5-5", label: "Sonnet 5.5", detail: "Good for most goals", efforts: ALL },
+  { id: "claude-opus-5-5", label: "Opus 5.5", detail: "For complex missions", efforts: ALL },
+  { id: "claude-sonnet-5-5", label: "Sonnet 5.5", detail: "Good for most missions", efforts: ALL },
   { id: "claude-haiku-4-5", label: "Haiku 4.5", detail: "Fastest for quick answers", efforts: [] },
   { id: "claude-sonnet-4-6", label: "Sonnet 4.6", detail: "Earlier Sonnet", efforts: ["low", "medium", "high", "max"] },
 ]
@@ -28,10 +28,10 @@ describe("ModelPicker", () => {
   })
 
   it("changes the model from its menu, and keeps the effort", async () => {
-    const onChange = show("high", "New goals of this mandate use this model.")
+    const onChange = show("high", "New missions of this schedule use this model.")
     await userEvent.click(screen.getByRole("button", { name: "Model: Sonnet 5.5" }))
     expect(screen.getByRole("menuitemradio", { name: /Sonnet 5.5/ })).toHaveAttribute("aria-checked", "true")
-    expect(screen.getByText("New goals of this mandate use this model.")).toBeInTheDocument()
+    expect(screen.getByText("New missions of this schedule use this model.")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("menuitemradio", { name: /Opus 5.5/ }))
     expect(onChange).toHaveBeenCalledWith("claude-opus-5-5", "high")
   })

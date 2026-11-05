@@ -117,8 +117,8 @@ export function applyEvent(view: GoalView, event: GoalEvent): GoalView {
     }
     case "status_changed": {
       const to = str(event.to) as GoalStatus
-      if (to === "failed") return { ...addError(str(event.reason) || "The goal failed."), status: to }
-      if (to === "capped" || to === "stopped") return { ...add({ kind: "notice", text: str(event.reason) || "The goal stopped." }), status: to }
+      if (to === "failed") return { ...addError(str(event.reason) || "The mission failed."), status: to }
+      if (to === "capped" || to === "stopped") return { ...add({ kind: "notice", text: str(event.reason) || "The mission stopped." }), status: to }
       return { ...next, status: to }
     }
     case "response_finished": {

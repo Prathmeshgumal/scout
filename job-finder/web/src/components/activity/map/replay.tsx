@@ -112,7 +112,7 @@ export function ReplayBar({ replay, start, end, running }: { replay: Replay; sta
   return (
     <div className="flex shrink-0 items-center gap-2 border-t px-3 py-1.5 text-[12px]">
       <Button variant="outline" size="icon" className="size-7" aria-label={replay.playing ? "Pause" : ended ? "Play again" : "Play"}
-        title={replay.playing ? "Pause" : "Play the goal from the start"} onClick={replay.playing ? replay.pause : replay.play}>
+        title={replay.playing ? "Pause" : "Play the mission from the start"} onClick={replay.playing ? replay.pause : replay.play}>
         {replay.playing ? <Pause aria-hidden /> : ended ? <RotateCcw aria-hidden /> : <Play aria-hidden />}
       </Button>
       <Button variant="outline" size="sm" className="h-7 w-12 text-[12px] tabular-nums" aria-label={`Speed ${replay.speed} times. Change the speed`}

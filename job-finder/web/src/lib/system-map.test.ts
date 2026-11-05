@@ -109,7 +109,7 @@ describe("system map state", () => {
     expect(s.movers).toEqual([])
   })
 
-  it("shows nothing before the goal starts", () => {
+  it("shows nothing before the mission starts", () => {
     const s = mapState(tl, ms(-5), MOVE)
     expect(s.movers).toEqual([])
     expect(s.mail).toEqual([])
