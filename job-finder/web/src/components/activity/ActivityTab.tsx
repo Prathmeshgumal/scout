@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Copy, Check, Download, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
+import { ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, Check, Download, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -75,6 +75,8 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
   const [filter, setFilter] = useState<Filter>({ query: "", kind: "all" })
   const [treeShown, setTreeShown] = useState(readTree)
   const [lanesHeight, setLanesHeight] = useState(readLanes)
+  // The keys of the closed tree rows: "run:<id>" for an agent run, "message:<n>" for a message.
+  const [closed, setClosed] = useState<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
     if (initialStep) setChosen(initialStep)
@@ -82,6 +84,27 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
 
   const selectedId = chosen && activity.steps.some((s) => s.id === chosen) ? chosen : firstStep(activity.steps)
   const selected = activity.steps.find((s) => s.id === selectedId) ?? null
+  const selectedAnswer = selected ? activity.answers.find((a) => a.items.some((i) => (i.kind === "step" ? i.step.id === selected.id : i.run.id === selected.runId)))?.n : undefined
+
+  // A selected step is always in view: open its run and its message.
+  useEffect(() => {
+    if (!selectedId) return
+    setClosed((keys) => {
+      const open = [selected?.runId ? `run:${selected.runId}` : "", selectedAnswer ? `message:${selectedAnswer}` : ""].filter((k) => keys.has(k))
+      if (!open.length) return keys
+      const next = new Set(keys)
+      for (const k of open) next.delete(k)
+      return next
+    })
+    // Only a new selection opens rows. A row that the user closes later stays closed.
+  }, [selectedId])
+
+  const toggleRow = (key: string) => setClosed((keys) => {
+    const next = new Set(keys)
+    if (!next.delete(key)) next.add(key)
+    return next
+  })
+  const collapseAll = () => setClosed(new Set(activity.answers.flatMap((a) => a.items.flatMap((i) => (i.kind === "run" ? [`run:${i.run.id}`] : [])))))
 
   const toggleTree = () => {
     setTreeShown((shown) => {
@@ -131,12 +154,18 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
             {treeShown && (
               <aside aria-label="Step list" className="flex w-72 shrink-0 flex-col border-r">
                 <div className="flex h-9 shrink-0 items-center justify-between border-b pr-1 pl-3 text-[12px]">
-                  <span className="font-medium">Steps</span>
+                  <span className="flex-1 font-medium">Steps</span>
+                  <Button variant="ghost" size="icon" className="size-7" aria-label="Collapse all" title="Collapse all" onClick={collapseAll}>
+                    <ChevronsDownUp aria-hidden />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="size-7" aria-label="Expand all" title="Expand all" onClick={() => setClosed(new Set())}>
+                    <ChevronsUpDown aria-hidden />
+                  </Button>
                   <Button variant="ghost" size="icon" className="size-7" aria-label="Hide the step list" title="Hide the step list" onClick={toggleTree}>
                     <PanelLeftClose aria-hidden />
                   </Button>
                 </div>
-                <StepTree activity={activity} filter={filter} selectedId={selectedId} onSelect={setChosen} />
+                <StepTree activity={activity} filter={filter} selectedId={selectedId} closed={closed} onToggle={toggleRow} onSelect={setChosen} />
               </aside>
             )}
             <StepPane goalId={goalId} activity={activity} step={selected} onSelect={setChosen} onShowTree={treeShown ? undefined : toggleTree} />
@@ -162,7 +191,34 @@ function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () =>
 /** A tree row: a step of the main agent, or a run with the steps that match the filter. */
 type Shown = { kind: "step"; step: Step } | { kind: "run"; run: Run; steps: Step[] }
 
-function StepTree({ activity, filter, selectedId, onSelect }: { activity: Activity; filter: Filter; selectedId: string | null; onSelect: (id: string) => void }) {
+/** The button that opens or closes a tree row. */
+function Twisty({ open, name, onToggle }: { open: boolean; name: string; onToggle: () => void }) {
+  return (
+    <button type="button" aria-label={`${open ? "Collapse" : "Expand"} ${name}`} title={open ? "Collapse" : "Expand"}
+      onClick={(e) => {
+        e.stopPropagation()
+        onToggle()
+      }}
+      className="flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+      <ChevronRight aria-hidden className={cn("size-3.5 transition-transform", open && "rotate-90")} />
+    </button>
+  )
+}
+
+type TreeProps = {
+  activity: Activity
+  filter: Filter
+  selectedId: string | null
+  closed: ReadonlySet<string>
+  onToggle: (key: string) => void
+  onSelect: (id: string) => void
+}
+
+/**
+ * Three levels: a message, then the agent runs and the main agent's steps, then the steps of a run.
+ * A line on the left joins the steps of one run.
+ */
+function StepTree({ activity, filter, selectedId, closed, onToggle, onSelect }: TreeProps) {
   const filtered = filter.kind !== "all" || filter.query.trim() !== ""
   const selectedRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -173,8 +229,9 @@ function StepTree({ activity, filter, selectedId, onSelect }: { activity: Activi
     <div key={step.id} ref={step.id === selectedId ? selectedRef : undefined} role="treeitem" aria-selected={step.id === selectedId}
       aria-label={`${step.label}, ${STATE_WORD[step.state]}`} data-step={step.id} tabIndex={step.id === selectedId ? 0 : -1}
       onClick={() => onSelect(step.id)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(step.id)}
-      className={cn("flex cursor-pointer items-center gap-1.5 rounded-md py-1 pr-2 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        nested ? "pl-6" : "pl-2", step.id === selectedId ? "bg-muted text-foreground" : "text-foreground/80 hover:bg-muted/60")}>
+      className={cn("flex h-7 cursor-pointer items-center gap-1.5 rounded-md pr-2 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        nested ? "pl-2" : "pl-1", step.id === selectedId ? "bg-muted text-foreground" : "text-foreground/80 hover:bg-muted/60")}>
+      {!nested && <span aria-hidden className="size-4 shrink-0" />}
       <StateIcon state={step.state} className="size-3" />
       {!nested && <AgentDot agent={step.agent} />}
       <span className="min-w-0 flex-1 truncate">{step.label}</span>
@@ -182,8 +239,28 @@ function StepTree({ activity, filter, selectedId, onSelect }: { activity: Activi
     </div>
   )
 
+  const runItem = (run: Run, steps: Step[]) => {
+    const open = !closed.has(`run:${run.id}`)
+    const failed = run.steps.filter((s) => s.state === "failed").length
+    return (
+      <div key={run.id} role="treeitem" aria-expanded={open} aria-selected={false} aria-label={`${run.agent}, ${STATE_WORD[run.state]}`}>
+        <div className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md pr-2 pl-1 hover:bg-muted/60" onClick={() => onToggle(`run:${run.id}`)}>
+          <Twisty open={open} name={run.agent} onToggle={() => onToggle(`run:${run.id}`)} />
+          <StateIcon state={run.state} className="size-3" />
+          <AgentDot agent={run.agent} />
+          <span className="min-w-0 flex-1 truncate font-medium">{run.agent}</span>
+          {failed > 0 && <span className="shrink-0 text-[11px] text-red-700 dark:text-red-300">{failed} failed</span>}
+          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">{run.steps.length} {run.steps.length === 1 ? "step" : "steps"}</span>
+        </div>
+        {open && steps.length > 0 && (
+          <div role="group" className="ml-[33px] flex flex-col gap-px border-l pl-1">{steps.map((s) => stepItem(s, true))}</div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div role="tree" aria-label="Steps" className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-2 text-[12px]">
+    <div role="tree" aria-label="Steps" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 text-[12px]">
       {activity.answers.map((answer) => {
         const items = answer.items.flatMap((item): Shown[] => {
           if (item.kind === "step") return matches(item.step, filter) ? [item] : []
@@ -191,24 +268,19 @@ function StepTree({ activity, filter, selectedId, onSelect }: { activity: Activi
           return steps.length || !filtered ? [{ ...item, steps }] : []
         })
         if (filtered && !items.length) return null
+        const key = `message:${answer.n}`
+        const open = !closed.has(key)
         return (
-          <div key={answer.n} role="treeitem" aria-expanded aria-label={`Message ${answer.n}: ${answer.text || "Start"}`} aria-selected={false}>
-            <p className="truncate px-2 pb-1 font-medium text-muted-foreground" title={answer.text}>Message {answer.n}{answer.text ? `: ${answer.text}` : ""}</p>
-            <div role="group" className="flex flex-col gap-0.5">
-              {items.map((item) =>
-                item.kind === "step" ? stepItem(item.step, false) : (
-                  <div key={item.run.id} role="treeitem" aria-expanded aria-selected={false} aria-label={`${item.run.agent}, ${STATE_WORD[item.run.state]}`}>
-                    <p className="flex items-center gap-1.5 px-2 py-1">
-                      <StateIcon state={item.run.state} className="size-3" />
-                      <AgentDot agent={item.run.agent} />
-                      <span className="min-w-0 flex-1 truncate font-medium">{item.run.agent}</span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">{item.run.steps.length} {item.run.steps.length === 1 ? "step" : "steps"}</span>
-                    </p>
-                    <div role="group" className="flex flex-col gap-0.5">{item.steps.map((s) => stepItem(s, true))}</div>
-                  </div>
-                ),
-              )}
+          <div key={answer.n} role="treeitem" aria-expanded={open} aria-label={`Message ${answer.n}: ${answer.text || "Start"}`} aria-selected={false}>
+            <div className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md pr-2 pl-1 text-muted-foreground hover:bg-muted/60" onClick={() => onToggle(key)}>
+              <Twisty open={open} name={`message ${answer.n}`} onToggle={() => onToggle(key)} />
+              <span className="min-w-0 flex-1 truncate font-medium" title={answer.text}>Message {answer.n}{answer.text ? `: ${answer.text}` : ""}</span>
             </div>
+            {open && (
+              <div role="group" className="ml-[11px] flex flex-col gap-px border-l pl-1.5">
+                {items.map((item) => (item.kind === "step" ? stepItem(item.step, false) : runItem(item.run, item.steps)))}
+              </div>
+            )}
           </div>
         )
       })}
