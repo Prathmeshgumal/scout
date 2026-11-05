@@ -111,3 +111,8 @@ def test_main_prompt_names_every_subagent_and_the_goal():
         assert name in MAIN_PROMPT, name
     assert main_prompt("g-1").endswith("The id of this goal is g-1.")
     assert "candidate profile" not in main_prompt("g-1").split("The id of this goal")[1]
+
+
+def test_each_agent_scrapes_only_the_company_section_that_it_reads():
+    assert 'linkedin_sections: ["jobs"]' in REGISTRY["job-discovery"].prompt
+    assert 'linkedin_sections: ["about"]' in REGISTRY["job-research"].prompt

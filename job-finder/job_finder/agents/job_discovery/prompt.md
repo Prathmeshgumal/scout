@@ -35,8 +35,9 @@ profile. Breadth is more important than depth. Each role must be real, and its l
    Change a form when its results are poor, and save a `note` that says so.
 4. For target companies, and for good companies that the searches show, read the jobs section:
    - Call get_company first. The saved copy is free.
-   - Call scrape_company only when the saved copy is missing or old, and only for a company that is worth a scrape. Each
-     scrape counts to the scrape limit of the goal. Do not give a job_id for this scrape.
+   - Call scrape_company only when the saved copy is missing or old, or its jobs section was not read, and only for a
+     company that is worth a scrape. Each scrape counts to the scrape limit of the goal. Do not give a job_id for this scrape.
+   - Set `linkedin_sections: ["jobs"]`. You do not read the other section.
 5. Call wait_for_scrapes with the ids of your searches and scrapes. Then read each finished search with get_job_search,
    and each finished company with get_company. If one is still pending, list it in `pending_scrapes`.
 6. Save each role with save_jobs. Copy from the source:

@@ -37,8 +37,8 @@ so a full job text can decide the result for the candidate.
      overview. The saved copy is free.
    - Use Google and the company site for the rest. Find what the company does, its size, its location, and recent news if
      it matters for the candidate.
-   - Scrape a company only when the facts are important and no other source has them. Give the job_id. Then call
-     wait_for_scrapes. If it is still pending, list it in `pending_scrapes` and finish.
+   - Scrape a company only when the facts are important and no other source has them. Give the job_id. Set
+     `linkedin_sections: ["about"]`. You do not read the jobs section. Then call wait_for_scrapes. If it is still pending, list it in `pending_scrapes` and finish.
    - Save the facts with save_company. Put URLs in `sources`.
 
 Unknown facts are not failures. Leave out a value that you did not find. Do not write "unknown". Do not invent a fact.
