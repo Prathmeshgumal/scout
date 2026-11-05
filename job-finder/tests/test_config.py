@@ -9,8 +9,12 @@ def test_defaults_when_env_is_empty():
     assert settings.model == "claude-sonnet-5-5"
     assert settings.effort == "medium"
     assert settings.database_url == "postgresql://jobfinder:jobfinder@127.0.0.1:55433/job_finder"
-    assert settings.max_turns == 40
-    assert settings.max_spend_usd == 2.0
+    assert settings.max_turns == 80
+    assert settings.max_spend_usd == 4.0
+    assert settings.max_fresh_scrapes == 30
+    assert settings.mandate_total_usd == 20.0
+    assert settings.mandate_time_limit_minutes == 240
+    assert settings.mandate_grace_minutes == 60
     assert settings.claude_config_dir == ROOT / "var" / "claude"
     assert settings.agent_cwd == ROOT / "var" / "agent"
     assert settings.career_lens_base_url == ""
@@ -49,7 +53,7 @@ def test_host_defaults_to_loopback_and_can_be_opened_for_containers():
 
 def test_phase_2_limits_have_defaults_and_env_overrides():
     s = Settings.from_env({})
-    assert (s.max_fresh_scrapes, s.max_wait_hours, s.watch_interval_s, s.scrape_wait_minutes) == (15, 72.0, 10.0, 1.0)
+    assert (s.max_fresh_scrapes, s.max_wait_hours, s.watch_interval_s, s.scrape_wait_minutes) == (30, 72.0, 10.0, 1.0)
     s = Settings.from_env({"JOB_FINDER_MAX_FRESH_SCRAPES": "2", "JOB_FINDER_MAX_WAIT_HOURS": "0.5",
                            "JOB_FINDER_WATCH_INTERVAL_S": "5", "JOB_FINDER_SCRAPE_WAIT_MINUTES": "3"})
     assert (s.max_fresh_scrapes, s.max_wait_hours, s.watch_interval_s, s.scrape_wait_minutes) == (2, 0.5, 5.0, 3.0)
@@ -106,7 +110,7 @@ def test_the_env_file_is_the_repo_file_or_the_file_that_the_container_names():
 
 def test_the_default_total_spend_of_a_mandate_can_be_changed():
     base = {"DATABASE_URL": "postgresql://x"}
-    assert Settings.from_env(base).mandate_total_usd == 10.0
+    assert Settings.from_env(base).mandate_total_usd == 20.0
     assert Settings.from_env({**base, "JOB_FINDER_MANDATE_TOTAL_USD": "25"}).mandate_total_usd == 25.0
 
 
@@ -119,7 +123,7 @@ def test_failed_goals_in_a_row_before_a_mandate_pauses_can_be_changed():
 def test_the_default_time_limit_of_a_mandate_goal_can_be_changed():
     base = {"DATABASE_URL": "postgresql://x"}
     s = Settings.from_env(base)
-    assert (s.mandate_time_limit_minutes, s.mandate_grace_minutes) == (120, 30)
+    assert (s.mandate_time_limit_minutes, s.mandate_grace_minutes) == (240, 60)
     s = Settings.from_env({**base, "JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES": "90",
                            "JOB_FINDER_MANDATE_GRACE_MINUTES": "0"})
     assert (s.mandate_time_limit_minutes, s.mandate_grace_minutes) == (90, 0)

@@ -56,7 +56,7 @@ async def test_a_proposal_saves_nothing_and_shows_the_full_table(ctx, store):
     chat = Chat(ctx, "goal")
     out = await chat("propose_mandate", {"instruction": "Series B fintechs in the EU", "jobs_per_run": 20})
     assert "is_error" not in out and "Nothing is saved yet" in text(out)
-    assert "| Quota for each mission | 20 fit roles |" in text(out) and "| Total spend limit | $10.00 |" in text(out)
+    assert "| Quota for each mission | 20 fit roles |" in text(out) and "| Total spend limit | $20.00 |" in text(out)
     assert "| Next mission | Thu 8 Oct 2026 12:00 |" in text(out)  # the first goal starts at once
     assert (await store.get_goal(ctx.goal_id))["home_of"] is None
 
@@ -195,7 +195,7 @@ async def test_a_proposal_uses_the_time_zone_of_the_user(ctx, store):
 async def test_the_time_limit_of_each_goal_is_a_setting_that_waits_for_a_yes(ctx, pool):
     home = await make_home(ctx)
     out = await home("propose_mandate", {"time_limit_minutes": "3h", "grace_minutes": 15})
-    assert "| Time limit for each mission | 2h | 3h |" in text(out) and "| Extra time to finish | 30m | 15m |" in text(out)
+    assert "| Time limit for each mission | 4h | 3h |" in text(out) and "| Extra time to finish | 1h | 15m |" in text(out)
     await say(ctx, "yes")
     out = await home("confirm_mandate")
     assert "| Time limit for each mission | 3h |" in text(out) and "| Extra time to finish | 15m |" in text(out)

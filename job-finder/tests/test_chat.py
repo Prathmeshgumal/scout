@@ -134,7 +134,7 @@ async def test_status_lists_running_subagents_and_stop_ends_them(services, out, 
         await busy_with_job_gen(streams)
         await chat.handle("/status")
         text = out.export_text()
-        assert "Spend: $0.02 of $2.00" in text and "job-gen: Find 5 (0m 0" in text
+        assert "Spend: $0.02 of $4.00" in text and "job-gen: Find 5 (0m 0" in text
         await chat.handle("/stop")
         assert streams.last.stopped == ["a1"]
     assert (await store.get_goal(goal["id"]))["status"] == "stopped"

@@ -76,8 +76,8 @@ async def test_create_uses_the_defaults_and_starts_the_first_run_now(store, mand
     assert (m["every_unit"], m["every_count"], m["window_days"], m["window_start"], m["window_end"]) == (
         "day", 1, [1, 2, 3, 4, 5, 6, 7], time(9), None)
     assert (m["timezone"], m["max_spend_per_run"], m["max_scrapes_per_run"], m["max_total_spend"]) == (
-        "Asia/Kolkata", 2.0, 15, 10.0)
-    assert (m["time_limit_minutes"], m["grace_minutes"]) == (120, 30)
+        "Asia/Kolkata", 2.0, 30, 20.0)
+    assert (m["time_limit_minutes"], m["grace_minutes"]) == (240, 60)
     assert m["title"] == "Series B fintechs in the EU" and m["next_run_at"] == NOW
     [note] = await notices(store, m["home_goal_id"])
     assert note["trigger"] == "mandate_created" and note["text"].startswith("Schedule created: ")
@@ -145,7 +145,7 @@ async def test_a_time_limit_change_reaches_the_run_in_progress(store, mandates, 
     goal = await store.get_goal(run["id"])
     assert (goal["time_limit_s"], goal["grace_s"]) == (180 * 60, 10 * 60)
     [*_, note] = await notices(store, m["home_goal_id"])
-    assert "time limit for each mission 2h → 3h" in note["text"] and "extra time to finish 30m → 10m" in note["text"]
+    assert "time limit for each mission 4h → 3h" in note["text"] and "extra time to finish 1h → 10m" in note["text"]
 
 
 async def test_pause_resume_and_end(store, mandates, recorder, settings):
@@ -170,8 +170,8 @@ async def test_describe(store, mandates, recorder, settings):
     assert describe(m) == (
         'Schedule "Series B fintechs in the EU": Series B fintechs in the EU. '
         "One mission every 6 hours, Mon, Tue, Wed, Thu, Fri, 09:00 to 21:00. "
-        "Quota: 20 fit roles for each mission. Caps for each mission: $2.00 and 15 scrapes. "
-        "Time limit for each mission: 2h, then 30m to finish. "
+        "Quota: 20 fit roles for each mission. Caps for each mission: $2.00 and 30 scrapes. "
+        "Time limit for each mission: 4h, then 1h to finish. "
         "No total spend limit. No end date. Status: active. Next mission: Thu 8 Oct 2026 12:00.")
     assert "One mission every hour," in describe({**m, "every_unit": "hour", "every_count": 1})
     daily = describe({**m, "every_unit": "day", "every_count": 1})
@@ -230,10 +230,10 @@ async def test_config_table_shows_every_setting(store, mandates, recorder, setti
         "| No missions after | 21:00 |",
         "| Quota for each mission | 20 fit roles |",
         "| Spend cap for each mission | $2.00 |",
-        "| Scrape cap for each mission | 15 |",
-        "| Time limit for each mission | 2h |",
-        "| Extra time to finish | 30m |",
-        "| Total spend limit | $10.00 |",
+        "| Scrape cap for each mission | 30 |",
+        "| Time limit for each mission | 4h |",
+        "| Extra time to finish | 1h |",
+        "| Total spend limit | $20.00 |",
         "| End date | none |"])
     assert "| Next mission | none: the schedule is paused |" in config_table({**m, "status": "paused"})
 
@@ -241,7 +241,7 @@ async def test_config_table_shows_every_setting(store, mandates, recorder, setti
 def test_new_settings_fill_in_the_defaults_and_save_nothing(settings):
     values = new_settings({"instruction": "Series B fintechs in the EU", "jobs_per_run": 20}, settings)
     assert values["title"] == "Series B fintechs in the EU" and values["every_unit"] == "day"
-    assert values["max_total_spend"] == 10.0 and values["status"] == "active"
+    assert values["max_total_spend"] == 20.0 and values["status"] == "active"
     with pytest.raises(MandateError, match="instruction"):
         new_settings({"jobs_per_run": 20}, settings)
     with pytest.raises(MandateError, match="No missions after"):

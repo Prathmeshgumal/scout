@@ -259,10 +259,10 @@ uv run job-finder schedule delete 3f9a2c1e
 
 | Limit | Setting | Default |
 |---|---|---|
-| Spend for each mission | `JOB_FINDER_MAX_SPEND_USD` | $2.00 |
-| Fresh scrapes for each mission | `JOB_FINDER_MAX_FRESH_SCRAPES` | 15 |
-| Total spend of a schedule | `JOB_FINDER_MANDATE_TOTAL_USD` | $10.00 |
-| Time limit for each schedule mission | `JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES` | 120 |
+| Spend for each mission | `JOB_FINDER_MAX_SPEND_USD` | $4.00 |
+| Fresh scrapes for each mission | `JOB_FINDER_MAX_FRESH_SCRAPES` | 30 |
+| Total spend of a schedule | `JOB_FINDER_MANDATE_TOTAL_USD` | $20.00 |
+| Time limit for each schedule mission | `JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES` | 240 |
 
 `.env.example` shows all the settings.
 

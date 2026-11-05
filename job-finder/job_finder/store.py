@@ -61,7 +61,7 @@ class Queries:
 class Store(Queries):
     # Goals
 
-    async def create_goal(self, title: str, *, max_fresh_scrapes: int = 15, max_spend_usd: float = 2.0,
+    async def create_goal(self, title: str, *, max_fresh_scrapes: int = 30, max_spend_usd: float = 4.0,
                           agent: str | None = None, model: str | None = None, effort: str | None = None,
                           timezone: str | None = None) -> dict:
         """A new goal. model and effort None: the default of .env. timezone: the time zone of the user, from the

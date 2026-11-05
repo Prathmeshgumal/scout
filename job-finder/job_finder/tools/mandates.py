@@ -45,10 +45,10 @@ SETTINGS = {
     "max_scrapes_per_run": {"type": "integer", "minimum": 0, "description": "The fresh-scrape cap of each mission."},
     "time_limit_minutes": {"type": ["integer", "string"],
                            "description": "The time limit of each mission: minutes (90), or hours and minutes (2h, "
-                                          "1h 30m). At the limit, the mission starts no new work. Default: 2h."},
+                                          "1h 30m). At the limit, the mission starts no new work. Default: 4h."},
     "grace_minutes": {"type": ["integer", "string"],
                       "description": "Extra time to finish after the time limit: minutes (30) or 1h. The running "
-                                     "subagents finish their work in it. Then all work of the mission stops. Default: 30m."},
+                                     "subagents finish their work in it. Then all work of the mission stops. Default: 1h."},
     "max_total_spend": {"type": "number", "description": "The schedule ends at this total spend, in USD. Default: the default total spend of the app."},
     "ends_on": {"type": "string", "description": "Optional. The last day of the schedule, e.g. 2026-12-31."},
     "timezone": {"type": "string", "description": "The time zone of the clock times, e.g. Asia/Kolkata. Default: "

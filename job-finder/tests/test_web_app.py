@@ -110,7 +110,7 @@ async def test_a_subscription_token_alone_is_a_claude_login(app_settings, servic
 async def test_list_goals_has_spend(client, store):
     goal_id = await idle_goal(store, "one")
     [goal] = (await client.get("/api/goals")).json()
-    assert goal["id"] == goal_id and goal["spend_usd"] == 0 and goal["max_spend_usd"] == 2.0
+    assert goal["id"] == goal_id and goal["spend_usd"] == 0 and goal["max_spend_usd"] == 4.0
 
 
 async def test_unknown_goal_gives_404(client):

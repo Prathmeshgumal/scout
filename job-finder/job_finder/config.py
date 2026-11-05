@@ -45,15 +45,15 @@ class Settings:
     agent_cwd: Path
     max_turns: int
     max_spend_usd: float
-    mandate_total_usd: float = 10.0
+    mandate_total_usd: float = 20.0
     mandate_max_failures: int = 3
-    mandate_time_limit_minutes: int = 120
-    mandate_grace_minutes: int = 30
+    mandate_time_limit_minutes: int = 240
+    mandate_grace_minutes: int = 60
     host: str = "127.0.0.1"
     port: int = 8000
     retry_delay_s: float = 30.0
     watch_interval_s: float = 10.0
-    max_fresh_scrapes: int = 15
+    max_fresh_scrapes: int = 30
     max_wait_hours: float = 72.0
     max_subagents: int = 5
     research_max_age_days: int = 30
@@ -99,16 +99,16 @@ class Settings:
             effort=get("JOB_FINDER_EFFORT", "medium"),
             claude_config_dir=_path(get("CLAUDE_CONFIG_DIR", "var/claude")),
             agent_cwd=_path(get("JOB_FINDER_CWD", "var/agent")),
-            max_turns=int(get("JOB_FINDER_MAX_TURNS", "40")),
-            max_spend_usd=float(get("JOB_FINDER_MAX_SPEND_USD", "2.00")),
-            mandate_total_usd=float(get("JOB_FINDER_MANDATE_TOTAL_USD", "10.00")),
+            max_turns=int(get("JOB_FINDER_MAX_TURNS", "80")),
+            max_spend_usd=float(get("JOB_FINDER_MAX_SPEND_USD", "4.00")),
+            mandate_total_usd=float(get("JOB_FINDER_MANDATE_TOTAL_USD", "20.00")),
             mandate_max_failures=max(0, int(get("JOB_FINDER_MANDATE_MAX_FAILURES", "3"))),
-            mandate_time_limit_minutes=max(5, int(get("JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES", "120"))),
-            mandate_grace_minutes=max(0, int(get("JOB_FINDER_MANDATE_GRACE_MINUTES", "30"))),
+            mandate_time_limit_minutes=max(5, int(get("JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES", "240"))),
+            mandate_grace_minutes=max(0, int(get("JOB_FINDER_MANDATE_GRACE_MINUTES", "60"))),
             host=get("JOB_FINDER_HOST", "127.0.0.1"),
             port=int(get("JOB_FINDER_PORT", "8000")),
             watch_interval_s=float(get("JOB_FINDER_WATCH_INTERVAL_S", "10")),
-            max_fresh_scrapes=int(get("JOB_FINDER_MAX_FRESH_SCRAPES", "15")),
+            max_fresh_scrapes=int(get("JOB_FINDER_MAX_FRESH_SCRAPES", "30")),
             max_wait_hours=float(get("JOB_FINDER_MAX_WAIT_HOURS", "72")),
             max_subagents=max(1, int(get("JOB_FINDER_MAX_SUBAGENTS", "5"))),
             research_max_age_days=int(get("JOB_FINDER_RESEARCH_MAX_AGE_DAYS", "30")),
