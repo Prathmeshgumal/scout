@@ -10,6 +10,7 @@ from job_finder.web.app import create_app, sse_stream
 from job_finder.web.sessions import GoalSessions
 
 from .fakes import SDK_MODELS, Streams, agent_call, make_services, replies, result, task_started
+from tests.conftest import signed_in_client
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ async def sdk_models():
 @pytest.fixture
 async def client(app_settings, services, sessions):
     app = create_app(app_settings, services, sessions, model_loader=sdk_models)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with signed_in_client(app) as client:
         yield client
 
 
@@ -87,7 +88,7 @@ async def test_blank_goal_is_rejected(client):
 async def test_no_claude_login_gives_503(app_settings, services, sessions):
     settings = type(app_settings)(**{**app_settings.__dict__, "anthropic_api_key": ""})
     app = create_app(settings, services, sessions, model_loader=sdk_models)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+    async with signed_in_client(app) as c:
         response = await c.post("/api/goals", json={"text": "x"})
         status = (await c.get("/api/status")).json()
     detail = response.json()["detail"]
@@ -99,7 +100,7 @@ async def test_a_subscription_token_alone_is_a_claude_login(app_settings, servic
     settings = type(app_settings)(**{**app_settings.__dict__, "anthropic_api_key": "",
                                      "claude_oauth_token": "sk-ant-oat01-t"})
     app = create_app(settings, services, sessions, model_loader=sdk_models)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+    async with signed_in_client(app) as c:
         response = await c.post("/api/goals", json={"text": "x"})
         status = (await c.get("/api/status")).json()
     assert response.status_code != 503
@@ -193,7 +194,7 @@ async def test_a_goal_link_gives_the_browser_app(app_settings, services, session
     (tmp_path / "index.html").write_text("<div id=root></div>")
     monkeypatch.setattr("job_finder.web.app.STATIC_DIR", tmp_path)
     app = create_app(app_settings, services, sessions, model_loader=sdk_models)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+    async with signed_in_client(app) as c:
         for path in ("/", "/goals/b7602321-26e1-4e7c-942e-243d23fec79b/report", "/mandates", "/jobs", "/jobs/b7602321-26e1-4e7c-942e-243d23fec79b/b7602321-26e1-4e7c-942e-243d23fec79c", "/pipeline", "/pipeline/acme%7Cgo%7Cpune"):
             response = await c.get(path)
             assert response.status_code == 200 and "root" in response.text
@@ -377,7 +378,7 @@ async def test_status_reports_cached_outage_without_failing_health(app_settings,
         "commit": "a" * 40, "local": False, "modified": False})
     app = create_app(app_settings, services, sessions, model_loader=sdk_models)
     app.state.career_lens_status = SimpleNamespace(snapshot={"state": "unreachable", "checked_at": "2026-10-15T10:00:00Z"})
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with signed_in_client(app) as client:
         response = await client.get("/api/status")
     assert response.status_code == 200
     assert response.headers["Cache-Control"] == "no-store"
@@ -394,7 +395,7 @@ async def test_status_keeps_the_loaded_account_until_restart(app_settings, servi
     save_credential(path, 'sk-ant-oat01-first', account_label='First account')
     settings = replace(app_settings, anthropic_api_key='', claude_oauth_token='sk-ant-oat01-first')
     app = create_app(settings, services, sessions, model_loader=sdk_models)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
+    async with signed_in_client(app) as client:
         initial = (await client.get('/api/status')).json()['claude_account']
         assert initial['account_label'] == 'First account' and not initial['restart_required']
         save_credential(path, 'sk-ant-oat01-second', account_label='Second account')

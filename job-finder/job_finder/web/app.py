@@ -16,7 +16,7 @@ from typing import Literal
 from urllib.parse import quote, urlsplit
 
 from dotenv import dotenv_values
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -42,11 +42,11 @@ from ..services import GoalLocked, Services, with_pending_note
 from ..store import Store, goal_title
 from ..time_limit import ContinueError, continue_check, continue_goal
 from ..watcher import Watcher
+from . import auth
 from .sessions import GoalSessions
 
 log = logging.getLogger(__name__)
 STATIC_DIR = ROOT / "web" / "dist"
-LOOPBACK = {"127.0.0.1", "localhost", "[::1]"}
 RESTART_DELAY_S = 0.5  # the reply must reach the browser first
 STOPPABLE = {"running", "waiting"}
 RETRYABLE = {"failed", "stopped"}
@@ -182,7 +182,9 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
             await manager.close_all()
             await s.close()
 
-    app = FastAPI(title="job-finder", lifespan=lifespan)
+    app = FastAPI(title="job-finder", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app.add_middleware(auth.Protect)
+    app.include_router(auth.router)
     app.state.services, app.state.sessions = services, sessions
     app.state.career_lens_status = None
     app.state.setup_token = SetupTokenFlow()
@@ -549,13 +551,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
                                  else "not_configured", "checked_at": None}),
                 "open_sessions": manager(request).count}
 
-    # The Claude login. The app has no sign-in of its own, so only this computer can change the login.
-
-    def this_computer(request: Request) -> None:
-        host = request.headers.get("host", "")
-        origin = request.headers.get("origin")
-        if host.rsplit(":", 1)[0] not in LOOPBACK or (origin and urlsplit(origin).netloc != host):
-            raise HTTPException(403, "Change the Claude login from the computer that runs job-finder.")
+    # The Claude login.
 
     def login_saved(request: Request) -> bool:
         """Start the app again to load the new login. False when the user must do this."""
@@ -565,7 +561,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         asyncio.get_running_loop().call_later(RESTART_DELAY_S, restart)
         return True
 
-    @app.post("/api/login", dependencies=[Depends(this_computer)])
+    @app.post("/api/login")
     async def save_login(request: Request, body: LoginBody):
         value = body.credential.strip()
         try:
@@ -575,7 +571,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
             raise HTTPException(400, str(exc)) from None  # from None: the error of the parser can hold the value
         return {"mode": mode, "restarting": login_saved(request)}
 
-    @app.post("/api/login/use", dependencies=[Depends(this_computer)])
+    @app.post("/api/login/use")
     async def use_login(request: Request, body: LoginChoice):
         if body.mode not in ENV_NAMES:
             raise HTTPException(404, "There is no login of that type.")
@@ -589,7 +585,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         choose_credential(env_file(), body.mode)
         return {"mode": body.mode, "restarting": login_saved(request)}
 
-    @app.post("/api/login/subscription/start", dependencies=[Depends(this_computer)])
+    @app.post("/api/login/subscription/start")
     async def start_subscription_login(request: Request):
         if not shutil.which("claude"):
             raise HTTPException(409, "Claude Code is not installed here. Run `claude setup-token` and paste the token.")
@@ -598,7 +594,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
             raise HTTPException(502, "Claude Code did not show a sign-in page. Run `claude setup-token` and paste the token.")
         return {"url": url}
 
-    @app.post("/api/login/subscription/code", dependencies=[Depends(this_computer)])
+    @app.post("/api/login/subscription/code")
     async def finish_subscription_login(request: Request, body: LoginCode):
         flow = request.app.state.setup_token
         if not flow.active():

@@ -16,7 +16,8 @@
 # First time only: systemctl --user enable --now ~/razorpay/jobscout/career-lens/deploy/career-lens-worker.service
 #
 # First start only:
-#   1. ./stack-env.sh                                   puts the career-lens key in job-finder-config/.env
+#   1. ./stack-env.sh                                   puts the career-lens key and a new dashboard password
+#                                                       in job-finder-config/.env
 #   2. docker compose run --rm jobfinder job-finder login    saves your Claude login in ./job-finder-config
 #
 # The data volumes are the ones that the earlier separate stacks made, so nothing is lost.
@@ -182,7 +183,7 @@ services:
         condition: service_started
     ports:
       - "127.0.0.1:8000:8000"
-    # CAREER_LENS_API_KEY comes only from /config/.env. Do not set it here: a value here, even an empty one, wins.
+    # CAREER_LENS_API_KEY and JOB_FINDER_PASSWORD come only from /config/.env. Do not set them here: a value here, even an empty one, wins.
     # The Claude login (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) comes only from /config/.env,
     # which `job-finder login` writes. Do not set those two here: a value here, even an empty one, wins.
     environment:
@@ -204,7 +205,7 @@ services:
     stop_grace_period: 30s               # running goals become interrupted and resume on the next start
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/status', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       start_period: 30s

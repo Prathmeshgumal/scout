@@ -1,6 +1,7 @@
 import os
 
 import psycopg
+import httpx
 import pytest
 from psycopg import sql
 
@@ -54,6 +55,25 @@ def hub() -> Hub:
 @pytest.fixture
 def recorder(store, hub) -> Recorder:
     return Recorder(store, hub)
+
+
+PASSWORD = "made-up-test-password"
+
+
+@pytest.fixture(autouse=True)
+def app_password(monkeypatch):
+    from job_finder.web import auth
+
+    monkeypatch.setenv(auth.PASSWORD_ENV, PASSWORD)
+    auth.guard.reset()
+
+
+def signed_in_client(app) -> httpx.AsyncClient:
+    """A client on this computer that has the token of a login."""
+    from job_finder.web import auth
+
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:8000",
+                             headers={"Authorization": f"Bearer {auth.new_token(PASSWORD)}"})
 
 
 @pytest.fixture

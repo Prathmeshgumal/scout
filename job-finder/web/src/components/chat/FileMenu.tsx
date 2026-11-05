@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { type FileInfo, deleteFile, fileUrl, listFiles, uploadFile } from "@/lib/api"
+import { type FileInfo, deleteFile, download, fileUrl, listFiles, uploadFile } from "@/lib/api"
 
 type Props = {
   goalId: string | null
@@ -54,6 +54,7 @@ export function FileMenu({ goalId, onAttach, onBusy }: Props) {
     onBusy(false)
   }
 
+  const save = (id: string) => { download(fileUrl(id)).catch((err) => toast.error(errorOf(err))) }
   async function removeResume() {
     if (!resume) return
     try {
@@ -88,7 +89,7 @@ export function FileMenu({ goalId, onAttach, onBusy }: Props) {
             <>
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="truncate font-normal text-muted-foreground">Resume: {resume.name}</DropdownMenuLabel>
-              <DropdownMenuItem asChild><a href={fileUrl(resume.id)} download><Download />Download your resume</a></DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => save(resume.id)}><Download />Download your resume</DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onSelect={() => void removeResume()}><Trash2 />Remove your resume</DropdownMenuItem>
             </>
           )}
@@ -97,8 +98,8 @@ export function FileMenu({ goalId, onAttach, onBusy }: Props) {
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="font-normal text-muted-foreground">Files of this goal</DropdownMenuLabel>
               {files.map((file) => (
-                <DropdownMenuItem key={file.id} asChild>
-                  <a href={fileUrl(file.id)} download><Download /><span className="truncate">{file.name}</span></a>
+                <DropdownMenuItem key={file.id} onSelect={() => save(file.id)}>
+                  <Download /><span className="truncate">{file.name}</span>
                 </DropdownMenuItem>
               ))}
             </>

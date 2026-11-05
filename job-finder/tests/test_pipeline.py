@@ -9,6 +9,7 @@ from job_finder.web.app import create_app
 from job_finder.web.sessions import GoalSessions
 
 from .fakes import Streams, make_services, replies
+from tests.conftest import signed_in_client
 
 
 async def add_job(store, goal_id, title="Backend Engineer", company="Acme", location="Pune", fit="fit", n=1):
@@ -163,7 +164,7 @@ async def client(app_settings, store, hub, recorder):
     services = make_services(app_settings, store, hub, recorder, Streams(replies("On it.")))
     manager = GoalSessions(services, idle_s=600)
     app = create_app(app_settings, services, manager)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as http:
+    async with signed_in_client(app) as http:
         yield http
     await manager.close_all()
 

@@ -7,7 +7,7 @@ it("gives Goals a target and Mandates a scroll", () => {
   render(
     <TooltipProvider>
       <IconRail section="goals" onSection={vi.fn()} theme="system" resolved="light" onTheme={vi.fn()} narrow={false}
-        login={{ open: false, onOpenChange: vi.fn(), status: null, onChanged: vi.fn() }} />
+        login={{ open: false, onOpenChange: vi.fn(), status: null, onChanged: vi.fn() }} onSignOut={vi.fn()} />
     </TooltipProvider>,
   )
   expect(screen.getByRole("button", { name: "Goals" }).querySelector(".lucide-target")).toBeInTheDocument()
