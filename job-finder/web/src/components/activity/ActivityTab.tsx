@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Copy, Check, Download, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,31 @@ import { cn } from "@/lib/utils"
 import { AgentDot, StateIcon, STATE_WORD, agentColor, duration } from "./agents"
 
 export const TREE_KEY = "job-finder-activity-tree"
+export const LANES_KEY = "job-finder-activity-lanes"
+/** The height of the lanes in pixels. The smallest height shows the time line and one lane. */
+const LANES_MIN = 64
+const LANES_MAX = 520
+const LANES_DEFAULT = 144
+const LANES_STEP = 20
+
+const clamp = (value: number) => Math.min(LANES_MAX, Math.max(LANES_MIN, Math.round(value)))
+
+function readLanes(): number {
+  try {
+    const value = Number(localStorage.getItem(LANES_KEY))
+    return value ? clamp(value) : LANES_DEFAULT
+  } catch {
+    return LANES_DEFAULT
+  }
+}
+
+function saveLanes(height: number) {
+  try {
+    localStorage.setItem(LANES_KEY, String(height))
+  } catch {
+    // The height then lasts only while the page is open.
+  }
+}
 
 function readTree(): boolean {
   try {
@@ -49,6 +74,7 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
   const [chosen, setChosen] = useState<string | null>(initialStep ?? null)
   const [filter, setFilter] = useState<Filter>({ query: "", kind: "all" })
   const [treeShown, setTreeShown] = useState(readTree)
+  const [lanesHeight, setLanesHeight] = useState(readLanes)
 
   useEffect(() => {
     if (initialStep) setChosen(initialStep)
@@ -63,7 +89,17 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
       return !shown
     })
   }
-  const setKind = (kind: Filter["kind"]) => setFilter((f) => ({ ...f, kind: f.kind === kind ? "all" : kind }))
+  const setKind = (kind: Filter["kind"]) => setFilter((f) => ({ ...f, kind }))
+  const counts: Record<Filter["kind"], number> = {
+    all: activity.steps.length,
+    problems: activity.steps.filter((s) => s.state === "failed").length,
+    saves: activity.steps.filter((s) => s.saved).length,
+  }
+  const resize = (height: number, keep: boolean) => {
+    const next = clamp(height)
+    setLanesHeight(next)
+    if (keep) saveLanes(next)
+  }
   const saveLog = () => download(eventLogPath(goalId)).catch((e: unknown) => toast.error(e instanceof Error ? e.message : "The log did not download."))
 
   return (
@@ -74,13 +110,15 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
           <Input aria-label="Search the steps" placeholder="Search the steps" value={filter.query}
             onChange={(e) => setFilter((f) => ({ ...f, query: e.target.value }))} className="h-7 pl-7 text-[12px]" />
         </div>
-        <Chip pressed={filter.kind === "problems"} onClick={() => setKind("problems")}>Problems</Chip>
-        <Chip pressed={filter.kind === "saves"} onClick={() => setKind("saves")}>Saves</Chip>
+        <div role="group" aria-label="Show" className="flex gap-1">
+          {(["all", "problems", "saves"] as const).map((kind) => (
+            <Chip key={kind} pressed={filter.kind === kind} onClick={() => setKind(kind)}>
+              {kind === "all" ? "All" : kind === "problems" ? "Problems" : "Saves"}{" "}
+              <span className="tabular-nums opacity-70">{counts[kind]}</span>
+            </Chip>
+          ))}
+        </div>
         <div className="flex-1" />
-        <Button variant="ghost" size="sm" className="h-7 text-[12px]" onClick={toggleTree}>
-          {treeShown ? <PanelLeftClose aria-hidden /> : <PanelLeftOpen aria-hidden />}
-          {treeShown ? "Hide the step list" : "Show the step list"}
-        </Button>
         <Button variant="outline" size="sm" className="h-7 text-[12px]" onClick={() => void saveLog()}>
           <Download aria-hidden /> Download log
         </Button>
@@ -90,10 +128,21 @@ export function ActivityTab({ goalId, events, status, initialStep }: Props) {
       ) : (
         <>
           <div className="flex min-h-0 flex-1">
-            {treeShown && <StepTree activity={activity} filter={filter} selectedId={selectedId} onSelect={setChosen} />}
-            <StepPane goalId={goalId} activity={activity} step={selected} onSelect={setChosen} />
+            {treeShown && (
+              <aside aria-label="Step list" className="flex w-72 shrink-0 flex-col border-r">
+                <div className="flex h-9 shrink-0 items-center justify-between border-b pr-1 pl-3 text-[12px]">
+                  <span className="font-medium">Steps</span>
+                  <Button variant="ghost" size="icon" className="size-7" aria-label="Hide the step list" title="Hide the step list" onClick={toggleTree}>
+                    <PanelLeftClose aria-hidden />
+                  </Button>
+                </div>
+                <StepTree activity={activity} filter={filter} selectedId={selectedId} onSelect={setChosen} />
+              </aside>
+            )}
+            <StepPane goalId={goalId} activity={activity} step={selected} onSelect={setChosen} onShowTree={treeShown ? undefined : toggleTree} />
           </div>
-          <Lanes activity={activity} filter={filter} selectedId={selectedId} running={running} onSelect={setChosen} />
+          <LanesHandle height={lanesHeight} onResize={resize} />
+          <Lanes activity={activity} filter={filter} selectedId={selectedId} running={running} height={lanesHeight} onSelect={setChosen} />
         </>
       )}
     </div>
@@ -134,7 +183,7 @@ function StepTree({ activity, filter, selectedId, onSelect }: { activity: Activi
   )
 
   return (
-    <div role="tree" aria-label="Steps" className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-r p-2 text-[12px]">
+    <div role="tree" aria-label="Steps" className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-2 text-[12px]">
       {activity.answers.map((answer) => {
         const items = answer.items.flatMap((item): Shown[] => {
           if (item.kind === "step") return matches(item.step, filter) ? [item] : []
@@ -169,7 +218,9 @@ function StepTree({ activity, filter, selectedId, onSelect }: { activity: Activi
 
 type Loaded = { id: string; detail: StepDetail | null; error: string | null }
 
-function StepPane({ goalId, activity, step, onSelect }: { goalId: string; activity: Activity; step: Step | null; onSelect: (id: string) => void }) {
+type PaneProps = { goalId: string; activity: Activity; step: Step | null; onSelect: (id: string) => void; onShowTree?: () => void }
+
+function StepPane({ goalId, activity, step, onSelect, onShowTree }: PaneProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const id = step?.id ?? null
   const state = step?.state
@@ -184,7 +235,12 @@ function StepPane({ goalId, activity, step, onSelect }: { goalId: string; activi
     }
   }, [goalId, id, state])
 
-  if (!step) return <section aria-label="Step detail" className="flex-1" />
+  const showTree = onShowTree && (
+    <Button variant="outline" size="icon" className="size-7 shrink-0" aria-label="Show the step list" title="Show the step list" onClick={onShowTree}>
+      <PanelLeftOpen aria-hidden />
+    </Button>
+  )
+  if (!step) return <section aria-label="Step detail" className="flex-1 p-4">{showTree}</section>
   const answer = activity.answers.find((a) => a.items.some((i) => (i.kind === "step" ? i.step.id === step.id : i.run.steps.some((s) => s.id === step.id))))
   const before = nextStep(activity.steps, step.id, -1)
   const after = nextStep(activity.steps, step.id, 1)
@@ -193,6 +249,7 @@ function StepPane({ goalId, activity, step, onSelect }: { goalId: string; activi
   return (
     <section aria-label="Step detail" className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
       <div className="flex items-start gap-2">
+        {showTree}
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12px] text-muted-foreground">
             {answer ? `Message ${answer.n}` : "Goal"} › {step.runId ? step.agent : "main agent"}
@@ -272,16 +329,49 @@ function Value({ title, text, empty = "No input." }: { title: string; text: stri
 
 const LANE_LABEL = 128
 
-function Lanes({ activity, filter, selectedId, running, onSelect }: { activity: Activity; filter: Filter; selectedId: string | null; running: boolean; onSelect: (id: string) => void }) {
+/** The bar above the lanes. Drag it, or use the arrow keys, to change the height of the lanes. */
+function LanesHandle({ height, onResize }: { height: number; onResize: (height: number, keep: boolean) => void }) {
+  const drag = useRef<{ y: number; height: number } | null>(null)
+  const down = (e: PointerEvent<HTMLDivElement>) => {
+    drag.current = { y: e.clientY, height }
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+  const move = (e: PointerEvent<HTMLDivElement>) => {
+    if (drag.current) onResize(drag.current.height + drag.current.y - e.clientY, false)
+  }
+  const up = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return
+    onResize(drag.current.height + drag.current.y - e.clientY, true)
+    drag.current = null
+  }
+  const key = (e: KeyboardEvent<HTMLDivElement>) => {
+    const change = { ArrowUp: LANES_STEP, ArrowDown: -LANES_STEP, Home: LANES_MAX, End: -LANES_MAX }[e.key]
+    if (change === undefined) return
+    e.preventDefault()
+    onResize(height + change, true)
+  }
+  return (
+    <div role="separator" aria-orientation="horizontal" aria-label="Change the height of the lanes" tabIndex={0}
+      aria-valuenow={height} aria-valuemin={LANES_MIN} aria-valuemax={LANES_MAX}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onKeyDown={key}
+      className="group relative h-2 shrink-0 cursor-row-resize touch-none border-t outline-none focus-visible:bg-ring/30 hover:bg-muted">
+      <span aria-hidden className="absolute top-1/2 left-1/2 h-1 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-border group-hover:bg-muted-foreground/50" />
+    </div>
+  )
+}
+
+type LanesProps = { activity: Activity; filter: Filter; selectedId: string | null; running: boolean; height: number; onSelect: (id: string) => void }
+
+function Lanes({ activity, filter, selectedId, running, height, onSelect }: LanesProps) {
   const span = Math.max(activity.end - activity.start, 1000)
   const pos = (t: number) => ((t - activity.start) / span) * 100
   return (
-    <section aria-label="Agent lanes" className="shrink-0 border-t px-3 py-2 text-[11px]">
+    <section aria-label="Agent lanes" style={{ height }} className="flex shrink-0 flex-col px-3 pb-2 text-[11px]">
       <div className="flex items-center justify-between pb-1 text-muted-foreground" style={{ paddingLeft: LANE_LABEL }}>
         <span className="tabular-nums">{clock(activity.start)}</span>
         <span className="tabular-nums">{running ? "Now" : clock(activity.end)}</span>
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {activity.agents.map((agent) => (
           <div key={agent} className="flex items-center">
             <span className="flex shrink-0 items-center gap-1.5 truncate pr-2" style={{ width: LANE_LABEL }}>
