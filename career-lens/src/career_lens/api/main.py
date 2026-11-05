@@ -11,8 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from ..consumer_contract import SCHEMA_VERSION
 from ..store.config import ConfigError
 from ..store.db import DatabaseUnavailable
-from . import console, entities, generic, google, jobs, operator, operator_auth, search, v1
-from .security import require_key
+from . import console, entities, generic, google, jobs, operator, operator_auth, rate_limit, search, v1
 from .versioning import ConsumerVersionMiddleware
 
 
@@ -24,7 +23,9 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url=None,
     )
+    app.state.rate_limiter = rate_limit.from_env()
     app.add_middleware(ConsumerVersionMiddleware)
+    app.add_middleware(rate_limit.RateLimitHeaders)
 
     @app.exception_handler(Exception)
     def unexpected(request: Request, exc: Exception) -> JSONResponse:
@@ -88,7 +89,7 @@ def create_app() -> FastAPI:
             openapi_url="/openapi.json", title="career_lens - ReDoc",
         )
 
-    v1_auth = [Depends(require_key)]
+    v1_auth = [Depends(rate_limit.limited_key)]
     app.include_router(v1.router, dependencies=v1_auth)
     app.include_router(entities.router, dependencies=v1_auth)
     app.include_router(generic.router, dependencies=v1_auth)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,6 +11,8 @@ import httpx
 
 FRESHNESS = "7d"  # default: career-lens reuses a result newer than this instead of a new capture
 CANCEL_TIMEOUT_S = 5.0  # a stop waits at most this long for career-lens
+RATE_LIMIT_RETRIES = 3  # after a 429, the tries again of one call
+MAX_RATE_LIMIT_WAIT_S = 10.0  # the longest wait before a try again, whatever Retry-After says
 SECTIONS = ("about", "jobs")  # the LinkedIn company sections that job-finder uses
 POSTED_WITHIN = ("day", "week", "month")  # the time filters of a LinkedIn job search
 WORKPLACE_TYPES = ("on_site", "hybrid", "remote")
@@ -92,9 +94,18 @@ def _detail(response: httpx.Response) -> str:
     return detail if isinstance(detail, str) else f"HTTP {response.status_code}"
 
 
+def _retry_after(response: httpx.Response) -> float:
+    try:
+        seconds = float(response.headers.get("Retry-After", ""))
+    except ValueError:
+        return 1.0
+    return min(max(seconds, 0.0), MAX_RATE_LIMIT_WAIT_S) if seconds == seconds else 1.0
+
+
 class CareerLens:
     def __init__(self, base_url: str, api_key: str, *, client: httpx.AsyncClient | None = None,
-                 freshness: str = FRESHNESS):
+                 freshness: str = FRESHNESS, sleep: Callable[[float], Awaitable[None]] = asyncio.sleep):
+        self._sleep = sleep
         self.configured = bool(base_url and api_key)
         self.freshness = freshness
         self._client = client or httpx.AsyncClient(
@@ -125,10 +136,17 @@ class CareerLens:
     async def _call(self, method: str, path: str, *, allow_404: bool = False, **kwargs: Any) -> httpx.Response:
         if not self.configured:
             raise CareerLensError("career-lens is not configured (set CAREER_LENS_BASE_URL and CAREER_LENS_API_KEY)")
-        try:
-            response = await self._client.request(method, path, **kwargs)
-        except httpx.RequestError as exc:
-            raise CareerLensError("career-lens is unreachable") from exc
+        for retry in range(RATE_LIMIT_RETRIES + 1):
+            try:
+                response = await self._client.request(method, path, **kwargs)
+            except httpx.RequestError as exc:
+                raise CareerLensError("career-lens is unreachable") from exc
+            if response.status_code != 429:
+                break
+            if retry == RATE_LIMIT_RETRIES:
+                raise CareerLensError("career-lens refused too many calls. Try again in a minute.")
+            # career-lens refuses a call before it does any work, so a second try of a POST is safe.
+            await self._sleep(_retry_after(response))
         if response.status_code in (401, 403):
             raise CareerLensError("career-lens rejected the API key")
         if response.status_code == 404 and allow_404:

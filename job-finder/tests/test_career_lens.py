@@ -218,3 +218,52 @@ def test_wait_reasons_become_plain_words():
     assert wait_text("all_workers_busy") == "All career-lens workers are busy"
     assert wait_text("something new") == "something new"
     assert wait_text(None) is None
+
+
+def _limited(retry_after: str | None = "2") -> httpx.Response:
+    headers = {"Retry-After": retry_after} if retry_after is not None else {}
+    return httpx.Response(429, json={"detail": {"code": "rate_limited"}}, headers=headers)
+
+
+@pytest.fixture
+async def waits():
+    slept: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        slept.append(seconds)
+
+    client = CareerLens(BASE, "cl_v1.test-key", sleep=sleep)
+    yield client, slept
+    await client.aclose()
+
+
+@respx.mock
+async def test_a_rate_limit_waits_as_long_as_career_lens_says_then_tries_again(waits):
+    lens, slept = waits
+    route = respx.post(f"{BASE}/v1/scrape/linkedin-company").mock(side_effect=[
+        _limited("2"), httpx.Response(202, json={"request_id": "rq-1", "status": "queued"})])
+    sub = await lens.scrape_company(CO)
+    assert sub.body["request_id"] == "rq-1"
+    assert slept == [2.0]
+    assert route.call_count == 2
+
+
+@respx.mock
+async def test_a_long_or_missing_wait_is_kept_short(waits):
+    lens, slept = waits
+    respx.get(f"{BASE}/v1/requests/rq-1").mock(side_effect=[
+        _limited("3600"), _limited(None), _limited("soon"), httpx.Response(200, json={"status": "queued"})])
+    assert (await lens.request_status("rq-1"))["status"] == "queued"
+    from job_finder.career_lens import MAX_RATE_LIMIT_WAIT_S
+    assert slept == [MAX_RATE_LIMIT_WAIT_S, 1.0, 1.0]
+
+
+@respx.mock
+async def test_a_rate_limit_that_stays_gives_a_clear_error(waits):
+    lens, slept = waits
+    from job_finder.career_lens import RATE_LIMIT_RETRIES
+    route = respx.get(f"{BASE}/v1/requests/rq-1").mock(return_value=_limited("1"))
+    with pytest.raises(CareerLensError, match="too many calls"):
+        await lens.request_status("rq-1")
+    assert route.call_count == RATE_LIMIT_RETRIES + 1
+    assert len(slept) == RATE_LIMIT_RETRIES

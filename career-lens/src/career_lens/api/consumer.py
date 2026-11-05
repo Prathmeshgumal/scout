@@ -97,7 +97,7 @@ class ErrorResponse(BaseModel):
 
 
 ERROR_RESPONSES = {
-    code: {"model": ErrorResponse} for code in (400, 404, 409, 422, 500, 503)
+    code: {"model": ErrorResponse} for code in (400, 404, 409, 422, 429, 500, 503)
 }
 
 
