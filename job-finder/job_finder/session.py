@@ -409,8 +409,11 @@ class GoalSession:
 
     async def _wrap_up(self, reason: str, *, user_message: str | None = None) -> None:
         """The spend cap or the hard time limit is reached: stop the subagents and get one short answer from a small
-        new budget."""
+        new budget. The waiting scrapes are cancelled too, also in career-lens: no agent will read their results.
+        The hard time limit cancels them before it calls this."""
         note = "Stopped at the time limit." if reason == TIME_REASON else "Stopped at the spend limit."
+        if reason != TIME_REASON:
+            await self._cancel_scrapes(list(self.waiting), not_read=True)
         for task_id in list(self.tasks):
             await self.store.finish_task(task_id, "stopped", note)
         self.tasks.clear()

@@ -285,6 +285,29 @@ async def test_spend_cap_stops_subagents_and_gets_a_wrap_up_answer(app_settings,
     await session.close()
 
 
+async def test_spend_cap_cancels_in_career_lens_what_no_other_goal_waits_on(app_settings, store, recorder, streams):
+    goal, other = await store.create_goal("g", max_spend_usd=1.0), await store.create_goal("other")
+    for goal_id, request_id in ((goal["id"], "rq-own"), (goal["id"], "rq-shared"), (other["id"], "rq-shared")):
+        await store.add_scrape(goal_id, request_id, "linkedin_company",
+                               f"https://www.linkedin.com/company/{request_id}/", True)
+    career_lens = Cancels()
+    session = GoalSession(app_settings, store, recorder, career_lens, goal["id"], client_factory=streams)
+    await session.open(recover=False)
+    await session.send("go", "user")
+    session.waiting.add("rq-page")  # a read_page of the subagent waits on this page
+    streams.last.push(agent_call("call-1", "job-research"), task_started("a1", "call-1"),
+                      result("error_max_budget_usd", is_error=True, cost=0.80))
+    await streams.last.flush()
+
+    assert sorted(career_lens.asked) == ["rq-own", "rq-page"]
+    finished = {e["request_id"]: e for e in await store.list_events(goal["id"]) if e["type"] == "scrape_finished"}
+    assert (finished["rq-own"]["status"], finished["rq-own"]["answer"]) == ("cancelled", "cancelled")
+    assert finished["rq-shared"]["answer"] is None  # the other goal still waits on it
+    assert {s["status"] for s in await store.list_scrapes(goal["id"])} == {"cancelled"}
+    assert {s["status"] for s in await store.list_scrapes(other["id"])} == {"pending"}
+    await session.close()
+
+
 async def test_capped_goal_reopens_without_a_client_until_a_message(app_settings, store, recorder, streams):
     goal = await store.create_goal("g", max_spend_usd=1.0)
     await store.add_spend(goal["id"], 0.9)
