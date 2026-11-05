@@ -1,7 +1,12 @@
 import type { GoalEvent, GoalStatus } from "./api"
 
-/** A subagent run. The chat shows one line for it, not a log of its steps. */
-export type AgentLine = { kind: "agent"; callId: string; name: string; task: string; state: "running" | "done" | "failed" | "stopped"; summary?: string }
+export type StepState = "running" | "done" | "failed" | "stopped"
+
+/** One tool call of a subagent, as its card in the chat shows it. */
+export type AgentStep = { id: string; label: string; state: StepState; summary?: string }
+
+/** A subagent run. The chat shows a card with its last steps. The Activity tab shows all of them. at: the time the run started. */
+export type AgentLine = { kind: "agent"; callId: string; name: string; task: string; state: StepState; summary?: string; steps: AgentStep[]; at?: string }
 
 export type Part =
   | { kind: "text"; text: string; draft?: boolean }
@@ -12,7 +17,8 @@ export type Part =
 /** closed: the response of the main agent ended. Its next response starts a new message. */
 export type ChatMessage = { id: string; role: "user" | "assistant"; parts: Part[]; closed?: boolean }
 
-export type GoalView = { status: GoalStatus; messages: ChatMessage[]; lastSeq: number }
+/** events: the stored events, for the Activity tab. Live typing (no seq) is not kept. */
+export type GoalView = { status: GoalStatus; messages: ChatMessage[]; lastSeq: number; events: GoalEvent[] }
 
 const str = (value: unknown) => (typeof value === "string" ? value : "")
 
@@ -30,8 +36,21 @@ function finishState(event: GoalEvent): AgentLine["state"] {
 /** Notices that are messages to the main agent. The user does not read these. */
 const FOR_THE_AGENT = new Set(["scrapes_finished", "wrap_up", "time_limit", "time_continue", "continue", "restart", "retry"])
 
+/** Changes the card of the subagent run with this call id. The newest card is found first. */
+function onAgent(messages: ChatMessage[], callId: string, change: (line: AgentLine) => AgentLine): ChatMessage[] {
+  for (let m = messages.length - 1; m >= 0; m--) {
+    const index = messages[m].parts.findIndex((p) => p.kind === "agent" && p.callId === callId)
+    if (index < 0) continue
+    const parts = [...messages[m].parts]
+    parts[index] = change(parts[index] as AgentLine)
+    return [...messages.slice(0, m), { ...messages[m], parts }, ...messages.slice(m + 1)]
+  }
+  return messages
+}
+
 export function applyEvent(view: GoalView, event: GoalEvent): GoalView {
-  const next: GoalView = { ...view, lastSeq: typeof event.seq === "number" ? event.seq : view.lastSeq }
+  const stored = typeof event.seq === "number"
+  const next: GoalView = { ...view, lastSeq: stored ? (event.seq as number) : view.lastSeq, events: stored ? [...view.events, event] : view.events }
   const key = String(event.seq ?? view.messages.length)
   const add = (part: Part): GoalView => ({ ...next, messages: onAssistant(view.messages, (parts) => [...parts, part], key) })
   // A retry that fails for the same reason does not add the same error again.
@@ -61,7 +80,26 @@ export function applyEvent(view: GoalView, event: GoalEvent): GoalView {
         }, key),
       }
     case "agent_started":
-      return add({ kind: "agent", callId: str(event.tool_use_id), name: str(event.name), task: str(event.task), state: "running" })
+      return add({ kind: "agent", callId: str(event.tool_use_id), name: str(event.name), task: str(event.task), state: "running", steps: [], ...(event.at ? { at: str(event.at) } : {}) })
+    case "tool_started": {
+      const callId = str(event.call_id)
+      if (!callId) return next
+      const step: AgentStep = { id: str(event.tool_use_id), label: str(event.label) || str(event.tool), state: "running" }
+      return { ...next, messages: onAgent(view.messages, callId, (line) => ({ ...line, steps: [...line.steps, step] })) }
+    }
+    case "tool_finished": {
+      const callId = str(event.call_id)
+      const id = str(event.tool_use_id)
+      if (!callId) return next
+      const state: StepState = event.ok ? "done" : "failed"
+      return {
+        ...next,
+        messages: onAgent(view.messages, callId, (line) => ({
+          ...line,
+          steps: line.steps.map((s) => (s.id === id ? { ...s, state, ...(str(event.summary) ? { summary: str(event.summary) } : {}) } : s)),
+        })),
+      }
+    }
     case "agent_finished": {
       const id = str(event.tool_use_id)
       const name = str(event.name)
@@ -102,7 +140,7 @@ export function applyEvent(view: GoalView, event: GoalEvent): GoalView {
 }
 
 export function fromEvents(status: GoalStatus, events: GoalEvent[]): GoalView {
-  return { ...events.reduce(applyEvent, { status, messages: [], lastSeq: 0 }), status }
+  return { ...events.reduce(applyEvent, { status, messages: [], lastSeq: 0, events: [] }), status }
 }
 
 /** A line that shows as running only while the goal works. After a stop, its work stopped. */

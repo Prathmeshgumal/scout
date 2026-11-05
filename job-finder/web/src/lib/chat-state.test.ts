@@ -19,11 +19,33 @@ describe("chat state", () => {
     const started = fromEvents("running", [ev(1, "agent_started", { tool_use_id: "a1", name: "job-discovery", task: "Find" })])
     expect(runningAgents(started).map((a) => a.name)).toEqual(["job-discovery"])
     const done = applyEvent(started, ev(2, "agent_finished", { tool_use_id: "a1", name: "job-discovery", ok: true, summary: "3 new roles" }))
-    expect(done.messages[0].parts).toEqual([{ kind: "agent", callId: "a1", name: "job-discovery", task: "Find", state: "done", summary: "3 new roles" }])
+    expect(done.messages[0].parts).toEqual([{ kind: "agent", callId: "a1", name: "job-discovery", task: "Find", state: "done", summary: "3 new roles", steps: [] }])
     expect(runningAgents(done)).toEqual([])
   })
 
-  it("does not show the steps of a subagent", () => {
+  it("shows the steps of a subagent in its card, and their results", () => {
+    const view = fromEvents("running", [
+      ev(1, "agent_started", { tool_use_id: "a1", name: "job-discovery", task: "Find", at: "2026-11-05T10:00:00Z" }),
+      ev(2, "tool_started", { tool_use_id: "s1", tool: "search_linkedin_jobs", label: "Searching LinkedIn jobs: AI", call_id: "a1" }),
+      ev(3, "tool_started", { tool_use_id: "s2", tool: "read_page", label: "Reading a page", call_id: "a1" }),
+      ev(4, "tool_finished", { tool_use_id: "s1", ok: true, summary: "18 roles", call_id: "a1" }),
+      ev(5, "tool_finished", { tool_use_id: "s2", ok: false, summary: "career-lens error", call_id: "a1" }),
+    ])
+    const [card] = view.messages[0].parts
+    expect(card.kind === "agent" && card.steps).toEqual([
+      { id: "s1", label: "Searching LinkedIn jobs: AI", state: "done", summary: "18 roles" },
+      { id: "s2", label: "Reading a page", state: "failed", summary: "career-lens error" },
+    ])
+    expect(card.kind === "agent" && card.at).toBe("2026-11-05T10:00:00Z")
+  })
+
+  it("keeps the stored events for the Activity tab, not the live typing", () => {
+    const view = fromEvents("running", [ev(1, "user_message", { text: "x" }), { seq: null, type: "text_delta", text: "a" }])
+    expect(view.events.map((e) => e.seq)).toEqual([1])
+    expect(applyEvent(view, ev(2, "text", { text: "b" })).events).toHaveLength(2)
+  })
+
+  it("does not show the steps of the main agent in the chat", () => {
     const view = fromEvents("running", [ev(1, "tool_started", { tool: "google_search", label: "Searching" })])
     expect(view.messages).toEqual([])
   })

@@ -1,29 +1,19 @@
-import { Check, CircleSlash, Loader2, RotateCcw, Square, TriangleAlert, Info } from "lucide-react"
+import { Loader2, RotateCcw, Square, Info } from "lucide-react"
 import { useEffect, useRef, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import type { GoalStatus, TimeLimitCheck } from "@/lib/api"
-import { shownState, type ChatMessage, type GoalView, type Part } from "@/lib/chat-state"
+import { type ChatMessage, type GoalView, type Part } from "@/lib/chat-state"
 import { splitChoices, type Choice } from "@/lib/choices"
 import { canRetry, canStop } from "@/lib/goals"
-import { cn } from "@/lib/utils"
+import { AgentCard } from "./AgentCard"
 import { Markdown } from "./Markdown"
 
-function PartView({ part, status }: { part: Part; status: GoalStatus }) {
+function PartView({ part, status, onActivity }: { part: Part; status: GoalStatus; onActivity?: (stepId: string | null) => void }) {
   switch (part.kind) {
     case "text":
       return <div className="leading-relaxed break-words"><Markdown>{splitChoices(part.text).text}</Markdown></div>
-    case "agent": {
-      const state = shownState(part, status)
-      const Icon = state === "running" ? Loader2 : state === "done" ? Check : state === "failed" ? TriangleAlert : CircleSlash
-      const verb = state === "running" ? "working" : state === "done" ? "finished" : state
-      return (
-        <p className="flex min-w-0 items-center gap-2 text-[12px] text-muted-foreground">
-          <Icon aria-hidden className={cn("size-3.5 shrink-0", state === "running" && "animate-spin text-violet-500",
-            state === "done" && "text-emerald-600 dark:text-emerald-400", state === "failed" && "text-red-600 dark:text-red-400")} />
-          <span className="min-w-0 truncate"><span className="font-medium text-foreground">{part.name}</span> {verb}{part.summary ? `: ${part.summary}` : part.task ? `: ${part.task}` : ""}</span>
-        </p>
-      )
-    }
+    case "agent":
+      return <AgentCard line={part} status={status} onActivity={onActivity} />
     case "error":
       return <p className="rounded-lg bg-red-500/10 px-3 py-2 break-words text-red-800 dark:text-red-200">{part.text}</p>
     case "notice":
@@ -31,7 +21,7 @@ function PartView({ part, status }: { part: Part; status: GoalStatus }) {
   }
 }
 
-function Message({ message, status, onChoose }: { message: ChatMessage; status: GoalStatus; onChoose?: (text: string) => void }) {
+function Message({ message, status, onChoose, onActivity }: { message: ChatMessage; status: GoalStatus; onChoose?: (text: string) => void; onActivity?: (stepId: string | null) => void }) {
   if (message.role === "user") {
     const text = message.parts[0]?.kind === "text" ? message.parts[0].text : ""
     return <div className="ml-auto max-w-[85%] rounded-xl bg-muted px-3 py-2 leading-relaxed break-words whitespace-pre-wrap">{text}</div>
@@ -40,7 +30,7 @@ function Message({ message, status, onChoose }: { message: ChatMessage; status: 
   const choices: Choice[] = lastText?.kind === "text" ? splitChoices(lastText.text).choices : []
   return (
     <div className="flex flex-col gap-2">
-      {message.parts.map((part, i) => <PartView key={i} part={part} status={status} />)}
+      {message.parts.map((part, i) => <PartView key={i} part={part} status={status} onActivity={onActivity} />)}
       {onChoose && choices.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {choices.map((c) => (
@@ -61,11 +51,13 @@ type Props = {
   onChoose: (text: string) => void
   onStop: () => void
   onRetry: () => void
+  /** Opens a step in the Activity tab. A chat without that tab does not give it. */
+  onActivity?: (stepId: string | null) => void
   onContinue: () => void
   composer: ReactNode
 }
 
-export function ChatView({ view, reason, thinking, readOnly, timeLimit, onChoose, onStop, onRetry, onContinue, composer }: Props) {
+export function ChatView({ view, reason, thinking, readOnly, timeLimit, onChoose, onStop, onRetry, onContinue, onActivity, composer }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const stuck = useRef(true)
   const messages = view?.messages
@@ -82,7 +74,7 @@ export function ChatView({ view, reason, thinking, readOnly, timeLimit, onChoose
         <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-4 py-5">
           {!view && <div className="flex flex-col gap-2" role="status" aria-label="Loading the chat"><div className="skeleton h-3.5 w-3/4" /><div className="skeleton h-3.5 w-1/2" /></div>}
           {view && messages?.map((message) => (
-            <Message key={message.id} message={message} status={view.status}
+            <Message key={message.id} message={message} status={view.status} onActivity={onActivity}
               onChoose={message === last && message.closed && !thinking && !readOnly ? onChoose : undefined} />
           ))}
           {thinking && <p className="flex items-center gap-2 text-[12px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin text-violet-500" aria-hidden /> Working</p>}

@@ -7,6 +7,7 @@ it.each([
   ["/", { section: "goals", goalId: null, tab: "chat" }],
   [`/goals/${ID}`, { section: "goals", goalId: ID, tab: "chat" }],
   [`/goals/${ID}/jobs`, { section: "goals", goalId: ID, tab: "jobs" }],
+  [`/goals/${ID}/activity`, { section: "goals", goalId: ID, tab: "activity" }],
   ["/jobs", { section: "jobs", goalId: null }],
   ["/pipeline", { section: "pipeline", goalId: null }],
   ["/mandates", { section: "mandates", mandateId: null }],
