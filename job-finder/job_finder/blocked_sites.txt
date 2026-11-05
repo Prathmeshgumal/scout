@@ -1,0 +1,35 @@
+# Sites that are not about jobs. read_page refuses them and google_search removes them from its results.
+# One domain on each line. A domain also blocks its subdomains.
+
+# Adult
+pornhub.com
+xvideos.com
+xnxx.com
+xhamster.com
+redtube.com
+youporn.com
+onlyfans.com
+chaturbate.com
+spankbang.com
+eporner.com
+stripchat.com
+
+# Gambling
+bet365.com
+betway.com
+stake.com
+1xbet.com
+pokerstars.com
+draftkings.com
+fanduel.com
+dream11.com
+
+# Piracy
+thepiratebay.org
+1337x.to
+rarbg.to
+yts.mx
+fitgirl-repacks.site
+libgen.is
+z-library.sk
+sci-hub.se

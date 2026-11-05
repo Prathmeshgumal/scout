@@ -14,10 +14,12 @@ READ_TOOLS = ("mcp__artifacts__list_jobs", "mcp__artifacts__read_job")
 
 # The writing rules that every subagent follows, at the end of its prompt.
 WRITING = (Path(__file__).parent / "writing.md").read_text()
+# What agents may do, in the prompt of every agent: the main agent, the mandate chat and each subagent.
+SCOPE = (Path(__file__).parent.parent / "scope.md").read_text().rstrip()
 
 
 def load_prompt(folder: Path) -> str:
-    return f"{(folder / 'prompt.md').read_text().rstrip()}\n\n{WRITING}"
+    return f"{(folder / 'prompt.md').read_text().rstrip()}\n\n{SCOPE}\n\n{WRITING}"
 
 
 @dataclass(frozen=True)

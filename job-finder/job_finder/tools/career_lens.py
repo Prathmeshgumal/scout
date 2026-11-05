@@ -28,6 +28,7 @@ from ..career_lens import (
 from ..jobs import is_linkedin_job_url, is_linkedin_url, linkedin_job_id, looks_like_sign_in
 from ..page_reader import PageReaderError
 from ..recap import scrape_line
+from ..site_policy import blocked_url_reason
 from ..summarize import format_search_results, summarize_company, summarize_job, summarize_job_search
 from . import ToolContext, result
 
@@ -98,6 +99,9 @@ JOB_SCHEMA = {"type": "object", "properties": {
                                                 "give it, the full description is saved on that role."},
 }, "required": ["url"]}
 DEFAULT_JOB_PAGES = 2
+BLOCK_LIMIT = 3  # refused pages in one session that stop the goal
+BLOCK_STOP_REASON = ("Stopped: the agent tried to open pages that are not about jobs or are on this network "
+                     f"{BLOCK_LIMIT} times. Look at the Activity tab, then retry with a clearer goal.")
 
 
 def failure_kind(tool: str, reply: str) -> str | None:
@@ -254,6 +258,8 @@ async def _read_page(ctx: ToolContext, args: dict) -> dict:
         return result(LINKEDIN_JOB_REFUSAL, error=True)
     if is_linkedin_url(url):
         return result(LINKEDIN_PAGE_REFUSAL, error=True)
+    if reason := await asyncio.to_thread(blocked_url_reason, url, resolve=ctx.resolve):
+        return await _refuse(ctx, url, reason)
     try:
         submission = await ctx.career_lens.scrape_url(url)
         request_id = submission.body["request_id"]
@@ -289,6 +295,28 @@ async def _read_page(ctx: ToolContext, args: dict) -> dict:
     return result(f"Page: {final}\n\n{answer.text}")
 
 
+async def _refuse(ctx: ToolContext, url: str, reason: str) -> dict:
+    """read_page refuses a blocked page. Too many refusals in one session stop the goal."""
+    await ctx.recorder.record(ctx.goal_id, "site_blocked", tool="read_page", url=url, reason=reason)
+    ctx.blocked += 1
+    if ctx.blocked >= BLOCK_LIMIT and ctx.on_block_limit is not None:
+        ctx.on_block_limit(BLOCK_STOP_REASON)
+    return result(f"Refused: {url} {reason}. Agents read only pages for a job search. Use a different source.",
+                  error=True)
+
+
+async def _without_blocked(ctx: ToolContext, body: dict) -> tuple[dict, int]:
+    """The search reply without results on blocked sites. Only the names: no DNS for each result."""
+    results = body.get("results") or []
+    kept = [row for row in results if not blocked_url_reason(str(row.get("url") or ""), resolve=lambda host: [])
+            or not str(row.get("url") or "").strip()]
+    removed = len(results) - len(kept)
+    if removed:
+        await ctx.recorder.record(ctx.goal_id, "site_blocked", tool="google_search", query=body.get("query", ""),
+                                  count=removed)
+    return {**body, "results": kept}, removed
+
+
 async def _search(ctx: ToolContext, args: dict) -> dict:
     query = (args.get("query") or "").strip()
     if not query:
@@ -320,7 +348,11 @@ async def _search(ctx: ToolContext, args: dict) -> dict:
     if body.get("status") in ("failed", "cancelled"):
         reason = (body.get("failure") or {}).get("kind") or body.get("status")
         return result(f'Google search for "{query}" failed ({reason}). {NOT_NO_JOBS}', error=True)
-    return result(format_search_results(body))
+    body, removed = await _without_blocked(ctx, body)
+    found = format_search_results(body)
+    if removed:
+        found += f"\n(Removed {removed} result{'' if removed == 1 else 's'} on blocked sites.)"
+    return result(found)
 
 
 def _job_search_args(args: dict) -> dict:

@@ -8,7 +8,14 @@ from claude_agent_sdk import AssistantMessage, ToolResultBlock, ToolUseBlock, Us
 
 from job_finder.career_lens import CareerLens
 from job_finder.hooks import QUEUED
-from job_finder.tools.career_lens import LINKEDIN_JOB_REFUSAL, ToolContext, build_tools, failure_kind
+from job_finder.tools.career_lens import (
+    BLOCK_LIMIT,
+    BLOCK_STOP_REASON,
+    LINKEDIN_JOB_REFUSAL,
+    ToolContext,
+    build_tools,
+    failure_kind,
+)
 from job_finder.translate import Translator
 
 BASE = "https://cl.test"
@@ -21,7 +28,8 @@ DESCRIPTION = "We build payment systems in Go and Python. " * 10
 async def ctx(store, recorder):
     goal = await store.create_goal("g")
     lens = CareerLens(BASE, "cl_v1.test-key")
-    yield ToolContext(goal["id"], store, recorder, lens, poll_interval_s=0, poll_timeout_s=0.05)
+    yield ToolContext(goal["id"], store, recorder, lens, poll_interval_s=0, poll_timeout_s=0.05,
+                      resolve=lambda host: [])  # no DNS in tests
     await lens.aclose()
 
 
@@ -578,3 +586,45 @@ async def test_read_page_adds_the_cost_of_the_small_model_to_the_goal(ctx):
     await tool(ctx, "read_page")({"url": PAGE_URL, "prompt": "q"})
     assert (await ctx.store.get_goal(ctx.goal_id))["spend_usd"] == pytest.approx(0.004)
 
+
+
+@pytest.mark.parametrize("url", ["http://127.0.0.1:8090/console", "http://localhost:8000/", "https://www.pornhub.com/",
+                                 "http://192.168.1.1/"])
+async def test_read_page_refuses_blocked_sites_without_calling_career_lens(ctx, store, url):
+    ctx.reader = FakeReader()
+    result = await tool(ctx, "read_page")({"url": url, "prompt": "q"})  # respx is off: a call would fail
+    assert result["is_error"] is True and text(result).startswith(f"Refused: {url} is ")
+    assert "Use a different source" in text(result)
+    [event] = [e for e in await store.list_events(ctx.goal_id, 0) if e["type"] == "site_blocked"]
+    assert event["url"] == url and event["tool"] == "read_page"
+
+
+async def test_read_page_refuses_a_name_that_resolves_to_this_computer(ctx):
+    ctx.reader, ctx.resolve = FakeReader(), lambda host: ["127.0.0.1"]
+    result = await tool(ctx, "read_page")({"url": "https://local.example.com/", "prompt": "q"})
+    assert result["is_error"] is True and "local or private" in text(result)
+
+
+async def test_too_many_refused_pages_stop_the_goal(ctx):
+    stops = []
+    ctx.reader, ctx.on_block_limit = FakeReader(), stops.append
+    for _ in range(BLOCK_LIMIT - 1):
+        await tool(ctx, "read_page")({"url": "https://www.pornhub.com/", "prompt": "q"})
+    assert stops == []
+    await tool(ctx, "read_page")({"url": "http://127.0.0.1/", "prompt": "q"})
+    assert stops == [BLOCK_STOP_REASON]
+
+
+@respx.mock
+async def test_google_search_removes_results_on_blocked_sites(ctx, store):
+    respx.post(f"{BASE}/v1/search").mock(return_value=httpx.Response(200, json={
+        "request_id": "rq-1", "status": "succeeded", "query": "acme",
+        "results": [{"rank": 1, "title": "Acme", "url": "https://acme.com", "snippet": "anvils"},
+                    {"rank": 2, "title": "Bad", "url": "https://www.xvideos.com/acme", "snippet": "x"},
+                    {"rank": 3, "title": "Local", "url": "http://10.0.0.1/", "snippet": "x"}]}))
+    result = await tool(ctx, "google_search")({"query": "acme"})
+    body = text(result)
+    assert "1. Acme" in body and "xvideos" not in body and "10.0.0.1" not in body
+    assert "Removed 2 results on blocked sites." in body
+    [event] = [e for e in await store.list_events(ctx.goal_id, 0) if e["type"] == "site_blocked"]
+    assert event["tool"] == "google_search" and event["count"] == 2

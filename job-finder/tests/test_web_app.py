@@ -424,3 +424,15 @@ async def test_continue_after_the_time_limit(client, store, streams, make_run, p
     assert (await store.get_goal(run["id"]))["status"] == "running"
     other = await idle_goal(store)
     assert (await client.get(f"/api/goals/{other}?events=false")).json()["time_limit"] is None
+
+
+async def test_a_new_goal_that_is_not_a_job_search_is_refused(app_settings, services, sessions, store, streams):
+    async def check(text):
+        return "I help only with a job search." if "casino" in text else None
+
+    app = create_app(app_settings, services, sessions, model_loader=sdk_models, request_check=check)
+    async with signed_in_client(app) as c:
+        refused = await c.post("/api/goals", json={"text": "find casino sites"})
+        assert refused.status_code == 422 and refused.json()["detail"] == "I help only with a job search."
+        assert await store.list_goals() == [] and streams.clients == []  # no goal and no agent
+        assert (await c.post("/api/goals", json={"text": "Find 5 Go roles in Pune"})).status_code == 201

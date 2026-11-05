@@ -128,3 +128,33 @@ def test_a_goal_uses_its_own_model_and_effort_for_all_its_agents(app_settings):
     assert (chosen.model, chosen.effort) == ("claude-opus-5-5", "high")
     assert {d.effort for d in chosen.agents.values()} == {"high"}  # the subagents work with the same effort
     assert {d.model for d in chosen.agents.values()} == {None}  # None: the model of the main agent
+
+
+# Tools that reach past job-finder's own tools: the shell, files, the open web and other agents.
+GENERAL_TOOLS = {"Bash", "BashOutput", "Read", "Write", "Edit", "MultiEdit", "NotebookEdit", "Glob", "Grep", "LS",
+                 "WebFetch", "WebSearch", "Task", "TodoWrite", "KillShell", "Skill", "ExitPlanMode"}
+
+
+def tool_names(o) -> set[str]:
+    names = set(o.tools or []) | set(o.allowed_tools or [])
+    for agent in (o.agents or {}).values():
+        names |= set(agent.tools or [])
+    return names
+
+
+def test_no_agent_gets_a_general_tool(app_settings):
+    """Agents use only job-finder's tools. A general tool here is a way past the site policy."""
+    for g in (goal(), goal(home_of="m-1"), goal(mandate_id="m-1"), *(goal(name) for name in REGISTRY)):
+        o = options_for(app_settings, g)
+        assert not tool_names(o) & GENERAL_TOOLS, g
+        assert all(name in ("Agent", "SendMessage") or name.startswith("mcp__") for name in tool_names(o)), g
+        assert o.setting_sources == [] and o.strict_mcp_config is True  # no tools from settings or other servers
+
+
+def test_every_agent_prompt_has_the_scope_rules(app_settings):
+    from job_finder.agents.spec import SCOPE
+    assert SCOPE.startswith("Scope and safety:")
+    for g in (goal(), goal(home_of="m-1"), goal(mandate_id="m-1")):
+        assert SCOPE in options_for(app_settings, g).system_prompt
+    for spec in REGISTRY.values():
+        assert SCOPE in spec.prompt, spec.name

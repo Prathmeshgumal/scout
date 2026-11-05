@@ -13,6 +13,7 @@ from claude_agent_sdk import ClaudeAgentOptions, HookMatcher
 
 from .agents import REGISTRY, SubagentSpec
 from .agents.candidate_profile.agent import SPEC as PROFILE
+from .agents.spec import SCOPE
 from .config import Settings, claude_env
 from .guard import SubagentGuard
 from .hooks import (
@@ -60,7 +61,7 @@ def goal_kind(goal: dict) -> str:
 
 def main_prompt(goal_id: str, kind: str = "goal") -> str:
     """The prompt of the main agent. It does not hold the candidate profile: only two subagents read that."""
-    parts = [MAIN_PROMPT, f"The id of this goal is {goal_id}."]
+    parts = [MAIN_PROMPT.rstrip(), SCOPE, f"The id of this goal is {goal_id}."]
     if kind == "run":
         parts.append(RUN_SECTION)
     return "\n\n".join(parts)
@@ -71,7 +72,7 @@ def prompt_sha(text: str) -> str:
 
 
 def home_prompt(goal_id: str) -> str:
-    return f"{HOME_PROMPT}\nThe id of this goal is {goal_id}."
+    return f"{HOME_PROMPT.rstrip()}\n\n{SCOPE}\n\nThe id of this goal is {goal_id}."
 
 
 def subagent_spec(goal: dict) -> SubagentSpec | None:

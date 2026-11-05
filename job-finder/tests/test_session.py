@@ -630,3 +630,14 @@ async def test_spend_from_outside_the_main_agent_also_reaches_the_cap(app_settin
     assert wrap is not first and first.closed
     assert wrap.queries[0].startswith("You've reached this goal's limits.")
 
+
+
+async def test_too_many_refused_pages_stop_the_goal_with_the_reason(make_session, store, streams):
+    goal = await store.create_goal("g")
+    session = await make_session(goal["id"])
+    await session.send("go", "user")  # the main agent is busy
+    session.block_limit("Stopped: too many refused pages.")  # a tool calls it, so it must not wait for the stop
+    await session.halting
+    assert await status(store, goal["id"]) == "stopped"
+    assert (await store.get_goal(goal["id"]))["status_reason"] == "Stopped: too many refused pages."
+    await session.close()
