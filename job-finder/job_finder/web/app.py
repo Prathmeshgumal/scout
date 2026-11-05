@@ -13,7 +13,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote
 
 from dotenv import dotenv_values
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -41,6 +41,7 @@ from ..scheduler import Scheduler
 from ..services import GoalLocked, Services, with_pending_note
 from ..store import Store, goal_title
 from ..time_limit import ContinueError, continue_check, continue_goal
+from ..translate import DETAIL_TOOLS
 from ..watcher import Watcher
 from . import auth
 from .sessions import GoalSessions
@@ -428,6 +429,25 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     async def all_jobs(request: Request) -> list[dict]:
         """The roles of all goals, for the Jobs page. The browser filters them."""
         return await svc(request).artifacts.job_cards()
+
+    @app.get("/api/goals/{goal_id}/steps/{tool_use_id}")
+    async def step_detail(goal_id: str, tool_use_id: str, request: Request) -> dict:
+        """The input and output of one step, for the Activity tab. kept: False for a step that keeps nothing."""
+        await goal_or_404(request, goal_id)
+        step = await svc(request).store.step_detail(goal_id, tool_use_id)
+        if step is None:
+            raise HTTPException(404, "This goal has no such step.")
+        return {"input": step["input"], "output": step["output"], "truncated": step["truncated"],
+                "kept": step["tool"] in DETAIL_TOOLS}
+
+    @app.get("/api/goals/{goal_id}/events.jsonl")
+    async def event_log(goal_id: str, request: Request) -> PlainTextResponse:
+        """The event log of the goal, one JSON object for each line. It has no step input or output."""
+        await goal_or_404(request, goal_id)
+        events = await svc(request).store.list_events(goal_id)
+        body = "".join(json.dumps(event, default=str, ensure_ascii=False) + "\n" for event in events)
+        return PlainTextResponse(body, media_type="application/x-ndjson",
+                                 headers={"Content-Disposition": f'attachment; filename="goal-{goal_id[:8]}-events.jsonl"'})
 
     @app.get("/api/goals/{goal_id}/report.md")
     async def report_markdown(goal_id: str, request: Request, tz: str | None = None) -> PlainTextResponse:

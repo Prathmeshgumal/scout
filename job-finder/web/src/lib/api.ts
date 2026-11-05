@@ -404,3 +404,9 @@ export async function saveBoardOrder(board: BoardName, column: string, keys: str
   const response = await send(`/api/board-order/${board}`, { ...postJson({ column, keys }), method: "PUT" })
   if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
 }
+
+/** The input and output of one step. kept: false when the log does not keep this kind of step, because it can hold resume text. */
+export type StepDetail = { input: unknown; output: string | null; truncated: boolean; kept: boolean }
+export const getStep = (goalId: string, stepId: string) => request<StepDetail>(`/api/goals/${goalId}/steps/${encodeURIComponent(stepId)}`)
+/** All stored events of a goal, one JSON object on each line. Use it with download(). */
+export const eventLogPath = (goalId: string) => `/api/goals/${goalId}/events.jsonl`

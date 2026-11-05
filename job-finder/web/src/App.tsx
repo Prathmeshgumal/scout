@@ -10,6 +10,7 @@ import { ModelPicker } from "@/components/chat/ModelPicker"
 import { Welcome } from "@/components/chat/Welcome"
 import { AllJobs } from "@/components/jobs/AllJobs"
 import { JobsTab } from "@/components/jobs/JobsTab"
+import { ActivityTab } from "@/components/activity/ActivityTab"
 import { PipelinePage } from "@/components/pipeline/PipelinePage"
 import { IconRail } from "@/components/shell/IconRail"
 import { GoalList, MandateList } from "@/components/shell/ListPane"
@@ -287,8 +288,8 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
         <h2 className="min-w-0 flex-1 truncate font-medium">{route.tab === "jobs" && !homeChat ? "" : report?.title ?? goal?.title ?? "Goal"}</h2>
         {!homeChat && (
           <div role="tablist" aria-label="Goal view" className="flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.5">
-            {(["chat", "jobs"] as const).map((tab) => (
-              <button key={tab} role="tab" type="button" aria-selected={route.tab === tab} onClick={() => go({ ...route, tab })}
+            {(["chat", "jobs", "activity"] as const).map((tab) => (
+              <button key={tab} role="tab" type="button" aria-selected={route.tab === tab} onClick={() => go({ ...route, tab, step: null })}
                 className={cn("h-6 rounded-md px-2.5 text-[12px] capitalize outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   route.tab === tab ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 {tab}
@@ -297,10 +298,13 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
           </div>
         )}
       </header>
-      {route.tab === "jobs" && !homeChat
+      {route.tab === "activity" && !homeChat
+        ? <ActivityTab goalId={goalId} events={view?.events ?? []} status={view?.status ?? goal?.status ?? "done"} initialStep={route.step ?? null} />
+        : route.tab === "jobs" && !homeChat
         ? <JobsTab report={report} tasks={summary?.tasks.map((t) => t.name) ?? []} onRetry={() => void control(retryGoal)} onChat={() => go({ ...route, tab: "chat" })} />
         : <ChatView view={view} reason={goal?.status_reason ?? null} thinking={thinking} readOnly={Boolean(goal?.agent)} timeLimit={summary?.time_limit ?? null}
-            onChoose={(text) => void send(text)} onStop={() => void control(stopGoal)} onRetry={() => void control(retryGoal)} onContinue={() => void control(continueGoal)} composer={composer} />}
+            onChoose={(text) => void send(text)} onStop={() => void control(stopGoal)} onRetry={() => void control(retryGoal)} onContinue={() => void control(continueGoal)}
+            onActivity={homeChat ? undefined : (step) => go({ ...route, tab: "activity", step })} composer={composer} />}
     </>
   )
 
