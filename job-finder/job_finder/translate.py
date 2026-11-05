@@ -86,8 +86,32 @@ SAVE_TOOLS = {"set_brief", "save_profile", "save_jobs", "save_job_research", "sa
               "save_application_note", "save_notes", "finish_goal"}
 # The events keep the input of these tools only: get_search_history reads it. Other inputs can hold resume text.
 WEB_TOOLS = {"google_search", "read_page"}
+# The tools whose input and output the Activity tab shows. They hold web data, roles and companies only. A tool
+# that is not here keeps nothing, so a new tool keeps nothing until someone checks it.
+DETAIL_TOOLS = {"google_search", "read_page", "search_linkedin_jobs", "get_job_search", "scrape_company",
+                "get_company", "scrape_linkedin_job", "get_linkedin_job", "read_job", "wait_for_scrapes",
+                "list_jobs", "read_goal_jobs", "save_jobs", "save_job_research", "save_company", "save_fit",
+                "get_search_history", "list_files", "list_goals", "list_runs"}
+# Tools that can hold resume text or the user's own words. The Activity tab says why it shows nothing for them.
+PRIVATE_TOOLS = {"read_file", "save_profile", "save_notes", "set_brief", "get_brief", "save_application_note",
+                 "propose_mandate", "confirm_mandate", "get_mandate", "finish_goal", "get_pipeline", "SendMessage"}
+MAX_DETAIL = 20_000  # the longest input or output that a step keeps, in characters
 # A career-lens request that a call queued, e.g. "queued as rq-1". The log shows its result with the call.
 QUEUED = re.compile(r"queued as (rq-[A-Za-z0-9_-]+)")
+
+
+def _input_detail(tool: str, tool_input: dict) -> dict | None:
+    if tool not in DETAIL_TOOLS:
+        return None
+    text = json.dumps(tool_input, ensure_ascii=False)
+    return {"input": text[:MAX_DETAIL], "truncated": True} if len(text) > MAX_DETAIL else {"input": tool_input}
+
+
+def _output_detail(tool: str, content: Any) -> dict | None:
+    if tool not in DETAIL_TOOLS:
+        return None
+    text = _joined(content)
+    return {"output": text[:MAX_DETAIL], "truncated": True} if len(text) > MAX_DETAIL else {"output": text}
 
 
 def short_name(name: str) -> str:
@@ -304,7 +328,7 @@ class Translator:
                                                      "label": f"Resuming {resumed}" if resumed
                                                      else tool_label(block.name, block.input),
                                                      "agent": agent, **call},
-                                    detail={"input": block.input} if short in WEB_TOOLS else None))
+                                    detail=_input_detail(short, block.input)))
             return out
         if isinstance(message, UserMessage) and isinstance(message.content, list):
             out = []
@@ -336,6 +360,6 @@ class Translator:
                     # Why a career-lens request failed, e.g. "not_found": the report keeps a missing source apart.
                     if block.is_error and (kind := failure_kind(tool, _joined(block.content))):
                         data["failure_kind"] = kind
-                    out.append(Emit("tool_finished", {**data, "tool": tool}))
+                    out.append(Emit("tool_finished", {**data, "tool": tool}, detail=_output_detail(tool, block.content)))
             return out
         return []

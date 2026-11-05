@@ -289,6 +289,21 @@ class Store(Queries):
             ORDER BY s.seq DESC
         """, (goal_id, agent))
 
+    async def step_detail(self, goal_id: str, tool_use_id: str) -> dict | None:
+        """The tool, input and output of one step. None when the goal has no such step."""
+        rows = await self._all("""
+            SELECT type, data->>'tool' AS tool, detail FROM goal_events
+            WHERE goal_id = %s AND type IN ('tool_started', 'tool_finished') AND data->>'tool_use_id' = %s
+            ORDER BY seq
+        """, (goal_id, tool_use_id))
+        started = next((row for row in rows if row["type"] == "tool_started"), None)
+        if started is None:
+            return None
+        finished = next((row for row in rows if row["type"] == "tool_finished"), None)
+        given, got = started["detail"] or {}, (finished or {}).get("detail") or {}
+        return {"tool": started["tool"], "input": given.get("input"), "output": got.get("output"),
+                "truncated": bool(given.get("truncated") or got.get("truncated"))}
+
     async def list_events(self, goal_id: str, after: int = 0) -> list[dict]:
         rows = await self._all(
             "SELECT seq, at, type, data FROM goal_events WHERE goal_id = %s AND seq > %s ORDER BY seq",

@@ -50,8 +50,9 @@ def test_assistant_text_and_tool_use_then_result():
     finished = t.translate(UserMessage(content=[ToolResultBlock(
         tool_use_id="t1", content=[{"type": "text", "text": 'Google results for "acme":\n1. Acme'}], is_error=False)]))
     assert finished == [Emit("tool_finished", {"tool_use_id": "t1", "agent": "main", "ok": True,
-                                               "summary": 'Google results for "acme":', "tool": "google_search"})]
-    # Only the input of a web tool is kept: get_search_history reads it. An output is not kept.
+                                               "summary": 'Google results for "acme":', "tool": "google_search"},
+                         detail={"output": 'Google results for "acme":\n1. Acme'})]
+    # The input and the output are stored for the Activity tab, never pushed live. See test_steps.py.
 
 
 def test_a_finished_save_says_what_it_saved_and_a_scrape_gives_its_requests():
