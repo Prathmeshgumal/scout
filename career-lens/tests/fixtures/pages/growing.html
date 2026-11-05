@@ -1,0 +1,27 @@
+<!doctype html>
+<title>Growing page</title>
+<!--
+  A page that is short when it arrives and taller a moment later, which is what
+  a LinkedIn profile does as its sections mount. While it is short its footer
+  is genuinely on screen; once the section lands the footer moves down. A
+  screen photographed in between keeps the footer where it was, and the stitch
+  puts it in the middle of the page.
+
+  `?grow=` is how long before the section lands, `?px=` how tall it is.
+-->
+<style>
+  body { margin: 0; font: 16px sans-serif; }
+  #head { height: 700px; background: #dde6ee; }
+  #late { display: none; background: #cfe8d6; }
+  footer { height: 300px; background: #333; color: #fff; }
+</style>
+<div id="head">Top of the page</div>
+<div id="late">Section that arrives late</div>
+<footer>FOOTER</footer>
+<script>
+  const params = new URLSearchParams(location.search);
+  const late = document.getElementById("late");
+  late.style.height = (params.get("px") || 2000) + "px";
+  setTimeout(() => { late.style.display = "block"; },
+             Number(params.get("grow") || 300));
+</script>

@@ -1,0 +1,126 @@
+# career-lens services. Capture is not here: it drives a headed Chrome against
+# signed-in profiles, so `career-lens supervisor` runs on the host.
+#
+#   docker compose up -d --build   start everything
+#   docker compose down            stop, keeping all data
+#   docker compose down -v         also delete the database and captures
+
+name: careerlens-v1
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: careerlens-v1-postgres
+    ports:
+      - "127.0.0.1:${CAREER_LENS_POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CAREER_LENS_PG_PASSWORD:-career-lens-dev-secret}
+      POSTGRES_DB: career_lens
+      CAREER_LENS_APP_DB_PASSWORD: ${CAREER_LENS_PG_PASSWORD:-career-lens-dev-secret}
+      CAREER_LENS_MIGRATE_DB_PASSWORD: ${CAREER_LENS_PG_PASSWORD:-career-lens-dev-secret}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Creates the two roles. Runs only on an empty data directory.
+      - ./deploy/postgres/bootstrap.sh:/docker-entrypoint-initdb.d/10-career-lens.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d career_lens"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    container_name: careerlens-v1-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:${CAREER_LENS_MINIO_PORT:-9002}:9000"
+      - "127.0.0.1:${CAREER_LENS_MINIO_CONSOLE_PORT:-9003}:9001"
+    environment:
+      MINIO_ROOT_USER: ${CAREER_LENS_MINIO_ROOT_USER:-career-lens-root}
+      MINIO_ROOT_PASSWORD: ${CAREER_LENS_MINIO_ROOT_PASSWORD:-career-lens-root-dev-secret}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  createbucket:
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+    container_name: careerlens-v1-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      ROOT_USER: ${CAREER_LENS_MINIO_ROOT_USER:-career-lens-root}
+      ROOT_PASSWORD: ${CAREER_LENS_MINIO_ROOT_PASSWORD:-career-lens-root-dev-secret}
+      SERVICE_ACCESS_KEY: ${CAREER_LENS_S3_ACCESS_KEY:-career_lens}
+      SERVICE_SECRET_KEY: ${CAREER_LENS_S3_SECRET_KEY:-career-lens-dev-secret}
+      BUCKET: ${CAREER_LENS_S3_BUCKET:-career-lens}
+    volumes:
+      - ./deploy/minio/bootstrap.sh:/bootstrap.sh:ro
+      - ./deploy/minio/artifact-policy.json:/artifact-policy.json.template:ro
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
+
+  # Brings the schema to head, then exits. Everything else waits for it.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: careerlens-v1-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CAREER_LENS_MIGRATE_DATABASE_URL: postgresql+psycopg://career_lens_migrate:${CAREER_LENS_PG_PASSWORD:-career-lens-dev-secret}@postgres:5432/career_lens
+    command: ["career-lens", "migrate"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: careerlens-v1-api
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${CAREER_LENS_API_PORT:-8090}:8080"
+    environment:
+      CAREER_LENS_DATABASE_URL: postgresql+psycopg://career_lens_app:${CAREER_LENS_PG_PASSWORD:-career-lens-dev-secret}@postgres:5432/career_lens
+      CAREER_LENS_S3_ENDPOINT: http://minio:9000
+      CAREER_LENS_S3_PUBLIC_ENDPOINT: ${CAREER_LENS_S3_PUBLIC_ENDPOINT:-http://127.0.0.1:${CAREER_LENS_MINIO_PORT:-9002}}
+      CAREER_LENS_S3_ACCESS_KEY: ${CAREER_LENS_S3_ACCESS_KEY:-career_lens}
+      CAREER_LENS_S3_SECRET_KEY: ${CAREER_LENS_S3_SECRET_KEY:-career-lens-dev-secret}
+      CAREER_LENS_S3_BUCKET: ${CAREER_LENS_S3_BUCKET:-career-lens}
+      CAREER_LENS_MAX_ATTEMPTS: ${CAREER_LENS_MAX_ATTEMPTS:-3}
+      CAREER_LENS_RATE_LIMIT_MAX_WAIT_SECONDS: ${CAREER_LENS_RATE_LIMIT_MAX_WAIT_SECONDS:-900}
+      CAREER_LENS_ARTIFACT_URL_TTL_SECONDS: ${CAREER_LENS_ARTIFACT_URL_TTL_SECONDS:-604800}
+      CAREER_LENS_CREDENTIAL_KEYS: ${CAREER_LENS_CREDENTIAL_KEYS:-}
+      CAREER_LENS_CREDENTIAL_ACTIVE_KEY: ${CAREER_LENS_CREDENTIAL_ACTIVE_KEY:-}
+    restart: unless-stopped
+
+  # Dispatches queued requests. Browser workers run on the host.
+  control:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: careerlens-v1-control
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      CAREER_LENS_DATABASE_URL: postgresql+psycopg://career_lens_app:${CAREER_LENS_PG_PASSWORD:-career-lens-dev-secret}@postgres:5432/career_lens
+      CAREER_LENS_RETRY_HANDOFF_GRACE_SECONDS: ${CAREER_LENS_RETRY_HANDOFF_GRACE_SECONDS:-300}
+    command: ["career-lens", "control"]
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  minio-data:

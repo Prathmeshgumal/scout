@@ -1,0 +1,47 @@
+<!doctype html>
+<title>Skeletons</title>
+<!--
+  A page in the state a LinkedIn profile is in a second after it arrives, with
+  the same tell: the placeholders carry no accessible loading marker and no
+  class anyone can match on by name. The class names here are hashes, exactly
+  as the real build ships them.
+
+  `#done` is the content those placeholders become. Nothing here talks to the
+  network -- a timer swaps them, so the test controls the clock.
+-->
+<style>
+  body { margin: 0; font: 16px sans-serif; }
+  @keyframes _7f1c2a3b { 0% { opacity: .55 } 50% { opacity: 1 } 100% { opacity: .55 } }
+  ._9840af22 {
+    animation: _7f1c2a3b 1.2s ease-in-out infinite;
+    background: #e6e6e6; border-radius: 6px;
+    height: 18px; margin: 10px; width: 60%;
+  }
+  ._22bf7297 { height: 96px; width: 96px; border-radius: 50%; }
+  #done { display: none; }
+  /* A decorative pulse that never stops and never was a placeholder: it has
+     text, so a probe that only looks for animation would hang on it. */
+  .badge { animation: _7f1c2a3b 2s infinite; display: inline-block; }
+</style>
+<main id="primary">
+  <h1>Sakshi Nikam</h1>
+  <span class="badge">Open to work</span>
+  <div id="loading">
+    <div class="_9840af22 _22bf7297"></div>
+    <div class="_9840af22"></div>
+    <div class="_9840af22"></div>
+    <div class="_9840af22"></div>
+  </div>
+  <section id="done">
+    <h2>Experience</h2>
+    <p>Junior Power Platform Developer at JSS Digital</p>
+    <a href="/in/sakshi/details/experience/">Show all</a>
+  </section>
+</main>
+<script>
+  const delay = Number(new URLSearchParams(location.search).get("ms") || 400);
+  setTimeout(() => {
+    document.getElementById("loading").remove();
+    document.getElementById("done").style.display = "block";
+  }, delay);
+</script>

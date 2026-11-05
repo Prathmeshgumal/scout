@@ -1,0 +1,87 @@
+[project]
+name = "career-lens"
+version = "0.1.0"
+description = "Scrape LinkedIn and Google search"
+requires-python = ">=3.12"
+# The database and HTTP surface. Extraction and browser-driving dependencies
+# are separate groups below so the API can parse stored captures without
+# acquiring Patchright or browser-profile access.
+dependencies = [
+    "alembic>=1.14",
+    "boto3>=1.35",
+    "cryptography>=43",
+    "fastapi>=0.115",
+    "procrastinate>=3.0",
+    "psycopg[binary]>=3.2",
+    "sqlalchemy>=2.0.36",
+    "tzdata",
+    "uvicorn[standard]>=0.32",
+]
+
+[project.scripts]
+career-lens = "career_lens.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/career_lens"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-xdist>=3.8",
+    "httpx>=0.28",
+    "httpx2>=2.10.0",
+    "ruff>=0.16.3",
+]
+# What only the headed host worker needs. The API image leaves this group out.
+capture = [
+    "patchright>=1.64.2",
+]
+# Parsers and media composition used by both native workers and the API when
+# parsing stored captures.
+extract = [
+    "docling-slim[format-html]>=2.119,<3",
+    "lxml>=5.3",
+    "pillow>=12.3.0",
+]
+
+[tool.uv]
+default-groups = ["dev", "capture", "extract"]
+# greenlet 3.5.5 was published with no Linux wheels at all, and sqlalchemy
+# pulls greenlet in transitively -- so an unconstrained resolve picks a release
+# that cannot be installed here. Excluding the one bad version rather than
+# capping the range, so later releases are still picked up.
+constraint-dependencies = ["greenlet!=3.5.5"]
+
+[tool.ruff]
+# Correctness only. Style rules would rewrite the whole tree for no defect, and
+# this repo's formatting is deliberate -- the comments carry reasoning and the
+# line breaks are placed by hand.
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+# F  = pyflakes: undefined names, unused imports, broken f-strings.
+# E9 = syntax and IO errors that stop the file being read at all.
+#
+# F821 is the one that earns its keep. `exhaust_list` called `scroll_through`
+# without importing it and sat that way indefinitely, because the function had
+# no callers -- no test could reach the line, and the failure only appeared on
+# a live capture. A static check finds that without executing anything, which
+# is the whole point: correctness that does not depend on coverage.
+select = ["F", "E9"]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports: a package's __init__ names what it publishes, and every one of
+# those looks unused from inside the file.
+"__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-n", "4"]
+markers = [
+    "browser: opens a real Chrome window; opt in with `uv run pytest --browser`",
+]

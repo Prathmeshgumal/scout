@@ -1,0 +1,56 @@
+# HAR captures and browser profiles hold live session cookies, OAuth bearer
+# tokens and API keys. Never commit them.
+*.har
+raw-har-exports/
+profiles/
+# Test fixtures, not live browser profiles: reviewed, redacted, and meant to
+# be committed. The rule above matches any directory named "profiles" at any
+# depth, which also caught this one -- carve it back out explicitly.
+!tests/fixtures/profiles/
+!tests/fixtures/profiles/**
+
+# A literal '~' directory: zsh does not expand tilde after '=' in command
+# arguments, so `--user-data-dir=~/path` creates ./~ instead. Chrome profiles
+# landing here contain live logged-in sessions.
+/~/
+
+# Local configuration. Overrides for docker compose, and the place a real
+# CAREER_LENS_PG_PASSWORD or S3 key would end up. .env.example is the committed
+# one; this is yours.
+.env
+.generated/
+deploy/supervisor.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Chrome-extension dependencies and unpacked build artifacts.
+extension/node_modules/
+extension/dist/
+extension/.env.development
+extension/.env.production
+
+# Target lists in, captured pages out. Neither is repo content, and the output
+# side grows without bound.
+data/
+
+# Scratch space for plan execution.
+.superpowers/
+
+# Bulk run working files: URL lists and the submit/result ledgers. These are
+# a run's state, not the project's -- and a list of profile URLs is personal
+# data we have no reason to keep in git.
+runs/
+bulk-submit.jsonl
+bulk-results.jsonl
+
+# Worktrees for parallel feature work. Each is a full checkout of this same
+# repository, so committing one would nest the project inside itself.
+.worktrees/
+
+# The console build. Dockerfile.api makes it.
+src/career_lens/api/console_dist/
+web/node_modules/

@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head><title>Redirect result</title></head>
+  <body>
+    <div id="search">
+      <div data-hveid="opaque">
+        <a href="/goto?url=opaque-token"><h3>Opaque destination</h3></a>
+        <div>Destination snippet.</div>
+      </div>
+      <a href="/search?q=internal"><h3>Internal Google navigation</h3></a>
+      <div data-hveid="alternate">
+        <a href="/goto?url=alternate-token"><h3>Alternate layout</h3></a>
+        <div>Video-style result snippet.</div>
+      </div>
+    </div>
+    <script>
+      AF_initDataCallback({data:[null,1,[null,null,5,null,
+      "Opaque destination",null,"/goto?url\u003dopaque-token"],
+      ["https://example.com/destination","Opaque destination",
+      "Destination snippet."]]});
+      ["/goto?url\u003dalternate-token",null,null,
+      ["https://www.google.com"],null,null,
+      ["Alternate layout","Video-style result snippet."],null,
+      ["https://www.linkedin.com/posts/example-activity-1"]]
+    </script>
+  </body>
+</html>
