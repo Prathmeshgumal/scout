@@ -43,7 +43,7 @@ export function DeleteDialog({ target, onClose, onDeleted }: { target: DeleteTar
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep it</AlertDialogCancel>
-          <AlertDialogAction disabled={!preview} onClick={() => void remove()}>Delete</AlertDialogAction>
+          <AlertDialogAction variant="destructive" disabled={!preview} onClick={() => void remove()}>Delete</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

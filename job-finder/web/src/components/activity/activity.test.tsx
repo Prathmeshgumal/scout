@@ -9,7 +9,7 @@ const getStep = vi.fn()
 const download = vi.fn()
 vi.mock("@/lib/api", async (original) => ({ ...(await original<typeof import("@/lib/api")>()), getStep: (...a: unknown[]) => getStep(...a), download: (...a: unknown[]) => download(...a) }))
 
-const { ActivityTab, TREE_KEY } = await import("./ActivityTab")
+const { ActivityTab, TREE_KEY, LANES_KEY } = await import("./ActivityTab")
 
 const T0 = Date.parse("2026-11-05T10:00:00Z")
 const at = (s: number) => new Date(T0 + s * 1000).toISOString()
@@ -98,9 +98,57 @@ describe("activity tab", () => {
   it("filters the step list to problems", async () => {
     const user = userEvent.setup()
     render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
-    await user.click(screen.getByRole("button", { name: "Problems" }))
+    await user.click(screen.getByRole("button", { name: /^Problems/ }))
     const tree = screen.getByRole("tree", { name: "Steps" })
     expect(within(tree).getAllByRole("treeitem").map((i) => i.getAttribute("data-step")).filter(Boolean)).toEqual(["s2"])
+  })
+
+  it("shows all the steps again after a filter", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    await user.click(screen.getByRole("button", { name: /^Problems/ }))
+    await user.click(screen.getByRole("button", { name: /^All/ }))
+    const tree = screen.getByRole("tree", { name: "Steps" })
+    expect(within(tree).getAllByRole("treeitem").map((i) => i.getAttribute("data-step")).filter(Boolean)).toEqual(["m1", "s1", "s2"])
+    expect(screen.getByRole("button", { name: /^All/ })).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("shows the count of each filter", () => {
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    expect(screen.getByRole("button", { name: "All 3" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Problems 1" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Saves 1" })).toBeInTheDocument()
+  })
+
+  it("puts the hide button on the step list, and the show button where the list was", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    await user.click(within(screen.getByRole("complementary", { name: "Step list" })).getByRole("button", { name: "Hide the step list" }))
+    expect(screen.queryByRole("complementary", { name: "Step list" })).not.toBeInTheDocument()
+    expect(within(detailPane()).getByRole("button", { name: "Show the step list" })).toBeInTheDocument()
+  })
+
+  it("changes the height of the lanes with the keyboard and keeps it", async () => {
+    const user = userEvent.setup()
+    const { unmount } = render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    const handle = screen.getByRole("separator", { name: "Change the height of the lanes" })
+    const start = Number(handle.getAttribute("aria-valuenow"))
+    handle.focus()
+    await user.keyboard("{ArrowUp}{ArrowUp}")
+    expect(Number(handle.getAttribute("aria-valuenow"))).toBe(start + 40)
+    expect(localStorage.getItem(LANES_KEY)).toBe(String(start + 40))
+    unmount()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    expect(screen.getByRole("separator", { name: "Change the height of the lanes" })).toHaveAttribute("aria-valuenow", String(start + 40))
+  })
+
+  it("does not make the lanes smaller than one lane", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    const handle = screen.getByRole("separator", { name: "Change the height of the lanes" })
+    handle.focus()
+    for (let i = 0; i < 30; i++) await user.keyboard("{ArrowDown}")
+    expect(Number(handle.getAttribute("aria-valuenow"))).toBe(Number(handle.getAttribute("aria-valuemin")))
   })
 
   it("downloads the log with the token", async () => {

@@ -37,3 +37,9 @@ it("deletes after the click", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Delete" }))
   await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(target))
 })
+
+it("shows Delete in red", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => json(body)))
+  render(<DeleteDialog target={target} onClose={() => {}} onDeleted={() => {}} />)
+  expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("bg-destructive")
+})
