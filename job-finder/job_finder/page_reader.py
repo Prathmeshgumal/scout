@@ -126,14 +126,18 @@ class PageReader:
         page, cut = clip(markdown, MAX_PAGE_CHARS)
         note = f"\nThe page is long. You have only its first {MAX_PAGE_CHARS} characters." if cut else ""
         content = f"Page: {url}{note}\n\n<page>\n{page}\n</page>\n\nQuestion: {prompt}"
+        return await self.ask(SYSTEM, content)
+
+    async def ask(self, system: str, content: str) -> Answer:
+        """One answer of the small model, with this system prompt."""
         if self.api_key:
-            return await self._api_answer(content)
+            return await self._api_answer(system, content)
         if self.sdk_env is not None:
-            return await self._sdk_answer(content)
+            return await self._sdk_answer(system, content)
         raise PageReaderError("the page reader cannot run: Claude is not connected")
 
-    async def _sdk_answer(self, content: str) -> Answer:
-        options = ClaudeAgentOptions(system_prompt=SYSTEM, model=self.model, effort=self.effort, tools=[],
+    async def _sdk_answer(self, system: str, content: str) -> Answer:
+        options = ClaudeAgentOptions(system_prompt=system, model=self.model, effort=self.effort, tools=[],
                                      max_turns=1, setting_sources=[], permission_mode="dontAsk", env=self.sdk_env,
                                      cwd=self.cwd)
         got = {"text": "", "error": None, "cost": 0.0}
@@ -162,8 +166,8 @@ class PageReader:
             raise PageReaderError("the page reader gave no answer", cost_usd=got["cost"])
         return Answer(got["text"], got["cost"])
 
-    async def _api_answer(self, content: str) -> Answer:
-        payload = {"model": self.model, "max_tokens": MAX_ANSWER_TOKENS, "system": SYSTEM,
+    async def _api_answer(self, system: str, content: str) -> Answer:
+        payload = {"model": self.model, "max_tokens": MAX_ANSWER_TOKENS, "system": system,
                    "messages": [{"role": "user", "content": content}]}
         if self.effort:
             payload["output_config"] = {"effort": self.effort}

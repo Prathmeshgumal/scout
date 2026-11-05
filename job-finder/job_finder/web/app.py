@@ -31,10 +31,12 @@ from ..login_status import LoginStatus
 from ..mandate_store import MandateStore
 from ..models import EFFORT_LABELS, ModelList, effort_label, read_sdk_models
 from ..options import retry_message
+from ..page_reader import PageReader
 from ..pipeline import PipelineStore
 from ..profile import public_profile
 from ..report import build_report, job_detail
 from ..report_md import render_markdown
+from ..request_check import check_request
 from ..runtime_status import CareerLensStatus, read_version
 from ..schedule import known_zone
 from ..scheduler import Scheduler
@@ -147,8 +149,9 @@ async def sse_stream(store: Store, hub: Hub, goal_id: str, after: int, *, poll_s
 
 
 def create_app(settings: Settings, services: Services | None = None, sessions: GoalSessions | None = None, *,
-               model_loader=None) -> FastAPI:
-    """The app. Tests give services, sessions and the model list; else the app opens them when it starts."""
+               model_loader=None, request_check=None) -> FastAPI:
+    """The app. Tests give services, sessions and the model list; else the app opens them when it starts.
+    request_check: checks the first message of a new goal. Tests give it; else the app uses the small model."""
     model_list = ModelList(model_loader or (lambda: read_sdk_models(settings)), settings.model, settings.effort)
 
     version = read_version(ROOT)
@@ -164,6 +167,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         monitor = CareerLensStatus(s.career_lens, manager.halt_running)
         app.state.career_lens_status = monitor
         app.state.services, app.state.sessions = s, manager
+        app.state.request_check = lambda text: check_request(PageReader.for_settings(settings), text)
         watcher = Watcher(s.store, s.recorder, s.career_lens, manager, settings.watch_interval_s,
                           settings.max_wait_hours)
         scheduler = Scheduler(s.store, MandateStore(s.store.pool), s.artifacts, s.recorder, manager,
@@ -188,6 +192,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     app.include_router(auth.router)
     app.state.services, app.state.sessions = services, sessions
     app.state.career_lens_status = None
+    app.state.request_check = request_check
     app.state.setup_token = SetupTokenFlow()
     # Only a process that has a supervisor can restart itself. Docker Compose sets this name.
     app.state.restart = (lambda: os.kill(os.getpid(), signal.SIGTERM)) if os.environ.get("JOB_FINDER_SELF_RESTART") else None
@@ -279,6 +284,9 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     async def create_goal(body: NewGoal, request: Request) -> dict:
         need_key()
         await check_choice(body.model, body.effort)
+        check = request.app.state.request_check
+        if check is not None and (refusal := await check(body.text)):
+            raise HTTPException(422, refusal)  # no goal, no agent, no spend: the user can change the message
         goal = await svc(request).store.create_goal(goal_title(body.text), max_fresh_scrapes=settings.max_fresh_scrapes,
                                                     max_spend_usd=settings.max_spend_usd,
                                                     model=body.model or settings.model,
