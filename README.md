@@ -22,17 +22,17 @@ pace. It also keeps every result, so a second question about the same page costs
 ![How jobscout works](docs/diagrams/architecture.svg)
 
 - **job-finder** runs a main agent and five subagents on the Claude Agent SDK, with your Claude login.
-  Hooks stop a goal at its spend limit, its time limit or its scrape limit.
+  Hooks stop a mission at its spend limit, its time limit or its scrape limit.
 - **career-lens** queues each scrape, gives it to a free browser and saves the result.
   The browsers run on your desktop, because LinkedIn needs a real, signed-in Chrome.
 - A slow scrape does not block the agent. The watcher waits for the result and then starts the agent again.
-- Guardrails keep the agent on the job search. A small model refuses a goal that is not about jobs. The agents
+- Guardrails keep the agent on the job search. A small model refuses a mission that is not about jobs. The agents
   cannot read local addresses or unsafe sites. They only read: they never apply or send a message. See
   [job-finder guardrails](job-finder/README.md#guardrails).
 
-## One goal, step by step
+## One mission, step by step
 
-![One goal, step by step](docs/diagrams/goal-sequence.svg)
+![One mission, step by step](docs/diagrams/goal-sequence.svg)
 
 ## Run it
 

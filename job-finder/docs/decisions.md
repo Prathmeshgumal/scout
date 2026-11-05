@@ -35,15 +35,15 @@ The maintainer was away. These are the decisions that I made while I built the e
    *If wrong:* a real invented claim can pass when the judge does not quote it exactly. Read `judge_mistakes` in
    the saved cases.
 
-8. **Each agent suite runs each candidate in its own subagent goal, then deletes the goal.** This uses the real
-   session, tools and hooks. `--keep` keeps the goals, to read them. The goals have `max_fresh_scrapes = 0`, so they
+8. **Each agent suite runs each candidate in its own subagent mission, then deletes the mission.** This uses the real
+   session, tools and hooks. `--keep` keeps the missions, to read them. The missions have `max_fresh_scrapes = 0`, so they
    cannot scrape.
 
 9. **The runs are saved in a new table, `eval_runs` (migration 0005).** A row has the suite, the model, a hash of
    the prompts that it tests, the scores, the cost, the time, a summary and each case. The hash shows when a prompt
    change moved a score.
 
-10. **A failed request check counts as a failed case in the evals.** In the app, a failed check lets the goal start.
+10. **A failed request check counts as a failed case in the evals.** In the app, a failed check lets the mission start.
     In the evals, it must show.
 
 11. **The command is `job-finder eval`.** The agent suites cost money, so the evals never run in `pytest` or at start.
@@ -63,15 +63,15 @@ The maintainer was away. These are the decisions that I made while I built the e
 
 ## Metrics
 
-13. **Only goals that a person started count.** These are normal goals, mandate runs and mandate chats. Subagent
-    goals (`agent` is set) from `job-finder agent` and from the evals do not count.
+13. **Only missions that a person started count.** These are normal missions, schedule runs and schedule chats. Subagent
+    missions (`agent` is set) from `job-finder agent` and from the evals do not count.
 
-14. **The time per goal is the time in the status running.** A goal can wait hours for LinkedIn scrapes. That wait is
+14. **The time per mission is the time in the status running.** A mission can wait hours for LinkedIn scrapes. That wait is
     not work, so the clock time would mislead. The page shows the median and the 90th percentile.
 
-15. **The day of a goal is in the time zone of the browser.** Postgres does not know some names that browsers give,
+15. **The day of a mission is in the time zone of the browser.** Postgres does not know some names that browsers give,
     such as `Asia/Calcutta`. For such a name, the page uses the UTC offset of the zone now.
-    *If wrong:* across a daylight saving change, a goal near midnight can show on the next day.
+    *If wrong:* across a daylight saving change, a mission near midnight can show on the next day.
 
 16. **No chart library.** The charts are plain bars in HTML. One chart has one measure, so spend and fit roles each
     have a chart. Each bar shows its value on hover and to screen readers. This keeps the bundle small.
@@ -87,4 +87,4 @@ The maintainer was away. These are the decisions that I made while I built the e
 
 - I did not merge, deploy or push. The branch has commits only.
 - The live database does not have the `eval_runs` table yet. The app makes it at the next start, from migration 0005.
-- The email after a goal is on a separate branch, `goal-email`. See its own notes.
+- The email after a mission is on a separate branch, `goal-email`. See its own notes.

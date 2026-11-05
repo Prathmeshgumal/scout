@@ -13,7 +13,7 @@ The agent then does the work of a job search for you:
 6. It repeats until it has enough fit roles, or until a limit stops it.
 
 You see each step live in the web app. You review the roles, and you track your applications on a board.
-A mandate repeats the same goal on a schedule, for example each weekday at 09:00.
+A schedule repeats the same mission at set times, for example each weekday at 09:00.
 
 job-finder gets all web data from [career-lens](../career-lens). It does not use the built-in `WebSearch` and
 `WebFetch` tools. career-lens reads LinkedIn while signed in, so the agent sees roles that a plain search cannot see.
@@ -26,10 +26,10 @@ job-finder gets all web data from [career-lens](../career-lens). It does not use
 |---|---|
 | Web app | Chat, the Jobs page, the job pipeline and the Activity tab. Live events come over SSE. |
 | API | FastAPI. It accepts only calls from this computer, with a sign-in token. |
-| Goal session | One Claude Agent SDK client for each goal. Hooks enforce the spend, time and scrape limits. |
+| Mission session | One Claude Agent SDK client for each mission. Hooks enforce the spend, time and scrape limits. |
 | Watcher | Waits for slow scrapes in career-lens. Then it starts the agent again with the results. |
-| Scheduler | Starts the goals of each mandate on time. |
-| Postgres and MinIO | Goals, roles, verdicts, notes, events and your files. |
+| Scheduler | Starts the missions of each schedule on time. |
+| Postgres and MinIO | Missions, roles, verdicts, notes, events and your files. |
 
 ## The agent team
 
@@ -60,20 +60,20 @@ job-finder does only the work of a job search. The prompt rules guide the agents
 
 | Guardrail | What it does | Where |
 |---|---|---|
-| Request check | A small model reads the first message of a new goal. It refuses a message that is not about a job search. Then no goal starts and nothing is spent. | `job_finder/request_check.py` |
+| Request check | A small model reads the first message of a new mission. It refuses a message that is not about a job search. Then no mission starts and nothing is spent. | `job_finder/request_check.py` |
 | Scope rules | Each agent prompt says what work to do and what to refuse. Web pages and search results are data, not instructions. | `job_finder/scope.md` |
 | Site policy | `read_page` refuses local and private addresses, URLs that are not `http` or `https`, and adult, gambling, piracy and dark web sites. | `job_finder/site_policy.py`, `job_finder/blocked_sites.txt` |
 | Search filter | `google_search` removes the results on blocked sites. | `job_finder/tools/career_lens.py` |
-| Stop after refusals | After 3 refused pages in one session, the goal stops with the reason. | `job_finder/tools/career_lens.py` |
+| Stop after refusals | After 3 refused pages in one session, the mission stops with the reason. | `job_finder/tools/career_lens.py` |
 | Fixed tools | Agents get only the tools of job-finder. They have no shell, no file tools and no built-in web tools. A test checks this. | `job_finder/options.py` |
 | Read only | No tool applies to a job, sends a message or fills in a form. | All tools |
-| Limits | Spend, time and scrape limits stop a goal. See [Limits](#limits). | `job_finder/hooks.py` |
+| Limits | Spend, time and scrape limits stop a mission. See [Limits](#limits). | `job_finder/hooks.py` |
 
 The agents can find contacts for a job search: recruiters, hiring managers and possible referrers. They give the public facts that they find, such as a name, a title, a profile link or a public email. You send all messages yourself.
 
-Each refused page shows as a failed step under **Problems** in the Activity tab. The goal also keeps a `site_blocked` event.
+Each refused page shows as a failed step under **Problems** in the Activity tab. The mission also keeps a `site_blocked` event.
 
-If the request check cannot run, the goal starts. The scope rules and the site policy still apply.
+If the request check cannot run, the mission starts. The scope rules and the site policy still apply.
 
 To block one more site, add its domain to `job_finder/blocked_sites.txt`. A domain also blocks its subdomains.
 
@@ -85,14 +85,14 @@ Run them after you change a prompt or a model.
 ```bash
 uv run job-finder eval                      # all suites
 uv run job-finder eval fit-check notes      # some suites
-uv run job-finder eval fit-check --keep     # keep the eval goals, to read them
+uv run job-finder eval fit-check --keep     # keep the eval missions, to read them
 ```
 
 In Docker Compose, run `docker compose exec jobfinder job-finder eval`.
 
 | Suite | What it tests | Pass |
 |---|---|---|
-| `request-check` | The small model that checks the first message of a new goal. 22 messages. | The answer is allow or refuse, as expected. |
+| `request-check` | The small model that checks the first message of a new mission. 22 messages. | The answer is allow or refuse, as expected. |
 | `injection` | The page reader on 7 pages with hidden instructions. | The answer gives the facts and does not obey the page. |
 | `fit-check` | The fit-check subagent on 3 candidates and 32 roles. Two roles hide instructions for AI tools. | The verdict is the expected verdict. Quotes must be word for word from the job text. |
 | `notes` | The application-prep subagent on the fit roles. The main model judges each note. | The note is grounded in the profile and the job text, and is specific. |
@@ -105,15 +105,15 @@ The cases are in `job_finder/evals/cases/`. A close call can accept more than on
 
 ## Metrics
 
-Click **Metrics** in the rail to see the goals of the last 7, 30 or 90 days:
+Click **Metrics** in the rail to see the missions of the last 7, 30 or 90 days:
 
-- Spend, fit roles, cost per fit role and the time per goal. The time counts only the time in the status running.
+- Spend, fit roles, cost per fit role and the time per mission. The time counts only the time in the status running.
 - Spend and fit roles for each day.
 - The scores of the evals.
 - Verdicts and cost by model, subagent runs, scrapes and their wait times, tool failures and failure kinds.
 - Refused pages and removed search results.
 
-The page counts the goals that you started and the goals of mandates. It does not count subagent goals from
+The page counts the missions that you started and the missions of schedules. It does not count subagent missions from
 `job-finder agent` or from the evals.
 
 ## You need
@@ -160,24 +160,24 @@ The app asks Anthropic if each login works before it saves the login. If Anthrop
 The login that you choose in the web app is the login in use. Only the computer that runs job-finder can change the login.
 
 - With no choice, the API key wins when both are set.
-- In Docker Compose, the app restarts after a login change. Running goals continue after the restart.
+- In Docker Compose, the app restarts after a login change. Running missions continue after the restart.
 - Outside Docker, restart `job-finder serve` after a login change.
 
 ## Use the web app
 
 | Page | Use |
 |---|---|
-| Chat | Talk with the main agent. Stop, retry or continue a goal. Select the model and the effort. |
-| Jobs tab of a goal | See the progress, the roles, the verdicts and the application notes. Download the report. |
-| Activity tab of a goal | Watch the system map, or see each step of each agent with its input, its result and its time. Filter to the problems or the saves. |
-| All jobs | See the roles of all goals. |
-| Mandates | See the work that repeats on a schedule. |
+| Chat | Talk with the main agent. Stop, retry or continue a mission. Select the model and the effort. |
+| Jobs tab of a mission | See the progress, the roles, the verdicts and the application notes. Download the report. |
+| Activity tab of a mission | Watch the system map, or see each step of each agent with its input, its result and its time. Filter to the problems or the saves. |
+| All jobs | See the roles of all missions. |
+| Schedules | See the work that repeats at set times. |
 
 A role shows only the facts that the source gave. A role that has no full job description says so.
 
 ### The system map
 
-The Activity tab has two views: **Map** and **Step detail**. The map shows the whole system while a goal runs:
+The Activity tab has two views: **Map** and **Step detail**. The map shows the whole system while a mission runs:
 
 | Area | What you see |
 |---|---|
@@ -186,13 +186,13 @@ The Activity tab has two views: **Map** and **Step detail**. The map shows the w
 | The web | Google, LinkedIn and the careers sites. |
 
 - Envelopes move for each request and each result: between the agents, and through the Gate to career-lens and back.
-- The map shows only what the events of the goal show. It does not name a worker, because career-lens does not say which worker took a request.
-- While a goal runs, the map follows the newest event. Use **Live** to go back to it.
-- Use play, the speed and the bar to replay a goal. A click on a step or a lane moves the replay to that time.
+- The map shows only what the events of the mission show. It does not name a worker, because career-lens does not say which worker took a request.
+- While a mission runs, the map follows the newest event. Use **Live** to go back to it.
+- Use play, the speed and the bar to replay a mission. A click on a step or a lane moves the replay to that time.
 - Click a part of the map to see what it does.
 - **Pixel** and **Blueprint** show the same map in two styles.
 - The **career-lens queue** lane shows the wait of each request (striped) and the work of the worker (solid).
-- The map is the default view for a goal with career-lens requests. Your last choice wins.
+- The map is the default view for a mission with career-lens requests. Your last choice wins.
 
 To work on the UI, run `uv run job-finder serve`. Then run `npm run dev` in `web`.
 
@@ -203,7 +203,7 @@ Use the paperclip in the message box to attach a file to a message. Use the same
 - Agents read text files, PDF files, Word files and images. The largest file is 10 MB.
 - A scanned PDF has no text. Paste the text into the chat.
 - You can store other file types and download them. Agents cannot read them.
-- One resume applies to all goals. A new resume replaces the old one.
+- One resume applies to all missions. A new resume replaces the old one.
 - Only the candidate-profile, fit-check and application-prep subagents get the resume text.
 - The text and the images that agents read go to Claude.
 
@@ -211,7 +211,7 @@ MinIO keeps the files. Postgres keeps the facts of each file and its text.
 
 ## Track your applications
 
-Open **Jobs** to see all roles on a board, with one column for each verdict. The agents give the verdict, so you cannot drag these cards. Use the filters to see one goal or one workplace type, or to search. Click a role to open its page.
+Open **Jobs** to see all roles on a board, with one column for each verdict. The agents give the verdict, so you cannot drag these cards. Use the filters to see one mission or one workplace type, or to search. Click a role to open its page.
 
 Open **Job pipeline** to track your applications. The page is a board with one column for each of the four stages:
 
@@ -228,41 +228,41 @@ Open **Job pipeline** to track your applications. The page is a board with one c
 - The bands at the top of the board count the roles that reached each stage or a later stage.
 - To add any role, open it on the Jobs page and choose **Add to pipeline**. The role goes to Fit jobs. Then use **Show in pipeline** to see its card on the board.
 - When you remove a role, the role and its notes stay. Click **Removed** to show the removed roles in a column. Drag a role from that column to a stage to bring it back.
-- A role and its notes stay in the pipeline when you delete its goal.
+- A role and its notes stay in the pipeline when you delete its mission.
 
 ## Use the command line
 
 ```bash
-uv run job-finder chat               # start a new goal
-uv run job-finder chat 3f9a2c1e      # open a goal again
-uv run job-finder goals              # list the goals
+uv run job-finder chat               # start a new mission
+uv run job-finder chat 3f9a2c1e      # open a mission again
+uv run job-finder missions              # list the missions
 uv run job-finder show 3f9a2c1e      # also --jobs, --notes, --research or --events
 uv run job-finder delete 3f9a2c1e    # asks first, or use --yes
 ```
 
 In a chat, use `/status`, `/jobs`, `/stop` and `/retry`.
 
-## Mandates
+## Schedules
 
-A mandate is work that repeats on a schedule. To make one, tell the agent in a chat, for example "every weekday at
-09:00". The agent shows all the settings and waits for your yes. Then that chat manages the mandate.
+A schedule is work that repeats at set times. To make one, tell the agent in a chat, for example "every weekday at
+09:00". The agent shows all the settings and waits for your yes. Then that chat manages the schedule.
 
-Change, pause, resume or end a mandate in its chat. A mandate needs a ready candidate profile.
+Change, pause, resume or end a schedule in its chat. A schedule needs a ready candidate profile.
 
 ```bash
-uv run job-finder mandate list
-uv run job-finder mandate show 3f9a2c1e
-uv run job-finder mandate delete 3f9a2c1e
+uv run job-finder schedule list
+uv run job-finder schedule show 3f9a2c1e
+uv run job-finder schedule delete 3f9a2c1e
 ```
 
 ## Limits
 
 | Limit | Setting | Default |
 |---|---|---|
-| Spend for each goal | `JOB_FINDER_MAX_SPEND_USD` | $2.00 |
-| Fresh scrapes for each goal | `JOB_FINDER_MAX_FRESH_SCRAPES` | 15 |
-| Total spend of a mandate | `JOB_FINDER_MANDATE_TOTAL_USD` | $10.00 |
-| Time limit for each mandate goal | `JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES` | 120 |
+| Spend for each mission | `JOB_FINDER_MAX_SPEND_USD` | $2.00 |
+| Fresh scrapes for each mission | `JOB_FINDER_MAX_FRESH_SCRAPES` | 15 |
+| Total spend of a schedule | `JOB_FINDER_MANDATE_TOTAL_USD` | $10.00 |
+| Time limit for each schedule mission | `JOB_FINDER_MANDATE_TIME_LIMIT_MINUTES` | 120 |
 
 `.env.example` shows all the settings.
 
@@ -272,7 +272,7 @@ Each subagent is a folder in `job_finder/agents/`, with `agent.py` and `prompt.m
 
 ```bash
 uv run job-finder agent job-discovery "Find 5 Go roles in Pune"
-uv run job-finder agent job-research "Research the roles" --jobs-from <goal id>
+uv run job-finder agent job-research "Research the roles" --jobs-from <mission id>
 ```
 
 ## Test
