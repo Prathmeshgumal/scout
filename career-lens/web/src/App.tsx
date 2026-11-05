@@ -8,6 +8,7 @@ import { useTheme } from "@/hooks/useTheme"
 import { overview, session, signOut, whenSignedOut } from "@/lib/api"
 import { type Route, type Section, parseRoute, routePath } from "@/lib/route"
 import { Accounts } from "@/views/Accounts"
+import { ApiKeys } from "@/views/ApiKeys"
 import { Login } from "@/views/Login"
 import { Overview } from "@/views/Overview"
 import { RequestDetailView } from "@/views/RequestDetailView"
@@ -60,6 +61,7 @@ function Console({ theme, onSignOut }: { theme: ReturnType<typeof useTheme>; onS
           : <Requests onOpen={openRequest} />)}
         {route.section === "workers" && <Workers data={data} error={error} onChange={() => void refresh()} />}
         {route.section === "accounts" && <Accounts data={data} error={error} onChange={() => void refresh()} />}
+        {route.section === "keys" && <ApiKeys />}
         {route.section === "try" && <TryIt onOpen={openRequest} />}
       </main>
     </div>

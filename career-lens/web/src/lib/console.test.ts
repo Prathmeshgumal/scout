@@ -8,6 +8,8 @@ describe("route", () => {
     expect(parseRoute("/console")).toEqual({ section: "overview", requestId: null })
     expect(parseRoute("/console/requests/rq-1")).toEqual({ section: "requests", requestId: "rq-1" })
     expect(parseRoute("/console/nope")).toEqual({ section: "overview", requestId: null })
+    expect(parseRoute("/console/keys")).toEqual({ section: "keys", requestId: null })
+    expect(routePath({ section: "keys", requestId: null })).toBe("/console/keys")
     expect(routePath({ section: "requests", requestId: "rq-1" })).toBe("/console/requests/rq-1")
     expect(routePath({ section: "overview", requestId: null })).toBe("/console")
   })

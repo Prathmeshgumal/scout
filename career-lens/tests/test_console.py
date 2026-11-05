@@ -310,3 +310,55 @@ def test_limits_of_a_missing_or_retired_account_are_refused(authorised_client, a
 def test_limits_need_a_session(client):
     body = {"max_attempts_24h": 20, "min_interval_seconds": 3}
     assert client.put("/operator/api/accounts/la-any/limits", json=body).status_code == 401
+
+
+def test_the_console_makes_a_key_that_works_until_it_is_revoked(authorised_client):
+    created = authorised_client.post("/operator/api/api-keys", json={"name": "  Sales tool  "})
+    assert created.status_code == 201
+    assert created.headers["cache-control"] == "no-store"
+    key = created.json()
+    assert key["name"] == "Sales tool"
+    assert key["revoked_at"] is None
+    bearer = {"Authorization": f"Bearer {key['token']}"}
+    assert authorised_client.get("/v1/requests/rq-none", headers=bearer).status_code == 404
+
+    listed = authorised_client.get("/operator/api/api-keys")
+    assert [row["id"] for row in listed.json()] == [key["id"]]
+    assert set(listed.json()[0]) == {"id", "name", "prefix", "created_at", "revoked_at"}
+
+    revoked = authorised_client.post(f"/operator/api/api-keys/{key['id']}/revoke")
+    assert revoked.status_code == 200
+    assert revoked.json()["revoked_at"] is not None
+    assert "token" not in revoked.json()
+    assert authorised_client.get("/v1/requests/rq-none", headers=bearer).status_code == 401
+
+
+def test_revoking_a_key_twice_keeps_the_first_time(authorised_client):
+    key = authorised_client.post("/operator/api/api-keys", json={"name": "Once"}).json()
+    first = authorised_client.post(f"/operator/api/api-keys/{key['id']}/revoke").json()
+    second = authorised_client.post(f"/operator/api/api-keys/{key['id']}/revoke").json()
+    assert second["revoked_at"] == first["revoked_at"]
+
+
+@pytest.mark.parametrize("body", [{"name": ""}, {"name": "   "}, {"name": "x" * 121}, {}])
+def test_a_bad_key_name_is_refused(authorised_client, body):
+    assert authorised_client.post("/operator/api/api-keys", json=body).status_code == 422
+    assert authorised_client.get("/operator/api/api-keys").json() == []
+
+
+def test_revoking_a_missing_key_is_refused(authorised_client):
+    assert authorised_client.post("/operator/api/api-keys/ak-none/revoke").status_code == 404
+
+
+def test_api_keys_need_a_session(client):
+    assert client.get("/operator/api/api-keys").status_code == 401
+    assert client.post("/operator/api/api-keys", json={"name": "No"}).status_code == 401
+    assert client.post("/operator/api/api-keys/ak-any/revoke").status_code == 401
+
+
+def test_a_customer_key_cannot_make_keys(authorised_client, application):
+    token = authorised_client.post("/operator/api/api-keys", json={"name": "Customer"}).json()["token"]
+    customer = TestClient(application)
+    response = customer.post("/operator/api/api-keys", json={"name": "Stolen"},
+                             headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
