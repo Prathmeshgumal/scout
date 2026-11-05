@@ -1,4 +1,4 @@
-import { Briefcase, Funnel, Laptop, Moon, ScrollText, Sun, Target } from "lucide-react"
+import { Briefcase, Funnel, Laptop, LogOut, Moon, ScrollText, Sun, Target } from "lucide-react"
 import type { ComponentProps } from "react"
 import { LoginPopover } from "@/components/shell/LoginPopover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -17,9 +17,9 @@ const SECTIONS: { id: Section; label: string; icon: typeof Briefcase }[] = [
 const item = "grid size-[34px] place-items-center rounded-[9px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-[17px]"
 const idle = "text-muted-foreground hover:bg-muted hover:text-foreground"
 
-type Props = { section: Section; onSection: (section: Section) => void; theme: Theme; resolved: "light" | "dark"; onTheme: (theme: Theme) => void; narrow: boolean; login: ComponentProps<typeof LoginPopover> }
+type Props = { section: Section; onSection: (section: Section) => void; theme: Theme; resolved: "light" | "dark"; onTheme: (theme: Theme) => void; narrow: boolean; login: ComponentProps<typeof LoginPopover>; onSignOut: () => void }
 
-export function IconRail({ section, onSection, theme, resolved, onTheme, narrow, login }: Props) {
+export function IconRail({ section, onSection, theme, resolved, onTheme, narrow, login, onSignOut }: Props) {
   const ThemeIcon = theme === "system" ? Laptop : resolved === "dark" ? Moon : Sun
   return (
     <nav aria-label="Main" className={cn("flex shrink-0 items-center", narrow ? "h-12 justify-around border-t px-2" : "w-[52px] flex-col gap-1.5 border-r py-2.5")}>
@@ -44,6 +44,12 @@ export function IconRail({ section, onSection, theme, resolved, onTheme, narrow,
         </DropdownMenuContent>
       </DropdownMenu>
       <LoginPopover {...login} className={cn(item, idle)} side={narrow ? "top" : "right"} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" aria-label="Sign out" onClick={onSignOut} className={cn(item, idle)}><LogOut /></button>
+        </TooltipTrigger>
+        <TooltipContent side={narrow ? "top" : "right"}>Sign out</TooltipContent>
+      </Tooltip>
     </nav>
   )
 }

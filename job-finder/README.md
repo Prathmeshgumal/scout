@@ -28,7 +28,7 @@ job-finder gets all web data from [career-lens](../career-lens). It does not use
 
 ```bash
 uv sync
-cp .env.example .env                 # set the career-lens settings
+cp .env.example .env                 # set JOB_FINDER_PASSWORD and the career-lens settings
 uv run job-finder login              # save a Claude login
 docker compose up -d                 # start Postgres and MinIO
 cd web && npm install && npm run build && cd ..
@@ -36,6 +36,12 @@ uv run job-finder serve              # then open http://127.0.0.1:8000
 ```
 
 The app applies its database migrations when it starts.
+
+## Dashboard login
+
+`JOB_FINDER_PASSWORD` in the env file is the password of the dashboard. The sign-in gives a token for 12 hours, and the web app sends it as a Bearer header on each API call. A new password ends all tokens: start the app again after you change it. With no password, nobody can sign in.
+
+The API has no API keys, because only the web app calls it. The app also refuses any request that does not come from this computer.
 
 ## Claude login
 

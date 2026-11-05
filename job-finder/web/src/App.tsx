@@ -13,6 +13,7 @@ import { JobsTab } from "@/components/jobs/JobsTab"
 import { PipelinePage } from "@/components/pipeline/PipelinePage"
 import { IconRail } from "@/components/shell/IconRail"
 import { GoalList, MandateList } from "@/components/shell/ListPane"
+import { SignIn } from "@/components/shell/SignIn"
 import { StatusBar } from "@/components/shell/StatusBar"
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
@@ -20,8 +21,8 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { NARROW_QUERY, useMediaQuery } from "@/hooks/useMediaQuery"
 import { useTheme } from "@/hooks/useTheme"
 import {
-  type FileInfo, RECONNECT_DELAYS_MS, continueGoal, createGoal, deleteFile, getGoal, getModels, getReport, getStatus, listGoals, listMandates, retryGoal,
-  sendMessage, setGoalModel, stopGoal, watchGoal,
+  type FileInfo, RECONNECT_DELAYS_MS, clearToken, continueGoal, createGoal, deleteFile, getGoal, getModels, getReport, getStatus, listGoals, listMandates, retryGoal,
+  readToken, sendMessage, setGoalModel, stopGoal, watchGoal, whenSignedOut,
   type GoalDetail, type GoalSummary, type Mandate, type ModelCatalog, type ModelChoice, type Report, type Status,
 } from "@/lib/api"
 import { runningAgents } from "@/lib/chat-state"
@@ -38,6 +39,13 @@ const REFRESH_EVENTS = new Set(["user_message", "agent_started", "agent_finished
 type Summary = Omit<GoalDetail, "events">
 
 export default function App() {
+  const [signedIn, setSignedIn] = useState(() => readToken() !== null)
+  useEffect(() => whenSignedOut(() => setSignedIn(false)), [])
+  if (!signedIn) return <SignIn onDone={() => setSignedIn(true)} />
+  return <Dashboard onSignOut={() => { clearToken(); setSignedIn(false) }} />
+}
+
+function Dashboard({ onSignOut }: { onSignOut: () => void }) {
   const { theme, resolved, choose } = useTheme()
   const narrow = useMediaQuery(NARROW_QUERY)
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname))
@@ -300,7 +308,7 @@ export default function App() {
     <TooltipProvider delayDuration={200}>
       <div className="app-bg flex h-dvh flex-col overflow-hidden text-[13px] text-foreground">
         <div className="flex min-h-0 flex-1">
-          {!narrow && <IconRail section={section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow={false} login={login} />}
+          {!narrow && <IconRail onSignOut={onSignOut} section={section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow={false} login={login} />}
           {showList && list}
           {showMain && (
             <main className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -326,7 +334,7 @@ export default function App() {
             </main>
           )}
         </div>
-        {narrow && <IconRail section={section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow login={login} />}
+        {narrow && <IconRail onSignOut={onSignOut} section={section} onSection={openSection} theme={theme} resolved={resolved} onTheme={choose} narrow login={login} />}
         <StatusBar onLogin={() => setLoginOpen(true)} status={status} wait={wait} spend={report ? { used: report.goal.spend_usd, max: report.goal.max_spend_usd } : null}
           running={goals?.filter((g) => g.status === "running").length ?? 0} onCommand={() => setCommandOpen(true)} />
       </div>

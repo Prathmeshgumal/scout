@@ -245,8 +245,78 @@ async function errorDetail(response: Response): Promise<string> {
   }
 }
 
+const TOKEN_KEY = "job-finder-token"
+let onSignedOut = () => {}
+export const whenSignedOut = (action: () => void) => { onSignedOut = action }
+
+export function readToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+export function saveToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, token)
+  } catch {
+    // With no storage, the next page load asks for the password again.
+  }
+}
+export function clearToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // Nothing is stored.
+  }
+}
+
+/** A call with the token of the sign-in. A 401 means the token ended: the app goes back to the sign-in. */
+async function send(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers)
+  const token = readToken()
+  if (token) headers.set("Authorization", `Bearer ${token}`)
+  const response = await fetch(path, { ...init, headers })
+  if (response.status === 401) {
+    clearToken()
+    onSignedOut()
+  }
+  return response
+}
+
+export async function signIn(password: string): Promise<void> {
+  const response = await fetch("/api/auth/login", postJson({ password }))
+  if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
+  saveToken(((await response.json()) as { access_token: string }).access_token)
+}
+
+function serverName(response: Response): string {
+  const header = response.headers.get("Content-Disposition") ?? ""
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1]
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded)
+    } catch {
+      return "download"
+    }
+  }
+  return /filename="?([^";]+)"?/.exec(header)?.[1] ?? "download"
+}
+
+/** Save a file of the API. A plain link cannot send the token. */
+export async function download(path: string): Promise<void> {
+  const response = await send(path)
+  if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement("a")
+  link.href = url
+  link.download = serverName(response)
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init)
+  const response = await send(path, init)
   if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
   return (await response.json()) as T
 }
@@ -289,7 +359,7 @@ export const goalDeletePreview = (id: string) => request<DeletePreview>(`/api/go
 export const mandateDeletePreview = (id: string) => request<DeletePreview>(`/api/mandates/${id}/delete-preview`)
 
 async function remove(path: string): Promise<void> {
-  const response = await fetch(path, { method: "DELETE" })
+  const response = await send(path, { method: "DELETE" })
   if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
 }
 export const deleteFile = (id: string) => remove(`/api/files/${id}`)
@@ -313,7 +383,7 @@ export const deleteMandate = (id: string) => remove(`/api/mandates/${id}`)
 
 /** Stream the events of a goal after `after`. It resolves when the server closes the stream. */
 export async function watchGoal(id: string, after: number, onEvent: (event: GoalEvent) => void, signal?: AbortSignal): Promise<void> {
-  const response = await fetch(`/api/goals/${id}/stream?after=${after}`, { signal })
+  const response = await send(`/api/goals/${id}/stream?after=${after}`, { signal })
   if (!response.ok || !response.body) throw new ApiError(await errorDetail(response), response.status)
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ""
@@ -331,6 +401,6 @@ export type BoardName = "pipeline" | "jobs"
 export const getBoardOrder = (board: BoardName) => request<{ positions: Positions }>(`/api/board-order/${board}`)
 /** The server answers 204 with no body. */
 export async function saveBoardOrder(board: BoardName, column: string, keys: string[]): Promise<void> {
-  const response = await fetch(`/api/board-order/${board}`, { ...postJson({ column, keys }), method: "PUT" })
+  const response = await send(`/api/board-order/${board}`, { ...postJson({ column, keys }), method: "PUT" })
   if (!response.ok) throw new ApiError(await errorDetail(response), response.status)
 }

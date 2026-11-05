@@ -14,6 +14,8 @@ from job_finder.login_status import LoginStatus, read_metadata
 from job_finder.web.app import create_app
 from job_finder.web.sessions import GoalSessions
 
+from tests.conftest import signed_in_client
+
 from .fakes import Streams, make_services, replies
 
 KEY = "sk-ant-api03-web-key"
@@ -80,7 +82,7 @@ async def client(app_settings, services, sessions, env_path):
     app = create_app(app_settings, services, sessions, model_loader=lambda: [])
     app.state.restarts = []
     app.state.restart = lambda: app.state.restarts.append(1)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:8000") as c:
+    async with signed_in_client(app) as c:
         c.app = app
         yield c
     app.state.setup_token.close()

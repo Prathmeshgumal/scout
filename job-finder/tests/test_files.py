@@ -20,6 +20,7 @@ from job_finder.web.app import create_app
 from job_finder.web.sessions import GoalSessions
 
 from .fakes import FakeObjects, Streams, make_services, replies
+from tests.conftest import signed_in_client
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32
 RESUME_TEXT = "Fake Person wrote Go services for ten years."
@@ -252,7 +253,7 @@ async def sessions(services):
 @pytest.fixture
 async def client(app_settings, services, sessions):
     app = create_app(app_settings, services, sessions)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with signed_in_client(app) as client:
         yield client
 
 

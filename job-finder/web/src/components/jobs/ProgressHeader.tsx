@@ -2,7 +2,8 @@ import { AlertTriangle, Download, Hourglass } from "lucide-react"
 import type { ReactNode } from "react"
 import { GlowBorder } from "@/components/glow/GlowBorder"
 import { Button } from "@/components/ui/button"
-import { reportMarkdownUrl, type GoalStatus, type Report } from "@/lib/api"
+import { toast } from "sonner"
+import { download, reportMarkdownUrl, type GoalStatus, type Report } from "@/lib/api"
 import { span } from "@/lib/jobs"
 import { cn } from "@/lib/utils"
 
@@ -44,8 +45,10 @@ export function ProgressHeader({ report }: { report: Report }) {
             {target ? <span className="tabular-nums">{funnel.fit} of {target} fit roles</span> : null}
           </p>
         </div>
-        <Button asChild variant="outline" size="sm" className="text-[12px]">
-          <a href={reportMarkdownUrl(goal.id)} download><Download aria-hidden /> Download report</a>
+        <Button variant="outline" size="sm" className="text-[12px]" onClick={() => {
+          download(reportMarkdownUrl(goal.id)).catch((err: unknown) => toast.error(err instanceof Error ? err.message : "The download failed."))
+        }}>
+          <Download aria-hidden /> Download report
         </Button>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1">
