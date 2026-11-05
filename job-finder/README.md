@@ -13,7 +13,7 @@ The main agent talks with you and gives the work to subagents. All subagents use
 | `fit-check` | Compare each role with the profile: fit, partial, not_fit or unsure |
 | `application-prep` | Write an application note for each fit role |
 
-job-finder gets all web data from [career-lens](../career-lens-v2). It does not use the built-in `WebSearch` and
+job-finder gets all web data from [career-lens](../career-lens). It does not use the built-in `WebSearch` and
 `WebFetch` tools.
 
 ## You need

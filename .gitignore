@@ -1,0 +1,4 @@
+# The stack's secrets and local tool output. Never commit them.
+.env
+job-finder-config/
+.playwright-mcp/
