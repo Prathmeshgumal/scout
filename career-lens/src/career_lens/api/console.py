@@ -14,7 +14,9 @@ from sqlalchemy import Connection, text
 from sqlalchemy.exc import IntegrityError
 
 from ..capture.urls import UrlError
-from ..fleet.accounts import AccountError, account_projection, create_account, replace_password
+from ..fleet.accounts import (
+    AccountError, account_projection, create_account, replace_password, update_limits,
+)
 from ..fleet.assignments import (
     AssignmentConflict, InvalidAssignmentTransition, assign_account,
     confirm_replace, request_clear, request_login_retry, request_verify,
@@ -56,6 +58,11 @@ router = APIRouter(prefix="/operator/api", dependencies=[Depends(require_operato
 
 class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class LimitsPut(Strict):
+    max_attempts_24h: int = Field(ge=1, le=10_000, strict=True)
+    min_interval_seconds: int = Field(ge=0, le=86_400, strict=True)
 
 
 class AccountCreate(Strict):
@@ -311,6 +318,21 @@ def put_password(account_id: str, body: PasswordPut, connection: Db) -> dict:
         except CredentialError as exc:
             raise HTTPException(422, str(exc)) from exc
         return {"account_id": account_id}
+
+
+@router.put("/accounts/{account_id}/limits")
+def put_limits(account_id: str, body: LimitsPut, connection: Db) -> dict:
+    with write(connection) as writable:
+        state = writable.execute(text(
+            "SELECT state FROM linkedin_account WHERE id=:id FOR UPDATE"
+        ), {"id": account_id}).scalar_one_or_none()
+        if state is None:
+            raise HTTPException(404, f"no account {account_id}")
+        if state == "retired":
+            raise HTTPException(409, "this account is retired")
+        update_limits(writable, account_id, **body.model_dump())
+        enqueue_dispatch(writable)
+        return {"account_id": account_id, **body.model_dump()}
 
 
 @router.put("/accounts/{account_id}/shift")

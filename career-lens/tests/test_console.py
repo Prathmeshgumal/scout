@@ -274,3 +274,39 @@ def test_a_login_in_progress_is_not_waiting_for_the_operator(
         "/operator/api/overview").json()["accounts"][0]["assignment"]
     assert assignment["waiting_for_you"] is False
     assert assignment["action"] is None
+
+
+def test_the_limits_of_an_account_can_be_changed(authorised_client):
+    account = _account(authorised_client)
+    response = authorised_client.put(f"/operator/api/accounts/{account}/limits",
+                                     json={"max_attempts_24h": 35, "min_interval_seconds": 45})
+    assert response.status_code == 200
+    assert response.json() == {"account_id": account, "max_attempts_24h": 35, "min_interval_seconds": 45}
+    shown = authorised_client.get("/operator/api/overview").json()["accounts"][0]
+    assert (shown["max_attempts_24h"], shown["min_interval_seconds"]) == (35, 45)
+
+
+@pytest.mark.parametrize("body", [
+    {"max_attempts_24h": 0, "min_interval_seconds": 3},
+    {"max_attempts_24h": 10_001, "min_interval_seconds": 3},
+    {"max_attempts_24h": 20, "min_interval_seconds": -1},
+    {"max_attempts_24h": 20, "min_interval_seconds": 86_401},
+    {"max_attempts_24h": "20", "min_interval_seconds": 3},
+    {"max_attempts_24h": 20},
+])
+def test_bad_limits_are_refused(authorised_client, body):
+    account = _account(authorised_client)
+    assert authorised_client.put(f"/operator/api/accounts/{account}/limits", json=body).status_code == 422
+
+
+def test_limits_of_a_missing_or_retired_account_are_refused(authorised_client, app):
+    body = {"max_attempts_24h": 20, "min_interval_seconds": 3}
+    assert authorised_client.put("/operator/api/accounts/la-none/limits", json=body).status_code == 404
+    account = _account(authorised_client)
+    app.execute(text("UPDATE linkedin_account SET state = 'retired' WHERE id = :id"), {"id": account})
+    assert authorised_client.put(f"/operator/api/accounts/{account}/limits", json=body).status_code == 409
+
+
+def test_limits_need_a_session(client):
+    body = {"max_attempts_24h": 20, "min_interval_seconds": 3}
+    assert client.put("/operator/api/accounts/la-any/limits", json=body).status_code == 401

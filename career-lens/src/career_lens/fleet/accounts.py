@@ -140,6 +140,22 @@ def replace_password(connection: Connection, account_id: str, password: str, *,
         {"id": account_id, "now": changed_at})
 
 
+def update_limits(connection: Connection, account_id: str, *,
+                  max_attempts_24h: int, min_interval_seconds: int,
+                  now: datetime | None = None) -> None:
+    """Change an account's limits. The next dispatch reads the new values."""
+    _require_transaction(connection)
+    result = connection.execute(text("""
+        UPDATE linkedin_account
+        SET max_attempts_24h = :maximum, min_interval_seconds = :interval,
+            updated_at = :now
+        WHERE id = :id
+    """), {"id": account_id, "maximum": max_attempts_24h,
+           "interval": min_interval_seconds, "now": now or datetime.now(UTC)})
+    if result.rowcount != 1:
+        raise AccountError(f"no LinkedIn account {account_id}")
+
+
 def password_for_login(connection: Connection, account_id: str, *,
                        keyring: CredentialKeyring | None = None) -> str:
     row = connection.execute(text("""

@@ -169,6 +169,7 @@ export function requests(filters: { status?: string; kind?: string; q?: string; 
 
 export const addAccount = (body: unknown) => call<Account>("/accounts", send("POST", body))
 export const changePassword = (id: string, password: string) => call<unknown>(`/accounts/${id}/password`, send("PUT", { password }))
+export const saveLimits = (id: string, body: { max_attempts_24h: number; min_interval_seconds: number }) => call<unknown>(`/accounts/${id}/limits`, send("PUT", body))
 export const saveShift = (id: string, body: unknown) => call<unknown>(`/accounts/${id}/shift`, send("PUT", body))
 export const assign = (workerId: string, accountId: string) => call<unknown>(`/workers/${workerId}/assignments`, send("POST", { account_id: accountId }))
 export const assignmentCommand = (id: string, command: string) => call<unknown>(`/assignments/${id}/${command}`, send("POST"))

@@ -1,4 +1,4 @@
-import { ChevronRight, Clock, KeyRound } from "lucide-react"
+import { ChevronRight, Clock, Gauge, KeyRound } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Field, Page, Panel, Problem, Status, fieldClass } from "@/components/Status"
@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { type Account, type Overview, type ShiftDay, addAccount, changePassword, saveShift } from "@/lib/api"
+import { type Account, type Overview, type ShiftDay, addAccount, changePassword, saveLimits, saveShift } from "@/lib/api"
 import { blankShift, shiftBody, shiftText, timeChoices } from "@/lib/shift"
 import { cn } from "@/lib/utils"
 
@@ -17,21 +17,23 @@ const message = (err: unknown) => (err instanceof Error ? err.message : "The act
 export function Accounts({ data, error, onChange }: { data: Overview | null; error: string | null; onChange: () => void }) {
   const [adding, setAdding] = useState(false)
   const [password, setPassword] = useState<Account | null>(null)
+  const [limits, setLimits] = useState<Account | null>(null)
   return (
     <Page title="Accounts and shifts" note="The LinkedIn accounts, their limits and their working hours."
       actions={<Button onClick={() => setAdding(true)}>Add an account</Button>}>
       <Problem text={error} />
       {data && !data.accounts.length && <p className="py-10 text-center text-sm text-muted-foreground">No LinkedIn account yet. Add an account.</p>}
       <div className="flex flex-col gap-4">
-        {data?.accounts.map((account) => <AccountPanel key={account.id} account={account} onPassword={() => setPassword(account)} onChange={onChange} />)}
+        {data?.accounts.map((account) => <AccountPanel key={account.id} account={account} onPassword={() => setPassword(account)} onLimits={() => setLimits(account)} onChange={onChange} />)}
       </div>
       {adding && <AddAccount onClose={() => setAdding(false)} onDone={onChange} />}
       {password && <PasswordDialog account={password} onClose={() => setPassword(null)} />}
+      {limits && <LimitsDialog account={limits} onClose={() => setLimits(null)} onDone={onChange} />}
     </Page>
   )
 }
 
-function AccountPanel({ account, onPassword, onChange }: { account: Account; onPassword: () => void; onChange: () => void }) {
+function AccountPanel({ account, onPassword, onLimits, onChange }: { account: Account; onPassword: () => void; onLimits: () => void; onChange: () => void }) {
   const [open, setOpen] = useState(false)
   const used = account.max_attempts_24h ? Math.min(1, account.attempts_24h / account.max_attempts_24h) : 0
   return (
@@ -54,7 +56,10 @@ function AccountPanel({ account, onPassword, onChange }: { account: Account; onP
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">{account.min_interval_seconds}s between scrapes</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onPassword}><KeyRound aria-hidden /> Change password</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onLimits}><Gauge aria-hidden /> Edit limits</Button>
+          <Button variant="outline" size="sm" onClick={onPassword}><KeyRound aria-hidden /> Change password</Button>
+        </div>
       </div>
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50">
@@ -181,6 +186,46 @@ function AddAccount({ onClose, onDone }: { onClose: () => void; onDone: () => vo
             <Field label="Seconds between scrapes"><input required type="number" min={0} value={form.min_interval_seconds} onChange={set("min_interval_seconds")} className={fieldClass} /></Field>
           </div>
           <DialogFooter><Button type="submit">Add the account</Button></DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const whole = (value: string, low: number, high: number) => /^\d+$/.test(value) && Number(value) >= low && Number(value) <= high
+
+function LimitsDialog({ account, onClose, onDone }: { account: Account; onClose: () => void; onDone: () => void }) {
+  const [scrapes, setScrapes] = useState(String(account.max_attempts_24h))
+  const [gap, setGap] = useState(String(account.min_interval_seconds))
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const valid = whole(scrapes, 1, 10_000) && whole(gap, 0, 86_400)
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!valid) return
+    setSaving(true)
+    try {
+      await saveLimits(account.id, { max_attempts_24h: Number(scrapes), min_interval_seconds: Number(gap) })
+      toast.success("Saved the limits.")
+      onDone()
+      onClose()
+    } catch (err) {
+      setError(message(err))
+    }
+    setSaving(false)
+  }
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <DialogHeader>
+            <DialogTitle>Edit the limits of {account.label}</DialogTitle>
+            <DialogDescription>The change applies at once. More scrapes or a shorter gap make a LinkedIn block more likely.</DialogDescription>
+          </DialogHeader>
+          <Problem text={error} />
+          <Field label="Scrapes in 24 hours"><input required type="number" min={1} max={10000} value={scrapes} onChange={(e) => setScrapes(e.target.value)} className={fieldClass} /></Field>
+          <Field label="Seconds between scrapes"><input required type="number" min={0} max={86400} value={gap} onChange={(e) => setGap(e.target.value)} className={fieldClass} /></Field>
+          <DialogFooter><Button type="submit" disabled={!valid || saving}>Save limits</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

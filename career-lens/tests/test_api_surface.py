@@ -20,6 +20,7 @@ EXPECTED = {
     ("GET", "/v1/linkedin-job"), ("GET", "/v1/linkedin-job-search/{request_id}"),
     ("GET", "/operator/api/overview"), ("POST", "/operator/api/accounts"),
     ("PUT", "/operator/api/accounts/{account_id}/password"),
+    ("PUT", "/operator/api/accounts/{account_id}/limits"),
     ("PUT", "/operator/api/accounts/{account_id}/shift"),
     ("POST", "/operator/api/workers/{worker_id}/assignments"),
     ("POST", "/operator/api/assignments/{assignment_id}/{command}"),
