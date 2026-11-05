@@ -142,6 +142,17 @@ describe("activity tab", () => {
     expect(screen.getByRole("separator", { name: "Change the height of the lanes" })).toHaveAttribute("aria-valuenow", String(start + 40))
   })
 
+  it("makes the bars thicker when the lanes get taller", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    const lanes = screen.getByRole("region", { name: "Agent lanes" })
+    const thickness = () => parseFloat((lanes.querySelector("[data-lane]") as HTMLElement).style.height)
+    const before = thickness()
+    screen.getByRole("separator", { name: "Change the height of the lanes" }).focus()
+    await user.keyboard("{ArrowUp}{ArrowUp}{ArrowUp}")
+    expect(thickness()).toBeGreaterThan(before)
+  })
+
   it("does not make the lanes smaller than one lane", async () => {
     const user = userEvent.setup()
     render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)

@@ -362,22 +362,31 @@ function LanesHandle({ height, onResize }: { height: number; onResize: (height: 
 
 type LanesProps = { activity: Activity; filter: Filter; selectedId: string | null; running: boolean; height: number; onSelect: (id: string) => void }
 
+/** The space above and below the lanes: the time line (20 px) and the bottom padding (8 px). The gap between lanes is 4 px. */
+const LANES_CHROME = 28
+const LANE_GAP = 4
+const LANE_MIN = 16
+const LANE_MAX = 64
+
 function Lanes({ activity, filter, selectedId, running, height, onSelect }: LanesProps) {
+  const count = Math.max(activity.agents.length, 1)
+  // The lanes share the height. A lane does not become thinner than 16 px; more lanes then scroll.
+  const thickness = Math.min(LANE_MAX, Math.max(LANE_MIN, (height - LANES_CHROME - LANE_GAP * (count - 1)) / count))
   const span = Math.max(activity.end - activity.start, 1000)
   const pos = (t: number) => ((t - activity.start) / span) * 100
   return (
     <section aria-label="Agent lanes" style={{ height }} className="flex shrink-0 flex-col px-3 pb-2 text-[11px]">
-      <div className="flex items-center justify-between pb-1 text-muted-foreground" style={{ paddingLeft: LANE_LABEL }}>
+      <div className="flex h-5 shrink-0 items-center justify-between text-muted-foreground" style={{ paddingLeft: LANE_LABEL }}>
         <span className="tabular-nums">{clock(activity.start)}</span>
         <span className="tabular-nums">{running ? "Now" : clock(activity.end)}</span>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {activity.agents.map((agent) => (
-          <div key={agent} className="flex items-center">
+          <div key={agent} data-lane={agent} className="flex shrink-0 items-center" style={{ height: thickness }}>
             <span className="flex shrink-0 items-center gap-1.5 truncate pr-2" style={{ width: LANE_LABEL }}>
               <AgentDot agent={agent} /> <span className="truncate">{agent}</span>
             </span>
-            <div className="relative h-4 flex-1 rounded-sm bg-muted/50">
+            <div className="relative h-full flex-1 rounded-sm bg-muted/50">
               {activity.steps.filter((s) => s.agent === agent).map((step) => {
                 const end = step.endedAt ?? (step.state === "running" ? activity.end : step.startedAt)
                 const left = pos(step.startedAt)
@@ -387,7 +396,7 @@ function Lanes({ activity, filter, selectedId, running, height, onSelect }: Lane
                   <button key={step.id} type="button" onClick={() => onSelect(step.id)} title={`${step.label} (${STATE_WORD[step.state]})`}
                     aria-label={`${step.label}, ${agent}, ${STATE_WORD[step.state]}`} aria-pressed={step.id === selectedId}
                     style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }}
-                    className={cn("absolute inset-y-0.5 min-w-1 rounded-[3px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    className={cn("absolute inset-y-0.5 min-w-1 rounded-[4px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       agentColor(step.agent), dim ? "opacity-20" : "opacity-80 hover:opacity-100",
                       step.state === "failed" && "ring-2 ring-red-600 dark:ring-red-400",
                       step.id === selectedId && "opacity-100 ring-2 ring-foreground ring-offset-1 ring-offset-background")} />
