@@ -11,9 +11,9 @@ export function Welcome({ composer, onDraft, hasGoals }: { composer: ReactNode; 
     <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-4 py-6">
       <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
         <div>
-          <h1 className="text-[22px] leading-tight font-semibold">{hasGoals ? "What roles do you want next?" : "Tell the agent what job you want"}</h1>
+          <h1 className="text-[22px] leading-tight font-semibold">{hasGoals ? "What job do you want to find next?" : "What job do you want to find?"}</h1>
           <p className="mt-1.5 text-muted-foreground">
-            Say what you do and what you want. Upload your resume, or paste it as text. The agents find roles, read each job, and tell you which ones fit and why. They never apply for you.
+            Tell me about the job you want and add your resume. Tell me what matters to you too, such as the city, the pay, remote work or the company size. Then I find the roles that fit you best.
           </p>
         </div>
         {composer}

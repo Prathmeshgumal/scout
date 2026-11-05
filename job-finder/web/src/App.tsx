@@ -250,7 +250,7 @@ function Dashboard({ onSignOut }: { onSignOut: () => void }) {
 
   const composer = (
     <Composer value={input} onChange={setInput} onSubmit={(text) => void send(text)} busy={busy}
-      placeholder={goalId ? undefined : "Say what roles you want. Upload your resume, or paste it here."} textareaRef={textarea}
+      placeholder={goalId ? undefined : "Describe the job you want, and add your resume."} textareaRef={textarea}
       attached={attached} uploading={uploading}
       onRemove={(id) => {
         setAttached((files) => files.filter((file) => file.id !== id))
