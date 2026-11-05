@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import re
 import time
 import uuid
@@ -102,6 +103,8 @@ DEFAULT_JOB_PAGES = 2
 BLOCK_LIMIT = 3  # refused pages in one session that stop the goal
 BLOCK_STOP_REASON = ("Stopped: the agent tried to open pages that are not about jobs or are on this network "
                      f"{BLOCK_LIMIT} times. Look at the Activity tab, then retry with a clearer goal.")
+
+log = logging.getLogger(__name__)
 
 
 def failure_kind(tool: str, reply: str) -> str | None:
@@ -242,6 +245,62 @@ def _waiting(ctx: ToolContext, request_id: str) -> Iterator[None]:
         ctx.waiting.discard(request_id)
 
 
+FINAL = {"satisfied", "succeeded", "failed", "cancelled"}  # a career-lens request in one of these has ended
+
+
+class _Trace:
+    """Records lens_request events for the map of the Activity tab: the submit, each change of the status or the wait
+    reason, and the end with the times from career-lens. A failure here never stops the tool."""
+
+    def __init__(self, ctx: ToolContext, tool: str, target: str) -> None:
+        self.ctx, self.tool, self.target = ctx, tool, target
+        self.request_id: str | None = None
+        self._last: tuple | None = None
+        self._final: dict | None = None
+
+    async def note(self, request_id: str, status: dict) -> None:
+        self.request_id = request_id
+        if status.get("status") in FINAL:
+            self._final = status  # end() records it, with the times
+            return
+        key = (status.get("status"), status.get("wait_reason"))
+        if key == self._last or not key[0]:
+            return
+        self._last = key
+        await self._record(status.get("status"), wait_reason=status.get("wait_reason"),
+                           next_attempt_at=status.get("next_attempt_at"))
+
+    async def status(self) -> dict:
+        """The request's status now, also recorded. Empty when career-lens does not answer."""
+        try:
+            status = await self.ctx.career_lens.request_status(self.request_id)
+        except Exception:
+            return {}
+        await self.note(self.request_id, status)
+        return status
+
+    async def end(self) -> None:
+        if self.request_id is None:
+            return
+        try:
+            status = await self.ctx.career_lens.request_status(self.request_id)
+        except Exception:
+            status = {}
+        if not status.get("status"):
+            status = self._final or {}
+        times = {key: status.get(key) for key in ("requested_at", "started_at", "finished_at") if status.get(key)}
+        if status.get("status"):
+            await self._record(status["status"], **times)
+
+    async def _record(self, status: str, **fields) -> None:
+        try:
+            await self.ctx.recorder.record(self.ctx.goal_id, "lens_request", request_id=self.request_id, tool=self.tool,
+                                           target=self.target, status=status,
+                                           **{k: v for k, v in fields.items() if v is not None})
+        except Exception:
+            log.warning("Could not record a lens_request event", exc_info=True)
+
+
 async def _read_page(ctx: ToolContext, args: dict) -> dict:
     """Capture one page in career-lens, wait for it, then answer the prompt from its Markdown."""
     url = str(args.get("url") or "").strip()
@@ -260,17 +319,22 @@ async def _read_page(ctx: ToolContext, args: dict) -> dict:
         return result(LINKEDIN_PAGE_REFUSAL, error=True)
     if reason := await asyncio.to_thread(blocked_url_reason, url, resolve=ctx.resolve):
         return await _refuse(ctx, url, reason)
+    trace = _Trace(ctx, "read_page", str(args.get("url") or "").strip())
     try:
         submission = await ctx.career_lens.scrape_url(url)
         request_id = submission.body["request_id"]
+        await trace.note(request_id, submission.body)
         with _waiting(ctx, request_id):
             page = await ctx.career_lens.url_result(request_id)
             deadline = time.monotonic() + ctx.poll_timeout_s
             while page.status_code == 202 and time.monotonic() < deadline:
+                await trace.status()
                 await asyncio.sleep(ctx.poll_interval_s)
                 page = await ctx.career_lens.url_result(request_id)
     except CareerLensError as exc:
         return result(f"Could not read {url}: {exc}.", error=True)
+    if page.status_code != 202:
+        await trace.end()
     if page.status_code == 202:
         # career-lens gives the same request to the same URL while it is active, so a new call continues it.
         return result(f"The page {url} is still loading after {ctx.poll_timeout_s / 60:g} minutes "
@@ -321,14 +385,16 @@ async def _search(ctx: ToolContext, args: dict) -> dict:
     query = (args.get("query") or "").strip()
     if not query:
         return result("Give a query.", error=True)
+    trace = _Trace(ctx, "google_search", query)
     try:
         submission = await ctx.career_lens.search(query)
         request_id = submission.body["request_id"]
+        await trace.note(request_id, submission.body)
         with _waiting(ctx, request_id):
             deadline = time.monotonic() + ctx.poll_timeout_s
             while submission.status_code == 202 and time.monotonic() < deadline:
                 # The search reply has no wait reason. The status of the request has it.
-                wait = (await ctx.career_lens.request_status(request_id)).get("wait_reason")
+                wait = (await trace.status()).get("wait_reason")
                 if wait in GOOGLE_OFF:
                     reason = wait_text(wait)
                     await ctx.career_lens.cancel(request_id)
@@ -338,6 +404,8 @@ async def _search(ctx: ToolContext, args: dict) -> dict:
     except CareerLensError as exc:
         return result(f"Google search failed: {exc}. {NOT_NO_JOBS}", error=True)
     body = submission.body
+    if submission.status_code != 202:
+        await trace.end()
     if submission.status_code == 202:
         await ctx.store.add_scrape(ctx.goal_id, body["request_id"], "google_search", query, False)
         await ctx.recorder.record(ctx.goal_id, "scrape_queued", request_id=body["request_id"], kind="google_search",
@@ -406,6 +474,9 @@ async def _search_jobs(ctx: ToolContext, args: dict) -> dict:
         return result(f"LinkedIn job search {label}: queued as {request_id}.\n{QUEUED_NOTE} Then read the roles "
                       "with get_job_search.")
     if status in FRESH:
+        trace = _Trace(ctx, "search_linkedin_jobs", terms["keywords"])
+        await trace.note(request_id, body)
+        await trace.end()
         return await _job_search(ctx, {"request_id": request_id})
     return _search_failed(label, body)
 

@@ -265,6 +265,8 @@ async def test_a_fresh_job_search_is_read_at_once(ctx, store):
     respx.get(f"{BASE}/v1/linkedin-job-search/rq-s").mock(return_value=search_result(reached_end=True, items=[ITEM]))
     out = text(await tool(ctx, "search_linkedin_jobs")({"keywords": "go"}))
     assert "Read to the end: 1 roles." in out and await store.pending_scrapes() == []
+    [event] = [e for e in await store.list_events(ctx.goal_id) if e["type"] == "lens_request"]
+    assert (event["tool"], event["target"], event["status"]) == ("search_linkedin_jobs", "go", "satisfied")
 
 
 # LinkedIn job postings
@@ -628,3 +630,50 @@ async def test_google_search_removes_results_on_blocked_sites(ctx, store):
     assert "Removed 2 results on blocked sites." in body
     [event] = [e for e in await store.list_events(ctx.goal_id, 0) if e["type"] == "site_blocked"]
     assert event["tool"] == "google_search" and event["count"] == 2
+
+
+# The map of the Activity tab shows each career-lens request: lens_request events.
+
+async def lens_events(store, goal_id):
+    return [e for e in await store.list_events(goal_id) if e["type"] == "lens_request"]
+
+
+@respx.mock
+async def test_read_page_records_the_queue_the_work_and_the_times_of_its_request(ctx, store):
+    mock_page(httpx.Response(202, json={"status": "queued"}), httpx.Response(202, json={"status": "running"}), page())
+    respx.get(f"{BASE}/v1/requests/rq-p").mock(side_effect=[
+        httpx.Response(200, json={"status": "queued", "wait_reason": "pacing", "next_attempt_at": "2026-11-05T10:39:02Z"}),
+        httpx.Response(200, json={"status": "running"}),
+        httpx.Response(200, json={"status": "succeeded", "requested_at": "2026-11-05T10:38:56Z",
+                                  "started_at": "2026-11-05T10:39:02Z", "finished_at": "2026-11-05T10:39:15Z"})])
+    ctx.reader = FakeReader()
+    await tool(ctx, "read_page")({"url": PAGE_URL, "prompt": "q"})
+    events = await lens_events(store, ctx.goal_id)
+    assert [(e["status"], e.get("wait_reason")) for e in events] == [
+        ("queued", None), ("queued", "pacing"), ("running", None), ("succeeded", None)]
+    assert {e["tool"] for e in events} == {"read_page"} and {e["target"] for e in events} == {PAGE_URL}
+    assert events[1]["next_attempt_at"] == "2026-11-05T10:39:02Z"
+    assert (events[-1]["requested_at"], events[-1]["started_at"], events[-1]["finished_at"]) == (
+        "2026-11-05T10:38:56Z", "2026-11-05T10:39:02Z", "2026-11-05T10:39:15Z")
+
+
+@respx.mock
+async def test_a_search_from_the_history_is_one_satisfied_event(ctx, store):
+    respx.post(f"{BASE}/v1/search").mock(return_value=httpx.Response(200, json={
+        "request_id": "rq-1", "status": "satisfied", "query": "acme", "results": []}))
+    respx.get(f"{BASE}/v1/requests/rq-1").mock(return_value=httpx.Response(200, json={
+        "status": "satisfied", "requested_at": "2026-11-05T10:00:00Z", "finished_at": "2026-11-05T10:00:00Z"}))
+    await tool(ctx, "google_search")({"query": " acme "})
+    [event] = await lens_events(store, ctx.goal_id)
+    assert (event["tool"], event["target"], event["status"], event["request_id"]) == (
+        "google_search", "acme", "satisfied", "rq-1")
+
+
+@respx.mock
+async def test_a_failed_status_read_does_not_stop_the_tool(ctx, store):
+    respx.post(f"{BASE}/v1/search").mock(return_value=httpx.Response(200, json={
+        "request_id": "rq-1", "status": "succeeded", "query": "acme", "results": []}))
+    respx.get(f"{BASE}/v1/requests/rq-1").mock(return_value=httpx.Response(503, json={"detail": "down"}))
+    result = await tool(ctx, "google_search")({"query": "acme"})
+    assert "is_error" not in result
+    assert [e["status"] for e in await lens_events(store, ctx.goal_id)] == ["succeeded"]
