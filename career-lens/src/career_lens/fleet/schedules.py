@@ -36,7 +36,7 @@ __all__ = [
     "ScheduleError", "day_rng", "ensure_plans", "local_today",
     "materialise_all", "materialise_pending", "plan_day", "read_schedule",
     "required_minutes",
-    "regenerate_future", "write_schedule",
+    "replan_now", "write_schedule",
 ]
 
 
@@ -73,8 +73,11 @@ def _templates(connection: Connection,
 
 
 def ensure_plans(connection: Connection, account_id: str, *, now: datetime,
-                 horizon: int = HORIZON_DAYS) -> int:
+                 horizon: int = HORIZON_DAYS, exact_today: bool = False) -> int:
     """Plan every local date in the horizon that is not planned already.
+
+    exact_today plans today with no jitter: the operator's saved hours apply
+    as they read, so a shift saved inside its hours works at once.
 
     Returns how many days were newly planned. A day the account does not work
     is still planned, as a day with no blocks: "planned and empty" is Sunday,
@@ -93,10 +96,11 @@ def ensure_plans(connection: Connection, account_id: str, *, now: datetime,
             raise ScheduleError(f"no template for weekday {on.isoweekday()}")
         # Generate first: a template that cannot be satisfied must not leave a
         # half-written day behind.
+        exact = exact_today and offset == 0
         blocks = plan_day(
             template, date=on, tz=where, rng=day_rng(schedule["seed"], on),
-            start_jitter_minutes=schedule["start_jitter_minutes"],
-            end_jitter_minutes=schedule["end_jitter_minutes"])
+            start_jitter_minutes=0 if exact else schedule["start_jitter_minutes"],
+            end_jitter_minutes=0 if exact else schedule["end_jitter_minutes"])
         day_id = connection.execute(text("""
             INSERT INTO account_shift_day (account_id, local_date, generated_at)
             VALUES (:account, :on, :now)
@@ -121,29 +125,38 @@ def ensure_plans(connection: Connection, account_id: str, *, now: datetime,
     return created
 
 
-def regenerate_future(connection: Connection, account_id: str, *,
-                      now: datetime) -> None:
-    """Replan every date after today, leaving the running day untouched.
+def replan_now(connection: Connection, account_id: str, *,
+               now: datetime) -> None:
+    """Apply a saved schedule at once: replan today and every later date.
 
-    A person's day is not rewritten at noon. The enable switch is the control
-    for changing what happens now.
+    Blocks of earlier dates end here too. A shift that ran past midnight must
+    not keep the old hours alive, because eligibility reads any block that
+    covers the instant.
     """
     schedule = read_schedule(connection, account_id)
     if schedule is None:
         return
+    today = local_today(schedule["timezone"], now)
     connection.execute(text("""
         DELETE FROM account_shift_day
-        WHERE account_id = :account AND local_date > :today
-    """), {"account": account_id,
-           "today": local_today(schedule["timezone"], now)})
-    ensure_plans(connection, account_id, now=now)
+        WHERE account_id = :account AND local_date >= :today
+    """), {"account": account_id, "today": today})
+    connection.execute(text("""
+        DELETE FROM account_shift_block
+        WHERE account_id = :account AND starts_at >= :now
+    """), {"account": account_id, "now": now})
+    connection.execute(text("""
+        UPDATE account_shift_block SET ends_at = :now
+        WHERE account_id = :account AND starts_at < :now AND ends_at > :now
+    """), {"account": account_id, "now": now})
+    ensure_plans(connection, account_id, now=now, exact_today=True)
 
 
 def write_schedule(connection: Connection, account_id: str, *, enabled: bool,
                    timezone: str, start_jitter_minutes: int,
                    end_jitter_minutes: int, days: Sequence[dict],
                    now: datetime | None = None) -> None:
-    """Replace an account's whole week, then replan the days ahead."""
+    """Replace an account's whole week. It applies at once, from today."""
     zone(timezone)
     weekdays = sorted(day["weekday"] for day in days)
     if weekdays != [1, 2, 3, 4, 5, 6, 7]:
@@ -177,7 +190,7 @@ def write_schedule(connection: Connection, account_id: str, *, enabled: bool,
         VALUES (:account, :weekday, :working, :start_local, :end_local,
                 :lunch_minutes, :break_count, :break_minutes)
     """), [{"account": account_id, **day} for day in days])
-    regenerate_future(connection, account_id, now=changed_at)
+    replan_now(connection, account_id, now=changed_at)
 
 
 def materialise_all(connection: Connection, *,

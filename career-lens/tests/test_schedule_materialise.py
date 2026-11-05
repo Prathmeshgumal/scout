@@ -127,19 +127,68 @@ def test_one_account_failing_does_not_stop_the_others(app):
     """)).scalar_one() == 1
 
 
-def test_editing_regenerates_tomorrow_and_leaves_today_alone(app):
+def _edit(connection, *, start, end, now=NOW, enabled=True, jitter=15):
+    write_schedule(connection, "la-a", enabled=enabled, timezone="Europe/London",
+                   start_jitter_minutes=jitter, end_jitter_minutes=jitter,
+                   days=_week(start=start, end=end), now=now)
+
+
+def _works_at(connection, at):
+    return connection.execute(text("""
+        SELECT count(*) FROM account_shift_block
+        WHERE account_id = 'la-a' AND kind = 'work' AND :at >= starts_at AND :at < ends_at
+    """), {"at": at}).scalar_one() > 0
+
+
+def test_an_edit_changes_today_and_tomorrow(app):
     _schedule(app)
-    today, tomorrow = _blocks(app, on=TODAY), _blocks(app, on=TOMORROW)
-    assert today and tomorrow
-
-    write_schedule(app, "la-a", enabled=True, timezone="Europe/London",
-                   start_jitter_minutes=0, end_jitter_minutes=0,
-                   days=_week(start=time(13, 0), end=time(19, 0)), now=NOW)
-
-    assert _blocks(app, on=TODAY) == today
+    tomorrow = _blocks(app, on=TOMORROW)
+    _edit(app, start=time(13, 0), end=time(19, 0), jitter=0)
+    assert _blocks(app, on=TODAY)[0].starts_at.astimezone(UTC).time() == time(12, 0)  # 13:00 London in August
     assert _blocks(app, on=TOMORROW) != tomorrow
-    assert _blocks(app, on=TOMORROW)[0].starts_at.astimezone(
-        UTC).time() == time(12, 0)      # 13:00 London in August
+
+
+def test_today_uses_the_exact_saved_hours_and_later_days_keep_the_jitter(app):
+    _schedule(app)
+    _edit(app, start=time(10, 0), end=time(18, 0))
+    today = _blocks(app, on=TODAY)
+    assert today[0].starts_at == datetime(2026, 8, 14, 9, 0, tzinfo=UTC)    # 10:00 London
+    assert today[-1].ends_at == datetime(2026, 8, 14, 17, 0, tzinfo=UTC)    # 18:00 London
+    openings = {_blocks(app, on=date(2026, 8, day))[0].starts_at.time() for day in range(15, 20)}
+    assert len(openings) > 1
+
+
+def test_a_shift_saved_during_its_hours_works_at_once(app):
+    _schedule(app, days=_week(start=time(14, 0), end=time(22, 0)))
+    assert not _works_at(app, NOW)
+    _edit(app, start=time(10, 0), end=time(18, 0))      # now is 10:00 London
+    assert _works_at(app, NOW)
+
+
+def test_a_shift_that_ended_stops_at_once(app):
+    _schedule(app)
+    _edit(app, start=time(14, 0), end=time(22, 0))
+    assert not _works_at(app, NOW)
+
+
+def test_turning_the_schedule_off_removes_today(app):
+    _schedule(app)
+    _edit(app, start=time(10, 0), end=time(18, 0), enabled=False)
+    assert _blocks(app, on=TODAY) == []
+
+
+def test_an_edit_ends_a_shift_of_yesterday_that_runs_past_midnight(app):
+    _schedule(app, days=_week(start=time(9, 0), end=time(23, 45)))
+    app.execute(text("""
+        INSERT INTO account_shift_block (shift_day_id, account_id, ordinal, kind, starts_at, ends_at, pace)
+        SELECT id, account_id, 90, 'work', :start, :end, 1 FROM account_shift_day
+        WHERE account_id = 'la-a' AND local_date = :on
+    """), {"start": datetime(2026, 8, 13, 20, 0, tzinfo=UTC), "end": datetime(2026, 8, 14, 23, 30, tzinfo=UTC),
+           "on": TODAY})
+    after = datetime(2026, 8, 14, 23, 10, tzinfo=UTC)        # 00:10 London on the 15th
+    assert _works_at(app, after)
+    _edit(app, start=time(9, 0), end=time(17, 0), now=after)
+    assert not _works_at(app, after)
 
 
 def test_a_schedule_round_trips(app):
