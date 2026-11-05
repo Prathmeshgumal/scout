@@ -1,9 +1,40 @@
 # job-finder
 
-job-finder is a chat agent that finds jobs for one person. Tell the agent what you want, for example
-"Find senior backend roles in Bengaluru or remote India, Python or Go, 20 fit roles each weekday."
+job-finder is an agent that finds jobs for you and manages your applications. Tell it what you want in plain words,
+for example "Find senior backend roles in Bengaluru or remote India, Python or Go, 20 fit roles each weekday."
+
+The agent then does the work of a job search for you:
+
+1. It makes your candidate profile from your words and your resume.
+2. It finds roles on LinkedIn and Google.
+3. It reads the full job description and the company facts of each role.
+4. It compares each role with your profile and gives a verdict: fit, partial, not_fit or unsure.
+5. It writes an application note for each fit role.
+6. It repeats until it has enough fit roles, or until a limit stops it.
+
+You see each step live in the web app. You review the roles, and you track your applications on a board.
+A mandate repeats the same goal on a schedule, for example each weekday at 09:00.
+
+job-finder gets all web data from [career-lens](../career-lens). It does not use the built-in `WebSearch` and
+`WebFetch` tools. career-lens reads LinkedIn while signed in, so the agent sees roles that a plain search cannot see.
+
+## Inside job-finder
+
+![job-finder inside](docs/diagrams/architecture.svg)
+
+| Part | Work |
+|---|---|
+| Web app | Chat, the Jobs page, the job pipeline and the Activity tab. Live events come over SSE. |
+| API | FastAPI. It accepts only calls from this computer, with a sign-in token. |
+| Goal session | One Claude Agent SDK client for each goal. Hooks enforce the spend, time and scrape limits. |
+| Watcher | Waits for slow scrapes in career-lens. Then it starts the agent again with the results. |
+| Scheduler | Starts the goals of each mandate on time. |
+| Postgres and MinIO | Goals, roles, verdicts, notes, events and your files. |
+
+## The agent team
 
 The main agent talks with you and gives the work to subagents. All subagents use one shared store in Postgres.
+Each subagent replies with a short JSON summary, so the main agent stays small and fast.
 
 | Subagent | Work |
 |---|---|
@@ -13,8 +44,15 @@ The main agent talks with you and gives the work to subagents. All subagents use
 | `fit-check` | Compare each role with the profile: fit, partial, not_fit or unsure |
 | `application-prep` | Write an application note for each fit role |
 
-job-finder gets all web data from [career-lens](../career-lens). It does not use the built-in `WebSearch` and
-`WebFetch` tools.
+![How the agent team works](docs/diagrams/agent-flow.svg)
+
+## Slow scrapes
+
+A LinkedIn scrape can wait for an account's working hours and pacing. The agent does not wait for it.
+The subagent ends its turn with the scrapes that are not ready. The watcher checks them every 10 seconds.
+When they finish, the watcher sends the results to the same subagent, and the work continues.
+
+![A slow scrape, step by step](docs/diagrams/scrape-sequence.svg)
 
 ## You need
 
@@ -69,6 +107,7 @@ The login that you choose in the web app is the login in use. Only the computer 
 |---|---|
 | Chat | Talk with the main agent. Stop, retry or continue a goal. Select the model and the effort. |
 | Jobs tab of a goal | See the progress, the roles, the verdicts and the application notes. Download the report. |
+| Activity tab of a goal | See each step of each agent, with its input, its result and its time. Filter to the problems or the saves. |
 | All jobs | See the roles of all goals. |
 | Mandates | See the work that repeats on a schedule. |
 
