@@ -18,10 +18,13 @@ from rich.text import Text
 from .agents import REGISTRY
 from .config import NO_LOGIN, Settings, env_file
 from .deletion import Deleter, MandateChat
+from .evals.runner import SUITES, EvalRunner
+from .evals.store import EvalStore
 from .login import TerminalOutput
 from .login import login as save_login
 from .mandate_store import MandateStore
 from .mandates import describe
+from .page_reader import PageReader
 from .render import EventPrinter, job_table, notes_view, pipeline_line, render_event, research_view, status_line
 from .schedule import every_text, local_zone, slot_text
 from .services import GoalLocked, Services
@@ -132,6 +135,50 @@ async def run_agent(services: Services, out: Console, name: str, task: str, goal
             await asyncio.gather(live, return_exceptions=True)
         await printer.flush()
     out.print(f"Goal {goal_id[:8]}: {status_line(final)}")
+
+
+async def run_evals(services: Services, out: Console, suites: list[str], keep: bool = False,
+                    runner_class=EvalRunner) -> list:
+    """Run the eval suites, save each run and print a table. The agent suites use the Claude login and cost money."""
+    names = list(suites) or list(SUITES)
+    if unknown := [name for name in names if name not in SUITES]:
+        raise CliError(f"Unknown suite: {', '.join(unknown)}. Use one of: {', '.join(SUITES)}.")
+    need_key(services.settings)
+    s = services.settings
+    deleter = Deleter(s, services.store, MandateStore(services.store.pool), services.recorder,
+                      career_lens=services.career_lens, files=services.files)
+
+    async def drive(goal_id: str, task: str) -> None:
+        async with services.drive(goal_id, recover=False) as session:
+            await session.send(task, "user")
+            await session.settled()
+
+    async def cleanup(goal_id: str) -> None:
+        if keep:
+            out.print(f"Kept eval goal {goal_id[:8]}.")
+        else:
+            await deleter.delete_goal(goal_id)
+
+    runner = runner_class(s, services.store, services.artifacts, PageReader.for_settings(s),
+                          PageReader.for_settings(s, model=s.model), drive, cleanup, log=out.print)
+    store, runs = EvalStore(services.store.pool), []
+    for name in names:
+        out.print(f"Running {name}...")
+        run = await runner.run(name)
+        await store.save(run)
+        runs.append(run)
+        for case in run.cases:
+            if not case.get("passed"):
+                parts = [f"expected {case['expect']}, got {case.get('got')}"] if "expect" in case else []
+                parts += [str(why) for why in (case.get("error"), case.get("severity"), case.get("obeyed"),
+                                               case.get("missing"), case.get("unsupported")) if why]
+                out.print(f"  failed {case['id']}: {'; '.join(parts)}")
+    table = Table("Suite", "Model", "Passed", "Score", "Cost", "Time", "Prompt")
+    for run in runs:
+        table.add_row(run.suite, run.model, f"{run.passed}/{run.total}", f"{run.score:.0%}", f"${run.cost_usd:.3f}",
+                      f"{run.duration_s:.0f}s", run.prompt_sha)
+    out.print(table)
+    return runs
 
 
 async def resolve_mandate(ms: MandateStore, text: str) -> dict:
@@ -276,6 +323,14 @@ def agent(name: Annotated[str, typer.Argument(help=f"One of: {', '.join(REGISTRY
                                                          help="Copy the roles of another goal first.")] = None) -> None:
     """Run one subagent alone. Use it to build and test a subagent."""
     _run(run_agent, name, task, goal, jobs_from)
+
+
+@app.command("eval")
+def eval_(suites: Annotated[list[str] | None, typer.Argument(help=f"Suites to run: {', '.join(SUITES)}. "
+                                                                   "Leave it out to run all.")] = None,
+          keep: Annotated[bool, typer.Option("--keep", help="Keep the eval goals, to read them.")] = False) -> None:
+    """Run the evals on made-up cases and save the scores. The metrics page shows them. Costs money."""
+    _run(run_evals, suites or [], keep)
 
 
 mandate_app = typer.Typer(help="Mandates: work that repeats on a schedule. Create and change them in a chat.",

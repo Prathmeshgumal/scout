@@ -37,15 +37,24 @@ class Asker(Protocol):
     async def ask(self, system: str, content: str) -> Answer: ...
 
 
-async def check_request(reader: Asker, text: str) -> str | None:
-    """None: the goal can start. Else the text of the refusal. A failed check lets the goal start."""
-    try:
-        answer = await reader.ask(SYSTEM, f"<message>\n{text[:MAX_CHARS]}\n</message>")
-    except PageReaderError as exc:
-        log.warning("the request check failed (%s): the goal starts", exc)
-        return None
-    reply = answer.text.strip()
+def message_content(text: str) -> str:
+    return f"<message>\n{text[:MAX_CHARS]}\n</message>"
+
+
+def refusal_from(reply: str) -> str | None:
+    """The refusal in a reply of the small model, or None when it allows the message."""
+    reply = reply.strip()
     if not reply.upper().startswith("REFUSE"):
         return None
     reason = reply[len("REFUSE"):].lstrip(" :").strip()
     return reason or DEFAULT_REFUSAL
+
+
+async def check_request(reader: Asker, text: str) -> str | None:
+    """None: the goal can start. Else the text of the refusal. A failed check lets the goal start."""
+    try:
+        answer = await reader.ask(SYSTEM, message_content(text))
+    except PageReaderError as exc:
+        log.warning("the request check failed (%s): the goal starts", exc)
+        return None
+    return refusal_from(answer.text)

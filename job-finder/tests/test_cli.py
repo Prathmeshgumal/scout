@@ -180,3 +180,34 @@ async def test_delete_commands_ask_first(services, out, store, make_run):
     await delete_mandate(services, out, mandate["id"][:8], True)
     text = out.export_text()
     assert "1 goal" in text and "Deleted." in text and await store.get_goal(run["id"]) is None
+
+
+async def test_run_evals_refuses_an_unknown_suite(services, out):
+    from job_finder.cli import run_evals
+    with pytest.raises(CliError, match="Unknown suite: vibes"):
+        await run_evals(services, out, ["vibes"])
+
+
+async def test_run_evals_saves_each_run_and_prints_the_failures(services, out, pool):
+    from job_finder.cli import run_evals
+    from job_finder.evals.store import EvalRun, EvalStore
+
+    class Runner:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def run(self, suite):
+            return EvalRun(suite=suite, model="m", prompt_sha="abc123", total=2, passed=1, score=0.5, cost_usd=0.01,
+                           cases=[{"id": "x1", "passed": True},
+                                  {"id": "x2", "passed": False, "expect": "fit", "got": "not_fit",
+                                   "severity": "lost_role"}])
+
+    runs = await run_evals(services, out, ["fit-check", "injection"], runner_class=Runner)
+    assert [run.suite for run in runs] == ["fit-check", "injection"]
+    assert {row["suite"] for row in await EvalStore(pool).recent()} == {"fit-check", "injection"}
+    text = out.export_text()
+    assert "failed x2: expected fit, got not_fit; lost_role" in text and "1/2" in text and "50%" in text
+
+
+def test_help_lists_the_eval_command():
+    assert "eval" in CliRunner().invoke(app, ["--help"]).output

@@ -148,3 +148,10 @@ Table("pipeline_notes", metadata, _id(),
 
 Table("board_order", metadata, Column("board", Text, primary_key=True), Column("item_key", Text, primary_key=True),
       Column("column_id", Text, nullable=False), Column("position", Integer, nullable=False))
+
+Table("eval_runs", metadata, _id(), *_text("suite", "model", "prompt_sha", nullable=False),
+      Column("total", Integer, nullable=False), Column("passed", Integer, nullable=False),
+      Column("score", Numeric, nullable=False), Column("cost_usd", Numeric, nullable=False),
+      Column("duration_s", Numeric, nullable=False), Column("summary", JSONB, nullable=False),
+      Column("cases", JSONB, nullable=False), Column("created_at", TZ, nullable=False),
+      Index("eval_runs_suite_created", "suite", text("created_at DESC")))

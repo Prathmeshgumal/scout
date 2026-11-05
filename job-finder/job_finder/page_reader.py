@@ -113,13 +113,15 @@ class PageReader:
         self._query = query
 
     @classmethod
-    def for_settings(cls, settings: Settings, *, query=sdk_query) -> PageReader:
+    def for_settings(cls, settings: Settings, *, query=sdk_query, model: str | None = None) -> PageReader:
+        """model: another model than the read model, e.g. the main model for an eval judge."""
+        model = model or settings.read_model
         if settings.auth_mode != "oauth_token":
-            return cls(settings.anthropic_api_key, settings.read_model, effort=settings.read_effort)
+            return cls(settings.anthropic_api_key, model, effort=settings.read_effort)
         # Without the setting, Claude Code also sends the whole page to Haiku 4.5 in a side call, at 10 times the price.
         env = {"CLAUDE_CONFIG_DIR": str(settings.claude_config_dir), "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
                **claude_env(settings)}
-        return cls("", settings.read_model, sdk_env=env, cwd=str(settings.agent_cwd), query=query,
+        return cls("", model, sdk_env=env, cwd=str(settings.agent_cwd), query=query,
                    effort=settings.read_effort)
 
     async def answer(self, url: str, markdown: str, prompt: str) -> Answer:
