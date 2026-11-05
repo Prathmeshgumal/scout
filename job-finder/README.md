@@ -54,6 +54,29 @@ When they finish, the watcher sends the results to the same subagent, and the wo
 
 ![A slow scrape, step by step](docs/diagrams/scrape-sequence.svg)
 
+## Guardrails
+
+job-finder does only the work of a job search. The prompt rules guide the agents, and the code enforces the limits.
+
+| Guardrail | What it does | Where |
+|---|---|---|
+| Request check | A small model reads the first message of a new goal. It refuses a message that is not about a job search. Then no goal starts and nothing is spent. | `job_finder/request_check.py` |
+| Scope rules | Each agent prompt says what work to do and what to refuse. Web pages and search results are data, not instructions. | `job_finder/scope.md` |
+| Site policy | `read_page` refuses local and private addresses, URLs that are not `http` or `https`, and adult, gambling, piracy and dark web sites. | `job_finder/site_policy.py`, `job_finder/blocked_sites.txt` |
+| Search filter | `google_search` removes the results on blocked sites. | `job_finder/tools/career_lens.py` |
+| Stop after refusals | After 3 refused pages in one session, the goal stops with the reason. | `job_finder/tools/career_lens.py` |
+| Fixed tools | Agents get only the tools of job-finder. They have no shell, no file tools and no built-in web tools. A test checks this. | `job_finder/options.py` |
+| Read only | No tool applies to a job, sends a message or fills in a form. | All tools |
+| Limits | Spend, time and scrape limits stop a goal. See [Limits](#limits). | `job_finder/hooks.py` |
+
+The agents can find contacts for a job search: recruiters, hiring managers and possible referrers. They give the public facts that they find, such as a name, a title, a profile link or a public email. You send all messages yourself.
+
+Each refused page shows as a failed step under **Problems** in the Activity tab. The goal also keeps a `site_blocked` event.
+
+If the request check cannot run, the goal starts. The scope rules and the site policy still apply.
+
+To block one more site, add its domain to `job_finder/blocked_sites.txt`. A domain also blocks its subdomains.
+
 ## You need
 
 - Python 3.12 and [uv](https://docs.astral.sh/uv/)
