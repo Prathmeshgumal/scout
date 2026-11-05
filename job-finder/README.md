@@ -169,11 +169,30 @@ The login that you choose in the web app is the login in use. Only the computer 
 |---|---|
 | Chat | Talk with the main agent. Stop, retry or continue a goal. Select the model and the effort. |
 | Jobs tab of a goal | See the progress, the roles, the verdicts and the application notes. Download the report. |
-| Activity tab of a goal | See each step of each agent, with its input, its result and its time. Filter to the problems or the saves. |
+| Activity tab of a goal | Watch the system map, or see each step of each agent with its input, its result and its time. Filter to the problems or the saves. |
 | All jobs | See the roles of all goals. |
 | Mandates | See the work that repeats on a schedule. |
 
 A role shows only the facts that the source gave. A role that has no full job description says so.
+
+### The system map
+
+The Activity tab has two views: **Map** and **Step detail**. The map shows the whole system while a goal runs:
+
+| Area | What you see |
+|---|---|
+| job-finder | Scout (the main agent) and the subagents: Iris, Hunter, Sage, Judge and Penn. Also Claude, the Reader (small model), the job board, the spend jar, the Gate and the archive. |
+| career-lens | The dispatcher, the queue with a ticket and its wait for each request, the Chrome workers and the history. |
+| The web | Google, LinkedIn and the careers sites. |
+
+- Envelopes move for each request and each result: between the agents, and through the Gate to career-lens and back.
+- The map shows only what the events of the goal show. It does not name a worker, because career-lens does not say which worker took a request.
+- While a goal runs, the map follows the newest event. Use **Live** to go back to it.
+- Use play, the speed and the bar to replay a goal. A click on a step or a lane moves the replay to that time.
+- Click a part of the map to see what it does.
+- **Pixel** and **Blueprint** show the same map in two styles.
+- The **career-lens queue** lane shows the wait of each request (striped) and the work of the worker (solid).
+- The map is the default view for a goal with career-lens requests. Your last choice wins.
 
 To work on the UI, run `uv run job-finder serve`. Then run `npm run dev` in `web`.
 
