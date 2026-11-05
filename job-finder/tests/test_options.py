@@ -79,14 +79,13 @@ def test_a_run_has_the_normal_tools_and_no_mandate_tools(app_settings):
                                                        JOBS_MATCHER, TIME_MATCHER]
 
 
-def test_a_goal_with_a_profile_hides_the_tool_that_saves_a_profile():
-    from job_finder.options import hidden_tools
+def test_the_main_server_has_only_the_main_tools():
     from job_finder.tools import artifacts
-    assert hidden_tools(goal(), None) == {"save_profile"}  # only candidate-profile saves the profile
-    assert hidden_tools(goal(agent="job-research", profile="We build backends."), REGISTRY["job-research"]) == set()
     ctx = ToolContext("g", SimpleNamespace(pool=None), None, None)
-    names = {t.name for t in artifacts.build_tools(ctx, "main", hide={"save_profile"})}
-    assert "save_profile" not in names and "set_brief" in names
+    names = {t.name for t in artifacts.build_main_tools(ctx)}
+    assert names == artifacts.MAIN_TOOLS  # a typo in MAIN_TOOLS fails here
+    assert names < {t.name for t in artifacts.build_tools(ctx, "main")}
+    assert not names & {"save_profile", "save_fit", "save_jobs", "save_notes", "get_brief", "get_search_history"}
 
 
 def test_foreground_flag_disables_background_tasks(app_settings):

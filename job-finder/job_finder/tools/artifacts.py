@@ -158,9 +158,13 @@ def saved(text: str, details: str = "", *, error: bool = False) -> dict[str, Any
     return out
 
 
-def build_tools(ctx: ToolContext, agent: str, hide: set[str] = frozenset()) -> list[SdkMcpTool]:
-    """The artifact tools for one agent, without the `hide` tools. Rows that the tools save record that agent's
-    name."""
+# The tools that the main agent uses. A new tool stays hidden from the main agent until it is added here.
+MAIN_TOOLS = frozenset({"set_brief", "get_pipeline", "list_jobs", "read_job", "list_files", "read_file", "list_goals",
+                        "read_goal_jobs", "finish_goal"})
+
+
+def build_tools(ctx: ToolContext, agent: str) -> list[SdkMcpTool]:
+    """The artifact tools for one agent. Rows that the tools save record that agent's name."""
     read_only = ToolAnnotations(readOnlyHint=True)
 
     def store() -> ArtifactStore:
@@ -439,8 +443,17 @@ def build_tools(ctx: ToolContext, agent: str, hide: set[str] = frozenset()) -> l
     tools = [set_brief, get_brief, save_profile, get_pipeline, list_jobs, read_job, save_jobs, save_job_research,
              save_company, save_fit, save_application_note, save_notes, get_search_history, list_goals, read_goal_jobs,
              finish_goal, list_files, read_file]
-    return [t for t in tools if t.name not in hide]
+    return tools
 
 
-def build_server(ctx: ToolContext, agent: str, name: str = SERVER_NAME, hide: set[str] = frozenset()):
-    return create_sdk_mcp_server(name=name, version="1.0.0", tools=build_tools(ctx, agent, hide))
+def build_main_tools(ctx: ToolContext) -> list[SdkMcpTool]:
+    """The tools of the main agent: only MAIN_TOOLS. Subagents save and read through their own servers."""
+    return [t for t in build_tools(ctx, "main") if t.name in MAIN_TOOLS]
+
+
+def build_main_server(ctx: ToolContext):
+    return create_sdk_mcp_server(name=SERVER_NAME, version="1.0.0", tools=build_main_tools(ctx))
+
+
+def build_server(ctx: ToolContext, agent: str, name: str = SERVER_NAME):
+    return create_sdk_mcp_server(name=name, version="1.0.0", tools=build_tools(ctx, agent))

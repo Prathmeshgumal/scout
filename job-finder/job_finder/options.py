@@ -84,19 +84,13 @@ def subagent_spec(goal: dict) -> SubagentSpec | None:
     return REGISTRY[name]
 
 
-def hidden_tools(goal: dict, spec: SubagentSpec | None) -> set[str]:
-    """Main agent tools that this goal does not offer: only the candidate-profile subagent saves the profile."""
-    return set() if spec is not None else {"save_profile"}
-
-
-def build_servers(ctx: ToolContext, spec: SubagentSpec | None, kind: str = "goal",
-                  hide: set[str] = frozenset()) -> dict:
+def build_servers(ctx: ToolContext, spec: SubagentSpec | None, kind: str = "goal") -> dict:
     if kind == "home":  # the chat of a mandate prepares a new profile with its subagent
         return {mandate_tools.SERVER_NAME: mandate_tools.build_server(ctx, "home"),
                 career_lens_tools.SERVER_NAME: career_lens_tools.build_server(ctx),
                 PROFILE.server: artifact_tools.build_server(ctx, PROFILE.name, name=PROFILE.server)}
-    servers = {career_lens_tools.SERVER_NAME: career_lens_tools.build_server(ctx),
-               artifact_tools.SERVER_NAME: artifact_tools.build_server(ctx, spec.name if spec else "main", hide=hide)}
+    own = artifact_tools.build_server(ctx, spec.name) if spec else artifact_tools.build_main_server(ctx)
+    servers = {career_lens_tools.SERVER_NAME: career_lens_tools.build_server(ctx), artifact_tools.SERVER_NAME: own}
     if spec is None:  # each subagent saves through its own server, so its rows record its name
         for sub in REGISTRY.values():
             servers[sub.server] = artifact_tools.build_server(ctx, sub.name, name=sub.server)
@@ -157,12 +151,13 @@ def build_options(settings: Settings, goal: dict, ctx: ToolContext, hooks: dict,
     kind = goal_kind(goal) if spec is None else "goal"
     # The goal's choice, else .env. The API takes only an effort level that the SDK gives for the model.
     model, effort = goal.get("model") or s.model, goal.get("effort") or s.effort
-    servers = build_servers(ctx, spec, kind, hidden_tools(goal, spec))
+    servers = build_servers(ctx, spec, kind)
     if spec is not None:
         prompt, tools, agents, allowed = spec.prompt, spec.builtin_tools(), None, list(spec.tools)
     elif kind == "home":
         prompt = home_prompt(goal["id"])
         tools, agents = ["Agent"], {PROFILE.name: PROFILE.definition()}
+        # allowed covers the whole session, so subagents need their servers here. main_thread_hook stops the main agent.
         allowed = ["Agent", *(f"mcp__{name}__*" for name in servers)]
     else:
         prompt = main_prompt(goal["id"], kind)

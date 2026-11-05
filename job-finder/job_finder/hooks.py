@@ -7,6 +7,7 @@ import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from .agents import REGISTRY
 from .agents.candidate_profile.agent import SPEC as PROFILE_SPEC
 from .guard import SubagentGuard
 from .store import Store
@@ -15,9 +16,10 @@ from .tools.career_lens import SERVER_NAME
 # The calls that ask for a fresh LinkedIn read: each one counts to the goal's fresh-scrape cap.
 SCRAPE_MATCHER = f"mcp__{SERVER_NAME}__(scrape_company|scrape_linkedin_job|search_linkedin_jobs)"
 CLOSED_REASON = "This goal has reached its limits, so no more scrapes. Answer from the data you have."
-# Tools that only subagents may use. The main agent gives this work to a subagent.
-MAIN_THREAD_MATCHER = f"mcp__{SERVER_NAME}__.*"
-MAIN_THREAD_REASON = "Give career-lens and web work to a subagent. The main agent does not use these tools."
+# Tools that only subagents may use: the web tools and the own server of each subagent. The session allows these
+# servers for the subagents, so this hook refuses them on the main thread.
+MAIN_THREAD_MATCHER = f"mcp__({'|'.join([SERVER_NAME, *sorted(spec.server for spec in REGISTRY.values())])})__.*"
+MAIN_THREAD_REASON = "Give this work to a subagent. The main agent does not use these tools."
 # Tools that can queue a request in career-lens. Their reply says "queued as <request id>."
 QUEUE_MATCHER = f"mcp__{SERVER_NAME}__(scrape_company|scrape_linkedin_job|search_linkedin_jobs|google_search)"
 QUEUED = re.compile(r"queued as (\S+?)\.(?=\s|$)")
@@ -56,7 +58,7 @@ def scrape_cap_hook(store: Store, goal_id: str, cap: int, notify: Callable[[str]
 
 
 def main_thread_hook() -> Hook:
-    """PreToolUse: refuse career-lens and web tools on the main thread. Subagent calls carry an agent_id."""
+    """PreToolUse: refuse the tools of MAIN_THREAD_MATCHER on the main thread. Subagent calls carry an agent_id."""
 
     async def hook(hook_input: dict, tool_use_id: str | None, context: Any) -> dict:
         if hook_input.get("agent_id"):

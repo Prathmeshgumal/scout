@@ -5,6 +5,7 @@ import pytest
 from job_finder.guard import SubagentGuard
 from job_finder.hooks import (
     CLOSED_REASON,
+    MAIN_THREAD_MATCHER,
     MAIN_THREAD_REASON,
     QUEUE_MATCHER,
     SCRAPE_MATCHER,
@@ -69,6 +70,17 @@ async def test_closed_hook_denies_every_scrape(store):
     assert result["hookSpecificOutput"]["permissionDecisionReason"] == CLOSED_REASON
 
 
+def test_main_thread_matcher_covers_the_web_tools_and_each_subagent_server():
+    for name in ("career_lens__read_page", "artifacts_fit_check__save_fit", "artifacts_job_discovery__save_jobs",
+                 "artifacts_job_research__save_company", "artifacts_application_prep__save_application_note",
+                 "artifacts_candidate_profile__save_profile", "artifacts_candidate_profile__get_brief",
+                 "artifacts_candidate_profile__read_file"):
+        assert re.fullmatch(MAIN_THREAD_MATCHER, f"mcp__{name}"), name
+    for name in ("artifacts__get_pipeline", "artifacts__set_brief", "mandates__propose_mandate"):
+        assert not re.fullmatch(MAIN_THREAD_MATCHER, f"mcp__{name}"), name
+    assert not re.fullmatch(MAIN_THREAD_MATCHER, "Agent")
+
+
 async def test_main_thread_hook_denies_the_main_agent_and_allows_subagents():
     hook = main_thread_hook()
     denied = await hook({"tool_name": "mcp__career_lens__read_page", "tool_input": {}}, "t1", None)
@@ -76,6 +88,10 @@ async def test_main_thread_hook_denies_the_main_agent_and_allows_subagents():
     assert denied["hookSpecificOutput"]["permissionDecisionReason"] == MAIN_THREAD_REASON
     assert await hook({"tool_name": "mcp__career_lens__read_page", "tool_input": {}, "agent_id": "a1"},
                       "t2", None) == {}
+    denied = await hook({"tool_name": "mcp__artifacts_fit_check__save_fit", "tool_input": {}}, "t3", None)
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert await hook({"tool_name": "mcp__artifacts_fit_check__save_fit", "tool_input": {}, "agent_id": "a1"},
+                      "t4", None) == {}
 
 
 async def agents_of(store):
