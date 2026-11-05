@@ -1,5 +1,5 @@
-import { AlertTriangle, Download, Hourglass } from "lucide-react"
-import type { ReactNode } from "react"
+import { AlertTriangle, ChevronRight, Download, Hourglass } from "lucide-react"
+import { useState, type ReactNode } from "react"
 import { GlowBorder } from "@/components/glow/GlowBorder"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -15,6 +15,46 @@ const STATUS_TONE: Record<GoalStatus, string> = {
   running: "text-violet-700 dark:text-violet-300", waiting: "text-amber-700 dark:text-amber-300",
   done: "text-emerald-700 dark:text-emerald-300", capped: "text-amber-700 dark:text-amber-300",
   failed: "text-red-700 dark:text-red-300", stopped: "text-muted-foreground",
+}
+
+export const WARNINGS_KEY = "job-finder-warnings"
+
+function readOpen(): boolean {
+  try {
+    return localStorage.getItem(WARNINGS_KEY) !== "closed"
+  } catch {
+    return true
+  }
+}
+
+/** The warnings of the goal, under a bar that opens and closes them. The choice is kept for all goals. */
+function Warnings({ warnings }: { warnings: Report["warnings"] }) {
+  const [open, setOpen] = useState(readOpen)
+  if (!warnings.length) return null
+  const toggle = () => {
+    setOpen(!open)
+    try {
+      localStorage.setItem(WARNINGS_KEY, open ? "closed" : "open")
+    } catch {
+      // The choice then lasts only while the page is open.
+    }
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button type="button" aria-expanded={open} onClick={toggle}
+        className="flex w-fit items-center gap-1.5 rounded-md py-0.5 pr-2 text-amber-800 outline-none hover:text-amber-950 focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-200 dark:hover:text-amber-100">
+        <ChevronRight aria-hidden className={cn("size-3.5 transition-transform", open && "rotate-90")} />
+        <AlertTriangle aria-hidden className="size-3.5" />
+        <span className="font-medium">{warnings.length} {warnings.length === 1 ? "warning" : "warnings"}</span>
+        <span className="text-[12px] text-muted-foreground">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && warnings.map((warning) => (
+        <p key={warning.text} className="flex items-start gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="mt-[2px] size-3.5 shrink-0" aria-hidden /> <span className="min-w-0 break-words">{warning.text}</span>
+        </p>
+      ))}
+    </div>
+  )
 }
 
 function Count({ value, label, strong }: { value: number; label: string; strong?: boolean }) {
@@ -66,11 +106,7 @@ export function ProgressHeader({ report }: { report: Report }) {
       {reasons.length > 0 && !line.startsWith("Waiting") && (
         <p className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300"><Hourglass className="size-3.5 shrink-0" aria-hidden /> {reasons[0]}</p>
       )}
-      {warnings.map((warning) => (
-        <p key={warning.text} className="flex items-start gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-amber-800 dark:text-amber-200">
-          <AlertTriangle className="mt-[2px] size-3.5 shrink-0" aria-hidden /> <span className="min-w-0 break-words">{warning.text}</span>
-        </p>
-      ))}
+      <Warnings warnings={warnings} />
     </div>
   )
   return running ? <GlowBorder>{body}</GlowBorder> : <div className="rounded-xl border bg-card">{body}</div>

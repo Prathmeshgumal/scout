@@ -84,6 +84,27 @@ describe("progress header", () => {
     expect(screen.getByText("Could not read Acme's jobs.")).toBeInTheDocument()
   })
 
+  it("collapses the warnings and keeps that choice", async () => {
+    localStorage.clear()
+    const warnings = [{ kind: "failed", text: "Could not read Acme's jobs." }, { kind: "search", text: "Google search failed 3 times." }]
+    const { unmount } = render(<ProgressHeader report={report({ warnings })} />)
+    const toggle = screen.getByRole("button", { name: /2 warnings/ })
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await userEvent.click(toggle)
+    expect(screen.queryByText("Could not read Acme's jobs.")).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    unmount()
+    render(<ProgressHeader report={report({ warnings })} />)
+    expect(screen.queryByText("Google search failed 3 times.")).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: /2 warnings/ }))
+    expect(screen.getByText("Google search failed 3 times.")).toBeInTheDocument()
+  })
+
+  it("shows no warnings bar when there are no warnings", () => {
+    render(<ProgressHeader report={report()} />)
+    expect(screen.queryByRole("button", { name: /warning/ })).not.toBeInTheDocument()
+  })
+
   it("uses the moving border only while the goal runs", () => {
     const { container, rerender } = render(<ProgressHeader report={report()} />)
     expect(container.querySelector(".glow-border")).not.toBeNull()
