@@ -1,7 +1,7 @@
-export type Section = "overview" | "requests" | "workers" | "accounts" | "try"
+export type Section = "overview" | "requests" | "workers" | "accounts" | "keys" | "try"
 export type Route = { section: Section; requestId: string | null }
 
-const SECTIONS: Section[] = ["overview", "requests", "workers", "accounts", "try"]
+const SECTIONS: Section[] = ["overview", "requests", "workers", "accounts", "keys", "try"]
 const BASE = "/console"
 
 export function parseRoute(path: string): Route {

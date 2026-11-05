@@ -1,4 +1,4 @@
-import { Activity, Gauge, Laptop, ListChecks, LogOut, Moon, Play, Sun, UserRound } from "lucide-react"
+import { Activity, Gauge, KeyRound, Laptop, ListChecks, LogOut, Moon, Play, Sun, UserRound } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Theme } from "@/hooks/useTheme"
@@ -10,6 +10,7 @@ const SECTIONS: { id: Section; label: string; icon: typeof Gauge }[] = [
   { id: "requests", label: "Requests", icon: ListChecks },
   { id: "workers", label: "Workers", icon: Activity },
   { id: "accounts", label: "Accounts and shifts", icon: UserRound },
+  { id: "keys", label: "API keys", icon: KeyRound },
   { id: "try", label: "Try it", icon: Play },
 ]
 

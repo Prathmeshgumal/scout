@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import Connection, text
 from sqlalchemy.exc import IntegrityError
 
+from ..auth import service as api_keys
 from ..capture.urls import UrlError
 from ..fleet.accounts import (
     AccountError, account_projection, create_account, replace_password, update_limits,
@@ -318,6 +320,36 @@ def put_password(account_id: str, body: PasswordPut, connection: Db) -> dict:
         except CredentialError as exc:
             raise HTTPException(422, str(exc)) from exc
         return {"account_id": account_id}
+
+
+class ApiKeyPost(Strict):
+    name: str
+
+
+@router.get("/api-keys")
+def get_api_keys(connection: Db) -> list[dict]:
+    return [asdict(key) for key in api_keys.list_api_keys(connection)]
+
+
+@router.post("/api-keys", status_code=201)
+def post_api_key(body: ApiKeyPost, response: Response, connection: Db) -> dict:
+    """The only reply that holds the full key. The database keeps only a digest."""
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        with write(connection) as writable:
+            issued = api_keys.create_api_key(writable, body.name, datetime.now(UTC))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return asdict(issued)
+
+
+@router.post("/api-keys/{key_id}/revoke")
+def revoke_api_key(key_id: str, connection: Db) -> dict:
+    with write(connection) as writable:
+        revoked = api_keys.revoke_api_key(writable, key_id, datetime.now(UTC))
+    if revoked is None:
+        raise HTTPException(404, f"no API key {key_id}")
+    return asdict(revoked)
 
 
 @router.put("/accounts/{account_id}/limits")

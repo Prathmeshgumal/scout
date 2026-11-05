@@ -21,6 +21,8 @@ EXPECTED = {
     ("GET", "/operator/api/overview"), ("POST", "/operator/api/accounts"),
     ("PUT", "/operator/api/accounts/{account_id}/password"),
     ("PUT", "/operator/api/accounts/{account_id}/limits"),
+    ("GET", "/operator/api/api-keys"), ("POST", "/operator/api/api-keys"),
+    ("POST", "/operator/api/api-keys/{key_id}/revoke"),
     ("PUT", "/operator/api/accounts/{account_id}/shift"),
     ("POST", "/operator/api/workers/{worker_id}/assignments"),
     ("POST", "/operator/api/assignments/{assignment_id}/{command}"),
