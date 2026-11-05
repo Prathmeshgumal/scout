@@ -92,6 +92,7 @@ describe("system map state", () => {
     expect(s.workers[0].request.id).toBe("rq-1")
     expect(s.workers[0].progress).toBeCloseTo(9 / 19)
     expect(s.sites.careers).toBe(true)
+    expect(s.claude).toBe(false)
   })
 
   it("runs the reader after the page came back and until the step ends", () => {

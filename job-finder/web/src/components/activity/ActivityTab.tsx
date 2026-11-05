@@ -115,7 +115,8 @@ export function ActivityTab({ goalId, events, status, initialStep, maxSpend }: P
     if (initialStep) setChosen(initialStep)
   }, [initialStep])
 
-  const selectedId = chosen && activity.steps.some((s) => s.id === chosen) ? chosen : firstStep(activity.steps)
+  // On the map, the step list follows the replay: it marks the newest step at the replay time.
+  const selectedId = onMap && state?.step ? state.step.id : chosen && activity.steps.some((s) => s.id === chosen) ? chosen : firstStep(activity.steps)
   const selected = activity.steps.find((s) => s.id === selectedId) ?? null
   const selectedAnswer = selected ? activity.answers.find((a) => a.items.some((i) => (i.kind === "step" ? i.step.id === selected.id : i.run.id === selected.runId)))?.n : undefined
 

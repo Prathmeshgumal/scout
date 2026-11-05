@@ -121,8 +121,12 @@
 .sysmap .map.bp .px, .sysmap .map.bp .bubble, .sysmap .map.bp .lbl { display: none; }
 .sysmap .map.bp .bpf { display: block; background: var(--bp-box); border: 1.5px solid var(--c, var(--bp-line)); color: var(--bp-fg); padding: 4px 8px; font-size: 11px;
   min-width: 90px; max-width: 150px; text-align: left; }
-.sysmap .map.bp .agent .bpf { min-width: 0; max-width: 84px; }
+.sysmap .map.bp .agent .bpf { min-width: 0; max-width: 78px; }
 .sysmap .map.bp .narrow .bpf { min-width: 0; max-width: 112px; }
+/* The gate box and the worker boxes are wider than their pixel art. Move the gate box up so that they do not touch. */
+.sysmap .map.bp [data-node="gate"] { top: 252px !important; left: 424px !important; }
+.sysmap .map.bp [data-node="reader"] { left: 290px !important; }
+.sysmap .map.bp [data-node^="worker"] .bpf { max-width: 124px; }
 .sysmap .map.bp .bpf b { display: block; font-weight: 500; }
 .sysmap .map.bp .bpf small { color: var(--bp-mute); font-size: 9.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .sysmap .map.bp .bpf.on { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c, var(--bp-line)) 35%, transparent); }
