@@ -162,6 +162,52 @@ describe("activity tab", () => {
     expect(Number(handle.getAttribute("aria-valuenow"))).toBe(Number(handle.getAttribute("aria-valuemin")))
   })
 
+  it("collapses and expands the steps of an agent run", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" initialStep="m1" />)
+    const tree = screen.getByRole("tree", { name: "Steps" })
+    await user.click(within(tree).getByRole("button", { name: "Collapse job-discovery" }))
+    expect(within(tree).queryByRole("treeitem", { name: /Searching LinkedIn jobs/ })).not.toBeInTheDocument()
+    expect(within(tree).getByRole("treeitem", { name: /^job-discovery/ })).toHaveAttribute("aria-expanded", "false")
+    await user.click(within(tree).getByRole("button", { name: "Expand job-discovery" }))
+    expect(within(tree).getByRole("treeitem", { name: /Searching LinkedIn jobs/ })).toBeInTheDocument()
+  })
+
+  it("collapses a message with all its work", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    const tree = screen.getByRole("tree", { name: "Steps" })
+    await user.click(within(tree).getByRole("button", { name: "Collapse message 1" }))
+    expect(within(tree).queryByRole("treeitem", { name: /^job-discovery/ })).not.toBeInTheDocument()
+    expect(within(tree).queryByRole("treeitem", { name: /Saving the brief/ })).not.toBeInTheDocument()
+  })
+
+  it("collapses all the runs and expands them again", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" initialStep="m1" />)
+    const list = screen.getByRole("complementary", { name: "Step list" })
+    await user.click(within(list).getByRole("button", { name: "Collapse all" }))
+    expect(within(list).queryByRole("treeitem", { name: /Reading a page/ })).not.toBeInTheDocument()
+    expect(within(list).getByRole("treeitem", { name: /Saving the brief/ })).toBeInTheDocument()
+    await user.click(within(list).getByRole("button", { name: "Expand all" }))
+    expect(within(list).getByRole("treeitem", { name: /Reading a page/ })).toBeInTheDocument()
+  })
+
+  it("opens a collapsed run when one of its steps is selected", async () => {
+    const user = userEvent.setup()
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" initialStep="m1" />)
+    const tree = screen.getByRole("tree", { name: "Steps" })
+    await user.click(within(tree).getByRole("button", { name: "Collapse job-discovery" }))
+    await user.click(screen.getByRole("button", { name: "Next step" }))
+    expect(within(tree).getByRole("treeitem", { name: /Searching LinkedIn jobs/ })).toHaveAttribute("aria-selected", "true")
+  })
+
+  it("shows the count of failed steps on a run", () => {
+    render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
+    const run = within(screen.getByRole("tree", { name: "Steps" })).getByRole("treeitem", { name: /^job-discovery/ })
+    expect(within(run).getByText("1 failed")).toBeInTheDocument()
+  })
+
   it("downloads the log with the token", async () => {
     const user = userEvent.setup()
     render(<ActivityTab goalId="g1" events={EVENTS} status="done" />)
