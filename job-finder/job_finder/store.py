@@ -33,7 +33,7 @@ class GoalNotFound(LookupError):
     """The goal does not exist: it was deleted."""
 
     def __init__(self, goal_id: str):
-        super().__init__(f"Goal {goal_id} does not exist.")
+        super().__init__(f"Mission {goal_id} does not exist.")
         self.goal_id = goal_id
 
 

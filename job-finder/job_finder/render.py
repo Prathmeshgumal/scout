@@ -75,7 +75,7 @@ def render_event(event: dict) -> RenderableType | None:
         return _status(event)
     if kind == "response_finished" and event.get("cost_usd") is not None:
         return _row(None, f"Response {event['result']}: ${event['cost_usd']:.2f}, {event['turns']} turns "
-                          f"(goal total ${event['spend_usd']:.2f})", "dim")
+                          f"(mission total ${event['spend_usd']:.2f})", "dim")
     return None
 
 

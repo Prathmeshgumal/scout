@@ -16,8 +16,8 @@ def test_recap_has_goal_follow_ups_last_answer_and_scrapes():
     scrapes = [{"request_id": "rq-1", "kind": "linkedin_person", "target": "u", "status": "succeeded",
                 "failure_kind": None}]
     assert build_recap(events, scrapes).splitlines() == [
-        "Your earlier conversation for this goal was lost. This is a summary of it.",
-        "Goal: Find the VP of Sales at Acme",
+        "Your earlier conversation for this mission was lost. This is a summary of it.",
+        "Mission: Find the VP of Sales at Acme",
         "Later message from the user: Also check Globex",
         "Your last answer:",
         "Jane Doe is VP Sales (https://www.linkedin.com/in/jane/).",

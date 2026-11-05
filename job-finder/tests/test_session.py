@@ -257,7 +257,7 @@ async def test_lost_session_file_starts_fresh_with_a_recap(app_settings, store, 
     session = await opened(app_settings, store, recorder, streams, goal["id"])
     assert streams.last.options.resume is None and streams.last.queries == []
     await session.send("10 more", "follow_up")
-    assert streams.last.queries[0].startswith("Your earlier conversation for this goal was lost.")
+    assert streams.last.queries[0].startswith("Your earlier conversation for this mission was lost.")
     assert streams.last.queries[0].endswith("10 more")
     await session.close()
 
@@ -274,7 +274,7 @@ async def test_spend_cap_stops_subagents_and_gets_a_wrap_up_answer(app_settings,
     wrap = streams.last
     assert wrap is not first and first.closed
     assert wrap.options.max_budget_usd == pytest.approx(0.20) and wrap.options.max_turns == 3
-    assert wrap.queries[0].startswith("You've reached this goal's limits.")
+    assert wrap.queries[0].startswith("You've reached this mission's limits.")
     assert (await store.list_tasks(goal["id"]))[0]["status"] == "stopped"
     wrap.push(assistant("Best answer."), result(cost=0.85))
     await wrap.flush()
@@ -509,7 +509,7 @@ async def test_the_guard_follows_the_running_tasks(make_session, store, streams)
 def finish_call(call_id, reason):
     return [AssistantMessage(model="m", content=[ToolUseBlock(id=call_id, name="mcp__artifacts__finish_goal",
                                                               input={"reason": reason})]),
-            UserMessage(content=[ToolResultBlock(tool_use_id=call_id, content=f"Goal finished: {reason}")])]
+            UserMessage(content=[ToolResultBlock(tool_use_id=call_id, content=f"Mission finished: {reason}")])]
 
 
 async def test_no_continue_after_the_main_agent_finishes_the_goal(make_session, store, streams):
@@ -628,7 +628,7 @@ async def test_spend_from_outside_the_main_agent_also_reaches_the_cap(app_settin
     await first.flush()
     wrap = streams.last
     assert wrap is not first and first.closed
-    assert wrap.queries[0].startswith("You've reached this goal's limits.")
+    assert wrap.queries[0].startswith("You've reached this mission's limits.")
 
 
 

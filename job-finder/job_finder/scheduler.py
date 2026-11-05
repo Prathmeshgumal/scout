@@ -39,7 +39,7 @@ class Scheduler:
             try:
                 await self.tick()
             except Exception:
-                log.exception("mandate scheduler tick failed")
+                log.exception("the scheduler tick failed")
             await asyncio.sleep(self.interval_s)
 
     async def tick(self) -> None:
@@ -51,11 +51,11 @@ class Scheduler:
             try:
                 await self._start(m, now)
             except Exception:  # one bad mandate must not stop the others
-                log.exception("mandate %s: could not start a run", m["id"])
+                log.exception("schedule %s: could not start a run", m["id"])
 
     async def _end(self, m: dict, reason: str) -> None:
         await self.mandates.update(m["id"], {"status": "ended"})
-        await self.recorder.record(m["home_goal_id"], "notice", trigger="mandate_ended", text=f"Mandate ended: {reason}")
+        await self.recorder.record(m["home_goal_id"], "notice", trigger="mandate_ended", text=f"Schedule ended: {reason}")
 
     async def _start(self, m: dict, now: datetime) -> None:
         # A delete of the mandate, or of one of its goals, holds this lock. The next tick tries again.
@@ -101,14 +101,14 @@ class Scheduler:
         if run is None:
             return  # another server started this slot
         await self.recorder.record(m["home_goal_id"], "notice", trigger="mandate_run_started", run_id=run["id"],
-                                   text=f"Goal {number} started for {slot_text(slot, m['timezone'])}. "
-                                        f"Goal id: {run['id']}.")
+                                   text=f"Mission {number} started for {slot_text(slot, m['timezone'])}. "
+                                        f"Mission id: {run['id']}.")
         try:
             await self.port.send(run["id"], kickoff_message(m, number, slot, history), "mandate_run",
                                  user=False, recover=False)
         except Exception as exc:
-            log.exception("mandate %s: run %s could not start", m["id"], run["id"])
-            await self.store.set_status(run["id"], "failed", f"The goal could not start: {exc}")
+            log.exception("schedule %s: run %s could not start", m["id"], run["id"])
+            await self.store.set_status(run["id"], "failed", f"The mission could not start: {exc}")
 
     async def _tell_waiting(self, m: dict) -> None:
         """A run that does not stop blocks the mandate. Tell the user once for each slot, so that they can stop it."""
@@ -117,11 +117,11 @@ class Scheduler:
             return
         self._told_waiting.add(key)
         runs = [r for r in await self.mandates.runs(m["id"]) if r["status"] in ("running", "waiting")]
-        which = f"Goal {runs[0]['number']} is" if runs else "A goal is"
+        which = f"Mission {runs[0]['number']} is" if runs else "A mission is"
         await self.recorder.record(
             m["home_goal_id"], "notice", trigger="mandate_run_waiting",
-            text=(f"The goal for {slot_text(m['next_run_at'], m['timezone'])} waits. {which} still in progress. "
-                  "The next goal starts when it stops. To start sooner, open that goal and stop it."))
+            text=(f"The mission for {slot_text(m['next_run_at'], m['timezone'])} waits. {which} still in progress. "
+                  "The next mission starts when it stops. To start sooner, open that mission and stop it."))
 
     async def _announce(self) -> None:
         for row in await self.mandates.unannounced_runs():
@@ -131,8 +131,8 @@ class Scheduler:
             p = await self.artifacts.pipeline(row["id"])
             await self.recorder.record(
                 row["home_goal_id"], "notice", trigger="mandate_run_finished", run_id=row["id"],
-                text=(f"Goal {row['number']}, {slot_text(row['run_slot'], m['timezone'])}: {p['fit']} fit of "
-                      f"{p['jobs']} found, ${row['spend_usd']:.2f}. Status: {row['status']}. Goal id: {row['id']}."))
+                text=(f"Mission {row['number']}, {slot_text(row['run_slot'], m['timezone'])}: {p['fit']} fit of "
+                      f"{p['jobs']} found, ${row['spend_usd']:.2f}. Status: {row['status']}. Mission id: {row['id']}."))
             await self.mandates.mark_announced(row["id"])
             if row["status"] == "failed":
                 await self._pause_after_failures(m, row["id"])
@@ -153,5 +153,5 @@ class Scheduler:
         reason = (await self.store.get_goal(failed_id))["status_reason"] or "unknown"
         await self.recorder.record(
             m["home_goal_id"], "notice", trigger="mandate_paused",
-            text=(f"Mandate paused: the last {in_a_row} goals failed. The last reason: {reason} "
-                  "Fix the cause, then ask here in this chat to resume the mandate."))
+            text=(f"Schedule paused: the last {in_a_row} missions failed. The last reason: {reason} "
+                  "Fix the cause, then ask here in this chat to resume the schedule."))

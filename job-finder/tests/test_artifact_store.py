@@ -36,7 +36,7 @@ async def test_a_role_is_saved_once_per_goal(store, artifacts):
     [first] = await artifacts.save_jobs(g, [role(1)], "job-discovery")
     [again] = await artifacts.save_jobs(g, [role(1, url="https://boards.greenhouse.io/acme/jobs/1?gh_src=x")],
                                         "job-discovery")
-    assert first["new"] and not again["new"] and again["refused"] == "Already saved in this goal."
+    assert first["new"] and not again["new"] and again["refused"] == "Already saved in this mission."
     assert again["job_id"] == first["job_id"]
     other = await goal(store)
     [elsewhere] = await artifacts.save_jobs(other, [role(1)], "job-discovery")
@@ -80,7 +80,7 @@ async def test_a_run_refuses_roles_from_earlier_runs_of_its_mandate(artifacts, m
     other_mandate, other_run = await make_run(5)
     assert other_mandate != mandate
     assert (await artifacts.save_jobs(other_run["id"], [role(1)], "job-discovery"))[0]["new"]
-    normal = await store.create_goal("normal goal")
+    normal = await store.create_goal("normal mission")
     assert (await artifacts.save_jobs(normal["id"], [role(1)], "job-discovery"))[0]["new"]
 
 

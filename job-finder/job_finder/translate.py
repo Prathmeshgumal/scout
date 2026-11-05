@@ -67,7 +67,7 @@ LABELS = {
     "read_file": lambda i: "Reading a file",
     "get_pipeline": lambda i: "Counting the roles at each stage",
     "get_search_history": lambda i: "Reading the earlier searches and refused roles",
-    "finish_goal": lambda i: f"Finishing the goal: {i.get('reason', '')}",
+    "finish_goal": lambda i: f"Finishing the mission: {i.get('reason', '')}",
     "list_jobs": lambda i: f"Listing the roles: {i.get('filter') or 'all'}",
     "read_job": lambda i: "Reading everything saved for a role",
     "save_jobs": lambda i: f"Saving roles{_count(i.get('jobs'))}{_rejected(i.get('rejected'))}",

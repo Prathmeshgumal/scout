@@ -156,7 +156,7 @@ class GoalSessions:
         except GoalNotFound:
             pass  # the user deleted the goal
         except Exception:
-            log.exception("goal %s: could not give the watcher's message", goal_id)
+            log.exception("mission %s: could not give the watcher's message", goal_id)
 
     # Open and close
 
@@ -176,7 +176,7 @@ class GoalSessions:
                 self._to_recover.add(goal_id)
                 return
             except Exception:
-                log.exception("goal %s: could not reopen it", goal_id)
+                log.exception("mission %s: could not reopen it", goal_id)
             self._to_recover.discard(goal_id)
 
     async def _recover_again(self) -> None:

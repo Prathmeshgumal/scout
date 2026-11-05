@@ -67,7 +67,7 @@ async def test_new_goal_runs_and_shows_the_reply(services, out, store, streams):
     [goal] = await store.list_goals()
     assert streams.last.queries == ["Find 20 jobs"] and goal["status"] == "done"
     text = out.export_text()
-    assert "New goal" in text and "No jobs yet" in text
+    assert "New mission" in text and "No jobs yet" in text
 
 
 async def test_typing_while_the_main_agent_works_reaches_it_at_once(services, out, store, streams):
@@ -85,7 +85,7 @@ async def test_idle_message_has_the_pending_note(services, out, store, streams):
     await store.add_scrape(goal["id"], "rq-1", "linkedin_company", "u", True)
     async with chat_on(services, out, goal["id"]) as chat:
         await chat.handle("10 more")
-    assert streams.last.queries[0].startswith("10 more\n\n(Note: 1 scrape for this goal is still pending")
+    assert streams.last.queries[0].startswith("10 more\n\n(Note: 1 scrape for this mission is still pending")
 
 
 async def test_ctrl_c_stops_a_reply_and_closes_when_idle(services, out, store, streams):
@@ -145,11 +145,11 @@ async def test_retry_only_for_failed_or_stopped(services, out, store, streams):
     async with chat_on(services, out, goal["id"]) as chat:
         await store.set_status(goal["id"], "done")
         await chat.handle("/retry")
-        assert "Only a failed or stopped goal" in out.export_text()
+        assert "Only a failed or stopped mission" in out.export_text()
         await store.set_status(goal["id"], "failed", "boom")
         await store.set_sdk_session(goal["id"], "sess-1", 0.0)
         await chat.handle("/retry")
-        assert streams.last.queries == ["The previous attempt failed (boom). Continue working toward the goal."]
+        assert streams.last.queries == ["The previous attempt failed (boom). Continue working toward the mission."]
 
 
 async def test_commands_and_exit(services, out, store):
@@ -163,7 +163,7 @@ async def test_commands_and_exit(services, out, store):
 
 async def test_chat_refuses_a_subagent_goal(services, out, store):
     goal = await store.create_goal("dev", agent="job-research")
-    with pytest.raises(CliError, match="is a job-research goal"):
+    with pytest.raises(CliError, match="is a job-research mission"):
         await run_chat(services, out, goal["id"][:8], prompt=FakePrompt())
 
 

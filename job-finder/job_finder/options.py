@@ -49,7 +49,7 @@ SUBAGENT_ENV = {"CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS": "1", "CLAUDE_CODE_MAX
                 "CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS": "0",
                 "CLAUDE_CODE_PROMPT_CACHE_TTL": "1h", "CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL": "5m"}
 MAIN_BUILTIN_TOOLS = ["Agent", "SendMessage"]
-STOPPED_PROMPT = "The user stopped you earlier and has now asked you to continue. Continue working toward the goal."
+STOPPED_PROMPT = "The user stopped you earlier and has now asked you to continue. Continue working toward the mission."
 
 
 def goal_kind(goal: dict) -> str:
@@ -61,7 +61,7 @@ def goal_kind(goal: dict) -> str:
 
 def main_prompt(goal_id: str, kind: str = "goal") -> str:
     """The prompt of the main agent. It does not hold the candidate profile: only two subagents read that."""
-    parts = [MAIN_PROMPT.rstrip(), SCOPE, f"The id of this goal is {goal_id}."]
+    parts = [MAIN_PROMPT.rstrip(), SCOPE, f"The id of this mission is {goal_id}."]
     if kind == "run":
         parts.append(RUN_SECTION)
     return "\n\n".join(parts)
@@ -72,7 +72,7 @@ def prompt_sha(text: str) -> str:
 
 
 def home_prompt(goal_id: str) -> str:
-    return f"{HOME_PROMPT.rstrip()}\n\n{SCOPE}\n\nThe id of this goal is {goal_id}."
+    return f"{HOME_PROMPT.rstrip()}\n\n{SCOPE}\n\nThe id of this mission is {goal_id}."
 
 
 def subagent_spec(goal: dict) -> SubagentSpec | None:
@@ -140,7 +140,7 @@ def retry_message(goal: dict, first_message: str | None) -> str:
         return first_message or goal["title"]
     if goal["status"] == "stopped":
         return STOPPED_PROMPT
-    return f"The previous attempt failed ({goal['status_reason'] or 'unknown error'}). Continue working toward the goal."
+    return f"The previous attempt failed ({goal['status_reason'] or 'unknown error'}). Continue working toward the mission."
 
 
 def build_options(settings: Settings, goal: dict, ctx: ToolContext, hooks: dict, *, budget: float, max_turns: int,

@@ -15,7 +15,7 @@ from .tools.career_lens import SERVER_NAME
 
 # The calls that ask for a fresh LinkedIn read: each one counts to the goal's fresh-scrape cap.
 SCRAPE_MATCHER = f"mcp__{SERVER_NAME}__(scrape_company|scrape_linkedin_job|search_linkedin_jobs)"
-CLOSED_REASON = "This goal has reached its limits, so no more scrapes. Answer from the data you have."
+CLOSED_REASON = "This mission has reached its limits, so no more scrapes. Answer from the data you have."
 # Tools that only subagents may use: the web tools and the own server of each subagent. The session allows these
 # servers for the subagents, so this hook refuses them on the main thread.
 MAIN_THREAD_MATCHER = f"mcp__({'|'.join([SERVER_NAME, *sorted(spec.server for spec in REGISTRY.values())])})__.*"
@@ -69,7 +69,7 @@ def main_thread_hook() -> Hook:
 
 
 def busy_reason(name: str) -> str:
-    return (f"A {name} run is already working on this goal. It reports when it finishes. "
+    return (f"A {name} run is already working on this mission. It reports when it finishes. "
             f"Start the next {name} run then.")
 
 
@@ -110,7 +110,7 @@ def profile_first_hook(store: Store, goal_id: str) -> Hook:
     return hook
 
 
-HOME_AGENT_REASON = ("This chat now manages a mandate. It does no job search. The goals that the mandate "
+HOME_AGENT_REASON = ("This chat now manages a schedule. It does no job search. The missions that the schedule "
                      "starts do the work.")
 
 
@@ -130,7 +130,7 @@ def home_agent_hook(store: Store, goal_id: str) -> Hook:
 # The save tool of every artifacts server: the main agent's and each subagent's own.
 JOBS_MATCHER = r"mcp__artifacts\w*__save_jobs"
 CEILING_FACTOR = 4  # many roles do not fit, and the target counts only fit roles
-CEILING_REASON = "This goal has enough roles. Research and check the roles that you have."
+CEILING_REASON = "This mission has enough roles. Research and check the roles that you have."
 
 
 def job_ceiling_hook(store: Store, goal_id: str, notify: Callable[[str], Awaitable[Any]]) -> Hook:

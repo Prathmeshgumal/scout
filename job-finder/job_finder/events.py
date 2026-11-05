@@ -70,7 +70,7 @@ class Recorder:
         try:
             event = await self.store.append_event(goal_id, type_, data, detail)
         except GoalNotFound:
-            log.info("goal %s was deleted: dropped its %s event", goal_id, type_)
+            log.info("mission %s was deleted: dropped its %s event", goal_id, type_)
             return {"seq": None, "at": None, "type": type_, **data}
         self.hub.publish(goal_id, event)
         return event

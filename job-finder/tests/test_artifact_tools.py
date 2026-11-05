@@ -65,7 +65,7 @@ async def test_set_brief_in_a_run_keeps_the_quota(make_run, store, recorder):
     ctx = ToolContext(run["id"], store, recorder, CareerLens("", ""))
     out = await call(ctx, "set_brief", "main")({"title": "Go roles", "criteria": "Go, remote", "target_count": 5})
     assert (await store.get_goal(run["id"]))["brief"]["target_count"] == 20
-    assert said(out) == "Brief saved: 20 fit roles (fixed by the mandate). Go, remote"
+    assert said(out) == "Brief saved: 20 fit roles (fixed by the schedule). Go, remote"
 
 
 async def test_only_fit_check_and_application_prep_read_the_resume(ctx, store):
@@ -92,7 +92,7 @@ async def test_save_jobs_accepts_a_json_string_and_says_what_it_refused(ctx):
     out = await save({"jobs": json.dumps([role(1), role(1), {"url": "x"}])})
     assert said(out) == "1 new role, 1 refused, 1 not saved"
     rows = json.loads(text(out))
-    assert rows[1]["refused"] == "Already saved in this goal." and "error" in rows[2]
+    assert rows[1]["refused"] == "Already saved in this mission." and "error" in rows[2]
     assert (await save({}))["is_error"]
     assert (await save({"jobs": [{"title": "no url"}]}))["is_error"]  # nothing saved is an error
 
@@ -215,7 +215,7 @@ async def test_finish_goal_needs_a_reason_and_waits_for_pending_scrapes(ctx, sto
     assert out["is_error"] and said(out) == "1 scrape still pending. End your turn. You get a note when they finish."
     [scrape] = await store.pending_scrapes()
     await store.finish_scrape(scrape["id"], "succeeded", None)
-    assert said(await finish({"reason": "Target reached."})) == "Goal finished: Target reached."
+    assert said(await finish({"reason": "Target reached."})) == "Mission finished: Target reached."
 
 
 async def test_other_goals_are_read_only_summaries(ctx, store, artifacts):

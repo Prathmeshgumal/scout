@@ -286,8 +286,8 @@ async def test_continue_waits_for_a_higher_time_limit_of_the_mandate(store, make
     await time_capped(store, pool, run)
     check = await continue_check(store, mandates, await store.get_goal(run["id"]))
     assert check["ok"] is False and check["limit_s"] == 7200 and check["mandate_limit_s"] == 7200
-    assert check["reason"].startswith("Raise the time limit in the mandate chat first.")
-    assert "This goal worked for 2h 31m. The time limit is 2h." in check["reason"]
+    assert check["reason"].startswith("Raise the time limit in the schedule chat first.")
+    assert "This mission worked for 2h 31m. The time limit is 2h." in check["reason"]
     await mandates.update(m["id"], {"time_limit_minutes": 180})
     check = await continue_check(store, mandates, await store.get_goal(run["id"]))
     assert (check["ok"], check["reason"], check["mandate_limit_s"]) == (True, None, 180 * 60)
@@ -314,7 +314,7 @@ async def test_continue_waits_while_another_goal_of_the_mandate_works(store, mak
     await mandates.create_run(m, datetime(2026, 10, 9, 3, tzinfo=UTC), 2.0, 2)  # goal 2 starts
     check = await continue_check(store, mandates, await store.get_goal(run["id"]))
     assert check["ok"] is False and check["reason"] == (
-        "Goal 2 of this mandate is in progress. Continue this goal when it stops.")
+        "Mission 2 of this schedule is in progress. Continue this mission when it stops.")
 
 
 async def test_continue_refuses_a_goal_at_its_spend_cap(store, make_run, pool):
@@ -325,7 +325,7 @@ async def test_continue_refuses_a_goal_at_its_spend_cap(store, make_run, pool):
     await mandates.update(m["id"], {"time_limit_minutes": 180})
     await store.add_spend(run["id"], 1.9)
     check = await continue_check(store, mandates, await store.get_goal(run["id"]))
-    assert check["ok"] is False and check["reason"] == "This goal reached its spend cap, so it cannot continue."
+    assert check["ok"] is False and check["reason"] == "This mission reached its spend cap, so it cannot continue."
 
 
 async def test_continue_gives_the_goal_the_new_limit_and_says_how_much_time_is_left(store, make_run, pool):
@@ -339,7 +339,7 @@ async def test_continue_gives_the_goal_the_new_limit_and_says_how_much_time_is_l
     note = await continue_goal(store, mandates, run["id"])
     goal = await store.get_goal(run["id"])
     assert (goal["time_limit_s"], goal["grace_s"], goal["soft_limit_at"]) == (180 * 60, 15 * 60, None)
-    assert note.startswith("The user gave this goal more time. Its time limit is now 3h: about 30m more.")
+    assert note.startswith("The user gave this mission more time. Its time limit is now 3h: about 30m more.")
     assert "get_pipeline" in note
 
 
@@ -385,4 +385,4 @@ async def test_continue_explains_that_an_ended_mandate_cannot_change(store, make
     await mandates.update(m["id"], {"status": "ended"})
     check = await continue_check(store, mandates, await store.get_goal(run["id"]))
     assert check["ok"] is False and check["reason"] == (
-        "The mandate has ended, so its time limit cannot change. This goal cannot continue.")
+        "The schedule has ended, so its time limit cannot change. This mission cannot continue.")

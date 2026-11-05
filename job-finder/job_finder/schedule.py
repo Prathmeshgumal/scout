@@ -141,7 +141,7 @@ def _hours_slot(rule: Rule, last: datetime, after: datetime) -> datetime:
             if slot > after:
                 return slot
             slot += step
-    raise ValueError("The mandate has no active day.")
+    raise ValueError("The schedule has no active day.")
 
 
 def _days_slot(rule: Rule, first: datetime, after: datetime) -> datetime:
@@ -160,18 +160,18 @@ def _days_slot(rule: Rule, first: datetime, after: datetime) -> datetime:
                 break
             day += timedelta(days=1)
         else:
-            raise ValueError("The mandate has no active day.")
+            raise ValueError("The schedule has no active day.")
         slot = rule.at(day, rule.start)
         if slot > after:
             return slot
-    raise ValueError("The mandate has no next goal.")
+    raise ValueError("The schedule has no next mission.")
 
 
 def next_slot(rule: Rule, first: datetime, last: datetime, after: datetime) -> datetime:
     """The first planned time after `after`, in UTC. `first` and `last` are the slots of the first and the newest
     goal."""
     if not rule.days:
-        raise ValueError("The mandate has no active day.")
+        raise ValueError("The schedule has no active day.")
     slot = _hours_slot(rule, last, after) if rule.unit == "hour" else _days_slot(rule, first, after)
     return slot.astimezone(UTC)
 

@@ -19,7 +19,7 @@ Allow the message if it is part of a job search or a career. For example:
 - find roles, jobs or internships, now or on a schedule
 - research companies, roles, pay, interviews or the people who work there
 - find recruiters, hiring managers or people who can give a referral
-- a resume, a candidate profile, or questions about earlier goals
+- a resume, a candidate profile, or questions about earlier missions
 - a short or unclear message that can be the start of a job search, such as "hi" or "help me"
 
 Refuse the message if it asks for other work. For example: adult, gambling, piracy or dark web content, attacks on
@@ -55,6 +55,6 @@ async def check_request(reader: Asker, text: str) -> str | None:
     try:
         answer = await reader.ask(SYSTEM, message_content(text))
     except PageReaderError as exc:
-        log.warning("the request check failed (%s): the goal starts", exc)
+        log.warning("the request check failed (%s): the mission starts", exc)
         return None
     return refusal_from(answer.text)

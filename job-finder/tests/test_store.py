@@ -23,7 +23,7 @@ async def test_events_are_numbered_per_goal_and_listed_after_n(store):
     a = await store.create_goal("a")
     b = await store.create_goal("b")
     first = await store.append_event(a["id"], "user_message", {"text": "hi"})
-    await store.append_event(b["id"], "user_message", {"text": "other goal"})
+    await store.append_event(b["id"], "user_message", {"text": "other mission"})
     second = await store.append_event(a["id"], "text", {"text": "hello"})
     assert (first["seq"], second["seq"]) == (1, 2)
     assert first["type"] == "user_message" and first["text"] == "hi"

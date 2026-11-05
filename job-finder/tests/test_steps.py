@@ -127,7 +127,7 @@ async def test_the_log_downloads_as_json_lines_with_no_step_detail(client, store
                detail_out={"output": "secret-output"})
     response = await client.get(f"/api/goals/{goal['id']}/events.jsonl")
     assert response.status_code == 200
-    assert response.headers["content-disposition"] == f'attachment; filename="goal-{goal["id"][:8]}-events.jsonl"'
+    assert response.headers["content-disposition"] == f'attachment; filename="mission-{goal["id"][:8]}-events.jsonl"'
     lines = [json.loads(line) for line in response.text.splitlines()]
     assert [line["type"] for line in lines] == ["tool_started", "tool_finished"]
     assert "secret-" not in response.text

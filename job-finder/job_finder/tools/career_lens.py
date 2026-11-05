@@ -96,13 +96,13 @@ SEARCH_RESULT_SCHEMA = {"type": "object", "properties": {
     "required": ["request_id"]}
 JOB_SCHEMA = {"type": "object", "properties": {
     "url": {"type": "string", "description": "The LinkedIn job URL, e.g. https://www.linkedin.com/jobs/view/4012345678/"},
-    "job_id": {"type": "string", "description": "The role of this goal that the posting is, from list_jobs. When you "
+    "job_id": {"type": "string", "description": "The role of this mission that the posting is, from list_jobs. When you "
                                                 "give it, the full description is saved on that role."},
 }, "required": ["url"]}
 DEFAULT_JOB_PAGES = 2
 BLOCK_LIMIT = 3  # refused pages in one session that stop the goal
 BLOCK_STOP_REASON = ("Stopped: the agent tried to open pages that are not about jobs or are on this network "
-                     f"{BLOCK_LIMIT} times. Look at the Activity tab, then retry with a clearer goal.")
+                     f"{BLOCK_LIMIT} times. Look at the Activity tab, then retry with a clearer mission.")
 
 log = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ async def _scrape(ctx: ToolContext, args: dict) -> dict:
         except ValueError:
             known = False
         if not known:
-            return result(f"Unknown job_id {job_id}: give the id of a role of this goal, from list_jobs.", error=True)
+            return result(f"Unknown job_id {job_id}: give the id of a role of this mission, from list_jobs.", error=True)
     try:
         sections = _sections(args.get("linkedin_sections"))
     except ValueError as exc:
@@ -216,7 +216,7 @@ async def _wait(ctx: ToolContext, args: dict) -> dict:
             break
         await asyncio.sleep(ctx.poll_interval_s)
     if not rows:
-        return result("No scrapes with these request ids in this goal.", error=True)
+        return result("No scrapes with these request ids in this mission.", error=True)
     # This agent reads the results now, so the watcher must not resume the goal for them later.
     await ctx.store.mark_reported(ctx.goal_id, [row["request_id"] for row in rows if row["status"] != "pending"])
     lines = [scrape_line(row) for row in rows]
@@ -517,7 +517,7 @@ async def _role(ctx: ToolContext, args: dict) -> tuple[str | None, dict | None]:
     except ValueError:
         known = False
     if not known:
-        return None, result(f"Unknown job_id {job_id}: give the id of a role of this goal, from list_jobs.", error=True)
+        return None, result(f"Unknown job_id {job_id}: give the id of a role of this mission, from list_jobs.", error=True)
     return job_id, None
 
 

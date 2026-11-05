@@ -81,7 +81,7 @@ def api_cost(model: str, usage: dict) -> float:
     """The USD cost of a Messages API response, from its usage. 0 for a model with no known price."""
     price = PRICES.get(model)
     if price is None:
-        log.warning("no price for the page reader model %s: its cost is not in the goal spend", model)
+        log.warning("no price for the page reader model %s: its cost is not in the mission spend", model)
         return 0.0
     write, read = usage.get("cache_creation_input_tokens") or 0, usage.get("cache_read_input_tokens") or 0
     hour = min((usage.get("cache_creation") or {}).get("ephemeral_1h_input_tokens") or 0, write)

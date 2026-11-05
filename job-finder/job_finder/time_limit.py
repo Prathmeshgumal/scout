@@ -25,8 +25,8 @@ TIME_REASON = "Time limit reached."
 # The calls that start new work: a subagent run, a scrape, a search and a page read. SendMessage stays open: it
 # resumes a subagent whose scrapes finished, so that it can finish its task. Reads of stored data stay open.
 TIME_MATCHER = f"Agent|Task|mcp__{SERVER_NAME}__(scrape_company|scrape_linkedin_job|search_linkedin_jobs|google_search|read_page)"
-DENY_REASON = "The time limit of this goal is reached. Start no new work. Finish with the data that you have."
-TIME_LIMIT_PROMPT = ("The time limit of this goal is reached. Do not start subagents. The running subagents finish "
+DENY_REASON = "The time limit of this mission is reached. Start no new work. Finish with the data that you have."
+TIME_LIMIT_PROMPT = ("The time limit of this mission is reached. Do not start subagents. The running subagents finish "
                      "their tasks. When they finish, call finish_goal with the reason, then report.")
 
 
@@ -77,7 +77,7 @@ async def check_time_limits(store: Store, mandates: MandateStore, port) -> None:
             if phase is not None:
                 await port.time_limit(goal["id"], phase == "hard")
         except Exception:  # one goal must not stop the check of the others
-            log.exception("goal %s: could not apply its time limit", goal["id"])
+            log.exception("mission %s: could not apply its time limit", goal["id"])
 
 
 class ContinueError(ValueError):
@@ -100,14 +100,14 @@ async def continue_check(store: Store, mandates: MandateStore, goal: dict) -> di
             if run["id"] != goal["id"] and run["status"] in ("running", "waiting")]
     reason = None
     if busy:
-        reason = f"Goal {busy[0]['number']} of this mandate is in progress. Continue this goal when it stops."
+        reason = f"Mission {busy[0]['number']} of this schedule is in progress. Continue this mission when it stops."
     elif mandate_limit <= seconds and m["status"] == "ended":
-        reason = "The mandate has ended, so its time limit cannot change. This goal cannot continue."
+        reason = "The schedule has ended, so its time limit cannot change. This mission cannot continue."
     elif mandate_limit <= seconds:
-        reason = (f"Raise the time limit in the mandate chat first. This goal worked for {span(int(seconds) // 60)}. "
+        reason = (f"Raise the time limit in the schedule chat first. This mission worked for {span(int(seconds) // 60)}. "
                   f"The time limit is {span(m['time_limit_minutes'])}.")
     elif goal["max_spend_usd"] - goal["spend_usd"] - WRAP_UP_USD <= 0:
-        reason = "This goal reached its spend cap, so it cannot continue."
+        reason = "This mission reached its spend cap, so it cannot continue."
     return {"ok": reason is None, "reason": reason, "run_s": round(seconds), "limit_s": goal["time_limit_s"],
             "mandate_limit_s": mandate_limit}
 
@@ -118,12 +118,12 @@ async def continue_goal(store: Store, mandates: MandateStore, goal_id: str) -> s
     goal = await store.get_goal(goal_id)
     check = None if goal is None else await continue_check(store, mandates, goal)
     if check is None:
-        raise ContinueError("Only a goal that stopped at its time limit can continue.")
+        raise ContinueError("Only a mission that stopped at its time limit can continue.")
     if not check["ok"]:
         raise ContinueError(check["reason"])
     m = await mandates.get(goal["mandate_id"])
     await store.set_time_limit(goal_id, m["time_limit_minutes"] * 60, m["grace_minutes"] * 60)
     left = (check["mandate_limit_s"] - check["run_s"]) // 60
-    return (f"The user gave this goal more time. Its time limit is now {span(m['time_limit_minutes'])}: about "
+    return (f"The user gave this mission more time. Its time limit is now {span(m['time_limit_minutes'])}: about "
             f"{span(max(left, 1))} more. Subagents that worked at the time limit were stopped. Their saved work "
-            "stays. Call get_pipeline, then continue toward the goal.")
+            "stays. Call get_pipeline, then continue toward the mission.")

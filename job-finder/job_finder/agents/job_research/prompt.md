@@ -31,7 +31,7 @@ so a full job text can decide the result for the candidate.
    - `snippet`: you have only a search snippet.
    - `listing_only`: you have only the title, the company and the place.
    - `source_url`: the page that gave the text.
-4. Find the company facts, one time for each company. read_job shows facts that are saved already, also from other goals.
+4. Find the company facts, one time for each company. read_job shows facts that are saved already, also from other missions.
    When they are there, do not find them again.
    - Call get_company with the LinkedIn company URL when you know it. get_linkedin_job gives that URL. Its `about` part gives size, location and the
      overview. The saved copy is free.

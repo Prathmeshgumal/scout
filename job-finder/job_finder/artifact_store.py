@@ -48,7 +48,7 @@ JOB_FILTERS = {
 }
 # The filters that show the roles that wait for a subagent. get_pipeline counts them.
 WORK_FILTERS = ("needs_research", "research_again", "needs_fit", "needs_note")
-MANDATE_REFUSAL = "Found by an earlier goal of this mandate."
+MANDATE_REFUSAL = "Found by an earlier mission of this schedule."
 
 
 def normalize_domain(website: str) -> str | None:
@@ -109,7 +109,7 @@ class ArtifactStore(Queries):
         same = await self._one(
             "SELECT id::text AS id, url, evidence_level FROM jobs WHERE goal_id = %s AND job_key = %s", (goal_id, key))
         if same:
-            return {**shown, "job_id": same["id"], "new": False, "refused": "Already saved in this goal."}
+            return {**shown, "job_id": same["id"], "new": False, "refused": "Already saved in this mission."}
         twin = await self._one(
             "SELECT id::text AS id, url, evidence_level FROM jobs WHERE goal_id = %s AND role_key = %s",
             (goal_id, role))
@@ -145,7 +145,7 @@ class ArtifactStore(Queries):
               "status": _text(item.get("posting_status")), "snippet": snippet, "evidence": evidence,
               "observed": _text(item.get("observed_at")), "note": _text(item.get("note")), "by": created_by})
         if row is None:  # another call saved the same role just now
-            return {**shown, "new": False, "refused": "Already saved in this goal."}
+            return {**shown, "new": False, "refused": "Already saved in this mission."}
         return {**shown, "job_id": row["id"], "new": True}
 
     async def _in_mandate(self, goal_id: str, mandate_id: str, key: str, role: str) -> bool:
@@ -297,7 +297,7 @@ class ArtifactStore(Queries):
             WHERE id = %(job)s AND goal_id = %(goal)s RETURNING id
         """, {"text": description if evidence == "full_description" else None, "levels": list(EVIDENCE),
               "evidence": evidence, "source": source_url, "job": job_id, "goal": goal_id})
-        return None if row else "Unknown job_id for this goal. Use list_jobs to find the ids."
+        return None if row else "Unknown job_id for this mission. Use list_jobs to find the ids."
 
     async def save_company(self, goal_id: str, job_id: str, *, name: str | None, website: str | None,
                            linkedin_url: str | None, data: dict, sources: list, created_by: str) -> str | None:
@@ -365,7 +365,7 @@ class ArtifactStore(Queries):
         """{"title": ...} when saved, else {"error": ...}. A role that no agent read cannot be fit."""
         job = await self._one("SELECT evidence_level FROM jobs WHERE goal_id = %s AND id = %s", (goal_id, job_id))
         if job is None:
-            return {"error": "Unknown job_id for this goal. Use list_jobs to find the ids."}
+            return {"error": "Unknown job_id for this mission. Use list_jobs to find the ids."}
         if verdict == "fit" and job["evidence_level"] == "listing_only":
             return {"error": LISTING_CANNOT_FIT}
         return await self._one("""
@@ -379,7 +379,7 @@ class ArtifactStore(Queries):
         """Why the note cannot be saved, or None when it is saved. A new note replaces the earlier one."""
         job = await self._one("SELECT fit FROM jobs WHERE goal_id = %s AND id = %s", (goal_id, job_id))
         if job is None:
-            return "Unknown job_id for this goal. Use list_jobs to find the ids."
+            return "Unknown job_id for this mission. Use list_jobs to find the ids."
         if job["fit"] != "fit":
             return ONLY_FIT_NOTES
         await self._one("""

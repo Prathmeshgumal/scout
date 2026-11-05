@@ -61,7 +61,7 @@ async def test_a_due_mandate_starts_one_run_and_moves_to_the_next_slot(store, ma
     [(goal_id, text, trigger, user)] = port.sent
     assert goal_id == run["id"] and trigger == "mandate_run" and not user
     assert port.recover is False  # a new run is not a goal that an app restart interrupted
-    assert text.startswith('This is goal 1 of the mandate "EU fintech jobs"')
+    assert text.startswith('This is mission 1 of the schedule "EU fintech jobs"')
     assert (await mandates.get(m["id"]))["next_run_at"] == MON_0900 + timedelta(days=1)
     await s.tick()  # not due again until tomorrow
     assert len(port.sent) == 1
@@ -128,7 +128,7 @@ async def test_the_end_date_ends_the_mandate(store, mandates, artifacts, recorde
     await scheduler(store, mandates, artifacts, recorder, Port(), clock).tick()
     assert (await mandates.get(m["id"]))["status"] == "ended"
     notes = [e["text"] for e in await store.list_events(m["home_goal_id"]) if e["type"] == "notice"]
-    assert notes == ["Mandate ended: the end date passed."]
+    assert notes == ["Schedule ended: the end date passed."]
 
 
 async def test_a_settled_run_sends_one_notice_to_the_home_chat(store, mandates, artifacts, recorder, clock):
@@ -144,7 +144,7 @@ async def test_a_settled_run_sends_one_notice_to_the_home_chat(store, mandates, 
     await s.tick()
     texts = [e["text"] for e in await store.list_events(m["home_goal_id"])
              if e["type"] == "notice" and e.get("trigger") == "mandate_run_finished"]
-    assert texts == [f"Goal 1, Mon 12 Oct 2026 09:00: 0 fit of 1 found, $1.84. Status: done. Goal id: {run['id']}."]
+    assert texts == [f"Mission 1, Mon 12 Oct 2026 09:00: 0 fit of 1 found, $1.84. Status: done. Mission id: {run['id']}."]
 
 
 async def test_a_run_that_waits_on_scrapes_keeps_the_next_run_from_starting(store, mandates, artifacts, recorder, clock):
@@ -170,7 +170,7 @@ async def test_a_slot_that_waits_for_a_run_in_progress_is_told_once_in_the_home_
     rows = await store.list_events(m["home_goal_id"])
     waits = [e for e in rows if e["type"] == "notice" and e.get("trigger") == "mandate_run_waiting"]
     assert len(waits) == 1
-    assert "Goal 1 is still in progress" in waits[0]["text"]
+    assert "Mission 1 is still in progress" in waits[0]["text"]
 
 
 async def test_a_late_hourly_goal_starts_once_for_the_newest_missed_time(store, mandates, artifacts, recorder, clock):
@@ -249,7 +249,7 @@ async def test_the_numbers_go_on_after_a_deleted_goal(store, mandates, artifacts
     clock.now += timedelta(days=1)
     await s.tick()
     [second] = await mandates.runs(m["id"])
-    assert second["number"] == 2 and second["title"] == "EU fintech jobs: goal 2"
+    assert second["number"] == 2 and second["title"] == "EU fintech jobs: mission 2"
 
 
 async def fail_days(s, clock, days):
@@ -272,7 +272,7 @@ async def test_failed_goals_in_a_row_pause_the_mandate(store, mandates, artifact
     await s.tick()
     assert (await mandates.get(m["id"]))["status"] == "paused" and len(await mandates.runs(m["id"])) == 3
     [text] = pause_notices(await store.list_events(m["home_goal_id"]))
-    assert text.startswith("Mandate paused: the last 3 goals failed.") and "Claude is not connected" in text
+    assert text.startswith("Schedule paused: the last 3 missions failed.") and "Claude is not connected" in text
     assert "ask here in this chat" in text
 
 

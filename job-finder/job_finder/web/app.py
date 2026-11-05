@@ -206,7 +206,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
 
     @app.exception_handler(GoalLocked)
     async def locked(request: Request, exc: GoalLocked) -> JSONResponse:
-        return JSONResponse({"detail": "This goal is open in a terminal. Close it there first."}, status_code=409)
+        return JSONResponse({"detail": "This mission is open in a terminal. Close it there first."}, status_code=409)
 
     @app.exception_handler(MandateChat)
     async def mandate_chat(request: Request, exc: MandateChat) -> JSONResponse:
@@ -241,10 +241,10 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         try:
             uuid.UUID(goal_id)
         except ValueError:
-            raise HTTPException(404, "Goal not found") from None
+            raise HTTPException(404, "Mission not found") from None
         goal = await svc(request).store.get_goal(goal_id)
         if goal is None:
-            raise HTTPException(404, "Goal not found")
+            raise HTTPException(404, "Mission not found")
         return goal
 
     async def drive(request: Request, goal_id: str, text: str, trigger: str, *, user: bool = True,
@@ -256,7 +256,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         except (GoalLocked, HTTPException):
             raise
         except Exception as exc:
-            log.exception("goal %s: could not send a message", goal_id)
+            log.exception("mission %s: could not send a message", goal_id)
             raise HTTPException(503, f"Could not reach the agent: {exc}") from exc
 
     def effort_levels(menu: list[dict]) -> list[str]:
@@ -450,7 +450,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         await goal_or_404(request, goal_id)
         step = await svc(request).store.step_detail(goal_id, tool_use_id)
         if step is None:
-            raise HTTPException(404, "This goal has no such step.")
+            raise HTTPException(404, "This mission has no such step.")
         return {"input": step["input"], "output": step["output"], "truncated": step["truncated"],
                 "kept": step["tool"] in DETAIL_TOOLS}
 
@@ -461,14 +461,14 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         events = await svc(request).store.list_events(goal_id)
         body = "".join(json.dumps(event, default=str, ensure_ascii=False) + "\n" for event in events)
         return PlainTextResponse(body, media_type="application/x-ndjson",
-                                 headers={"Content-Disposition": f'attachment; filename="goal-{goal_id[:8]}-events.jsonl"'})
+                                 headers={"Content-Disposition": f'attachment; filename="mission-{goal_id[:8]}-events.jsonl"'})
 
     @app.get("/api/goals/{goal_id}/report.md")
     async def report_markdown(goal_id: str, request: Request, tz: str | None = None) -> PlainTextResponse:
         """The goal report as a Markdown file. tz: the time zone of the user, for the times. Default: UTC."""
         await goal_or_404(request, goal_id)
         report = await report_of(request, goal_id)
-        name = f"goal-{goal_id[:8]}-report.md"
+        name = f"mission-{goal_id[:8]}-report.md"
         return PlainTextResponse(render_markdown(report, known_zone(tz) or "UTC"),
                                  media_type="text/markdown; charset=utf-8",
                                  headers={"Content-Disposition": f'attachment; filename="{name}"'})
@@ -484,7 +484,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     async def message(goal_id: str, body: Text, request: Request) -> dict:
         goal = await goal_or_404(request, goal_id)
         if goal["agent"]:
-            raise HTTPException(409, f"This is a {goal['agent']} test goal. Continue it with: job-finder agent")
+            raise HTTPException(409, f"This is a {goal['agent']} test mission. Continue it with: job-finder agent")
         if body.timezone and body.timezone != goal.get("timezone"):
             await svc(request).store.set_timezone(goal_id, body.timezone)
         text = await with_pending_note(svc(request).store, goal_id, await with_files(request, goal_id, body))
@@ -495,7 +495,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
     async def stop(goal_id: str, request: Request) -> dict:
         goal = await goal_or_404(request, goal_id)
         if goal["status"] not in STOPPABLE:
-            raise HTTPException(409, "This goal is not running.")
+            raise HTTPException(409, "This mission is not running.")
         need_key()
         await manager(request).stop(goal_id)
         return {"ok": True}
@@ -505,7 +505,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         goal = await goal_or_404(request, goal_id)
         session = manager(request).get(goal_id)
         if goal["status"] not in RETRYABLE or (session and session.main_busy):
-            raise HTTPException(409, "Only a failed or stopped goal can be retried.")
+            raise HTTPException(409, "Only a failed or stopped mission can be retried.")
         note = retry_message(goal, await svc(request).store.first_user_message(goal_id))
         await drive(request, goal_id, note, "retry", user=False)
         return {"ok": True}
@@ -535,7 +535,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         """Delete the goal and all its data. The chat of a mandate goes only with its mandate."""
         await goal_or_404(request, goal_id)
         if not await deleter(request).delete_goal(goal_id):
-            raise HTTPException(404, "Goal not found")
+            raise HTTPException(404, "Mission not found")
         return Response(status_code=204)
 
     # Mandates: a list for the sidebar, and a delete. Only the agent of the mandate's chat creates or changes a
@@ -552,7 +552,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         try:
             uuid.UUID(mandate_id)
         except ValueError:
-            raise HTTPException(404, "Mandate not found") from None
+            raise HTTPException(404, "Schedule not found") from None
 
     @app.get("/api/mandates/{mandate_id}/delete-preview")
     async def mandate_delete_preview(mandate_id: str, request: Request) -> dict:
@@ -560,7 +560,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         mandate_id_or_404(mandate_id)
         preview = await deleter(request).mandate_preview(mandate_id)
         if preview is None:
-            raise HTTPException(404, "Mandate not found")
+            raise HTTPException(404, "Schedule not found")
         return preview
 
     @app.delete("/api/mandates/{mandate_id}", status_code=204)
@@ -568,7 +568,7 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         """Delete the mandate, its chat and all its goals, with all their data."""
         mandate_id_or_404(mandate_id)
         if not await deleter(request).delete_mandate(mandate_id):
-            raise HTTPException(404, "Mandate not found")
+            raise HTTPException(404, "Schedule not found")
         return Response(status_code=204)
 
     @app.get("/api/status")
@@ -644,7 +644,10 @@ def create_app(settings: Settings, services: Services | None = None, sessions: G
         return {"mode": mode, "restarting": login_saved(request)}
 
     if STATIC_DIR.is_dir():
-        @app.get("/goals/{path:path}", include_in_schema=False)
+        @app.get("/missions/{path:path}", include_in_schema=False)
+        @app.get("/schedules/{path:path}", include_in_schema=False)
+        @app.get("/schedules", include_in_schema=False)
+        @app.get("/goals/{path:path}", include_in_schema=False)  # earlier links still work
         @app.get("/mandates/{path:path}", include_in_schema=False)
         @app.get("/mandates", include_in_schema=False)
         @app.get("/jobs/{path:path}", include_in_schema=False)

@@ -43,7 +43,7 @@ def test_render_each_event_type():
         {"type": "status_changed", "to": "waiting", "reason": "Waiting on 2 scrapes"})
     assert "Failed: boom" in shown({"type": "status_changed", "to": "failed", "reason": "boom"})
     assert shown({"type": "status_changed", "to": "done", "reason": None}) == ""
-    assert "Response success: $0.05, 2 turns (goal total $0.30)" in shown(
+    assert "Response success: $0.05, 2 turns (mission total $0.30)" in shown(
         {"type": "response_finished", "result": "success", "cost_usd": 0.05, "turns": 2, "spend_usd": 0.3})
 
 

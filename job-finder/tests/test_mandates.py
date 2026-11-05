@@ -80,13 +80,13 @@ async def test_create_uses_the_defaults_and_starts_the_first_run_now(store, mand
     assert (m["time_limit_minutes"], m["grace_minutes"]) == (120, 30)
     assert m["title"] == "Series B fintechs in the EU" and m["next_run_at"] == NOW
     [note] = await notices(store, m["home_goal_id"])
-    assert note["trigger"] == "mandate_created" and note["text"].startswith("Mandate created: ")
-    assert "This chat now manages the mandate" in note["text"] and "Mandates tab of the left panel" in note["text"]
-    assert note["text"].endswith("To change, pause, resume or end the mandate, ask here in this chat.")
+    assert note["trigger"] == "mandate_created" and note["text"].startswith("Schedule created: ")
+    assert "This chat now manages the schedule" in note["text"] and "Schedules tab of the left panel" in note["text"]
+    assert note["text"].endswith("To change, pause, resume or end the schedule, ask here in this chat.")
 
 
 async def test_create_refuses_a_window_that_ends_before_it_starts(store, mandates, recorder, settings):
-    with pytest.raises(MandateError, match="No goals after"):
+    with pytest.raises(MandateError, match="No missions after"):
         await new(store, mandates, recorder, settings, window_start="21:00", window_end="09:00")
 
 
@@ -98,7 +98,7 @@ async def test_update_keeps_the_other_fields_and_records_the_change(store, manda
     changed = [n for n in await notices(store, m["home_goal_id"]) if n["trigger"] == "mandate_changed"]
     assert [n["source"] for n in changed] == ["agent", "agent"]
     assert changed[1]["old"] == {"max_spend_per_run": 2.0} and changed[1]["new"] == {"max_spend_per_run": 3.0}
-    assert changed[1]["text"] == "Mandate changed by the agent: spend cap for each goal $2.00 → $3.00."
+    assert changed[1]["text"] == "Schedule changed by the agent: spend cap for each mission $2.00 → $3.00."
 
 
 async def test_a_schedule_change_moves_the_next_run_to_the_next_slot(store, mandates, recorder, settings):
@@ -109,7 +109,7 @@ async def test_a_schedule_change_moves_the_next_run_to_the_next_slot(store, mand
     m = await update_mandate(mandates, recorder, m["id"], {"every": "6h", "window_end": "21:00"}, "agent", NOW)
     assert m["next_run_at"] == datetime(2026, 10, 8, 12, 30, tzinfo=UTC)  # 18:00 in Kolkata: 6 hours after 12:00
     changed = [n for n in await notices(store, m["home_goal_id"]) if n["trigger"] == "mandate_changed"]
-    assert changed[0]["text"] == "Mandate changed by the agent: interval each day → every 6 hours."
+    assert changed[0]["text"] == "Schedule changed by the agent: interval each day → every 6 hours."
 
 
 async def test_two_changes_at_the_same_time_keep_each_other(store, mandates, recorder, settings):
@@ -145,7 +145,7 @@ async def test_a_time_limit_change_reaches_the_run_in_progress(store, mandates, 
     goal = await store.get_goal(run["id"])
     assert (goal["time_limit_s"], goal["grace_s"]) == (180 * 60, 10 * 60)
     [*_, note] = await notices(store, m["home_goal_id"])
-    assert "time limit for each goal 2h → 3h" in note["text"] and "extra time to finish 30m → 10m" in note["text"]
+    assert "time limit for each mission 2h → 3h" in note["text"] and "extra time to finish 30m → 10m" in note["text"]
 
 
 async def test_pause_resume_and_end(store, mandates, recorder, settings):
@@ -168,18 +168,18 @@ async def test_describe(store, mandates, recorder, settings):
     m = await new(store, mandates, recorder, settings, every="6h", window_end="21:00", window_days=[1, 2, 3, 4, 5],
                   max_total_spend=None)
     assert describe(m) == (
-        'Mandate "Series B fintechs in the EU": Series B fintechs in the EU. '
-        "One goal every 6 hours, Mon, Tue, Wed, Thu, Fri, 09:00 to 21:00. "
-        "Quota: 20 fit roles for each goal. Caps for each goal: $2.00 and 15 scrapes. "
-        "Time limit for each goal: 2h, then 30m to finish. "
-        "No total spend limit. No end date. Status: active. Next goal: Thu 8 Oct 2026 12:00.")
-    assert "One goal every hour," in describe({**m, "every_unit": "hour", "every_count": 1})
+        'Schedule "Series B fintechs in the EU": Series B fintechs in the EU. '
+        "One mission every 6 hours, Mon, Tue, Wed, Thu, Fri, 09:00 to 21:00. "
+        "Quota: 20 fit roles for each mission. Caps for each mission: $2.00 and 15 scrapes. "
+        "Time limit for each mission: 2h, then 30m to finish. "
+        "No total spend limit. No end date. Status: active. Next mission: Thu 8 Oct 2026 12:00.")
+    assert "One mission every hour," in describe({**m, "every_unit": "hour", "every_count": 1})
     daily = describe({**m, "every_unit": "day", "every_count": 1})
     every_day = {**m, "every_unit": "day", "every_count": 1, "window_days": [1, 2, 3, 4, 5, 6, 7]}
-    assert "One goal each day, at 09:00." in describe(every_day)
-    assert "One goal each day, Mon, Tue, Wed, Thu, Fri, at 09:00." in daily
-    assert "One goal every 2 weeks," in describe({**m, "every_unit": "day", "every_count": 14})
-    assert "One goal each month," in describe({**m, "every_unit": "month", "every_count": 1})
+    assert "One mission each day, at 09:00." in describe(every_day)
+    assert "One mission each day, Mon, Tue, Wed, Thu, Fri, at 09:00." in daily
+    assert "One mission every 2 weeks," in describe({**m, "every_unit": "day", "every_count": 14})
+    assert "One mission each month," in describe({**m, "every_unit": "month", "every_count": 1})
 
 
 def test_kickoff_message():
@@ -191,15 +191,15 @@ def test_kickoff_message():
                "reasons": ["More than 500 employees.", "Not in the EU."]}
     text = kickoff_message(m, 6, datetime(2026, 10, 8, 3, 30, tzinfo=UTC), history)
     assert text == (
-        'This is goal 6 of the mandate "EU fintech jobs", for the slot Thu 8 Oct 2026 09:00.\n'
+        'This is mission 6 of the schedule "EU fintech jobs", for the slot Thu 8 Oct 2026 09:00.\n'
         "Instruction: Series B fintechs in the EU\n"
-        "Quota for this goal: 20 fit roles. Spend cap: $2.00. Scrape cap: 15. Time limit: 1h 30m.\n"
-        "Earlier goals: 112 roles found, 87 fit, 14 not a fit, 11 unsure.\n"
+        "Quota for this mission: 20 fit roles. Spend cap: $2.00. Scrape cap: 15. Time limit: 1h 30m.\n"
+        "Earlier missions: 112 roles found, 87 fit, 14 not a fit, 11 unsure.\n"
         "Newest reasons for not_fit:\n- More than 500 employees.\n- Not in the EU.")
     first = kickoff_message(m, 1, datetime(2026, 10, 8, 3, 30, tzinfo=UTC),
                             {**history, "runs": 0, "jobs": 0, "reasons": []})
-    assert first.endswith("Quota for this goal: 20 fit roles. Spend cap: $2.00. Scrape cap: 15. Time limit: 1h 30m.\n"
-                          "This is the first goal of the mandate.")
+    assert first.endswith("Quota for this mission: 20 fit roles. Spend cap: $2.00. Scrape cap: 15. Time limit: 1h 30m.\n"
+                          "This is the first mission of the schedule.")
 
 
 def test_kickoff_message_keeps_each_reason_to_one_short_line():
@@ -222,20 +222,20 @@ async def test_config_table_shows_every_setting(store, mandates, recorder, setti
         "| Instruction | Series B fintechs in the EU |",
         "| Profile | Titles: Go \\| Rust engineer |",
         "| Status | active |",
-        "| Next goal | Thu 8 Oct 2026 12:00 |",
+        "| Next mission | Thu 8 Oct 2026 12:00 |",
         "| Time zone | Asia/Kolkata |",
         "| Interval | every 6 hours |",
         "| Days | Mon, Tue, Wed, Thu, Fri |",
-        "| First goal at | 09:00 |",
-        "| No goals after | 21:00 |",
-        "| Quota for each goal | 20 fit roles |",
-        "| Spend cap for each goal | $2.00 |",
-        "| Scrape cap for each goal | 15 |",
-        "| Time limit for each goal | 2h |",
+        "| First mission at | 09:00 |",
+        "| No missions after | 21:00 |",
+        "| Quota for each mission | 20 fit roles |",
+        "| Spend cap for each mission | $2.00 |",
+        "| Scrape cap for each mission | 15 |",
+        "| Time limit for each mission | 2h |",
         "| Extra time to finish | 30m |",
         "| Total spend limit | $10.00 |",
         "| End date | none |"])
-    assert "| Next goal | none: the mandate is paused |" in config_table({**m, "status": "paused"})
+    assert "| Next mission | none: the schedule is paused |" in config_table({**m, "status": "paused"})
 
 
 def test_new_settings_fill_in_the_defaults_and_save_nothing(settings):
@@ -244,7 +244,7 @@ def test_new_settings_fill_in_the_defaults_and_save_nothing(settings):
     assert values["max_total_spend"] == 10.0 and values["status"] == "active"
     with pytest.raises(MandateError, match="instruction"):
         new_settings({"jobs_per_run": 20}, settings)
-    with pytest.raises(MandateError, match="No goals after"):
+    with pytest.raises(MandateError, match="No missions after"):
         new_settings({"instruction": "x", "window_start": "21:00", "window_end": "09:00"}, settings)
 
 
@@ -258,8 +258,8 @@ async def test_preview_change_saves_nothing(store, mandates, recorder, settings)
         "| Setting | Now | After the change |",
         "|---|---|---|",
         "| Status | active | paused |",
-        "| Next goal | Thu 8 Oct 2026 12:00 | none: the mandate is paused |",
-        "| Quota for each goal | 20 fit roles | 50 fit roles |"])
+        "| Next mission | Thu 8 Oct 2026 12:00 | none: the schedule is paused |",
+        "| Quota for each mission | 20 fit roles | 50 fit roles |"])
     _, later = await preview_change(mandates, m["id"], {"every": "6h"}, NOW)
     assert later["next_run_at"] == datetime(2026, 10, 8, 12, 30, tzinfo=UTC)  # the next slot, as a save gives
     for bad, match in (({}, "one or more"), ({"status": "active"}, "active already"),
@@ -275,7 +275,7 @@ async def test_start_goal_now(store, mandates, recorder, settings):
     assert m["next_run_at"] == NOW
     note = (await notices(store, m["home_goal_id"]))[-1]
     assert note["trigger"] == "mandate_changed" and note["text"] == (
-        "Mandate changed by the agent: a new goal starts within a minute.")
+        "Schedule changed by the agent: a new mission starts within a minute.")
     await set_mandate_status(mandates, recorder, m["id"], "paused", "agent", NOW)
     with pytest.raises(MandateError, match="Only an active"):
         await start_goal_now(mandates, recorder, m["id"], "agent", NOW)
@@ -283,7 +283,7 @@ async def test_start_goal_now(store, mandates, recorder, settings):
 
 async def test_describe_does_not_double_the_period(store, mandates, recorder, settings):
     m = await new(store, mandates, recorder, settings, instruction="Series B fintechs in the EU.")
-    assert ": Series B fintechs in the EU. One goal" in describe(m)
+    assert ": Series B fintechs in the EU. One mission" in describe(m)
 
 
 def test_a_new_mandate_takes_the_total_spend_from_the_settings(settings):
@@ -315,7 +315,7 @@ async def test_a_new_time_zone_moves_the_next_goal(store, mandates, recorder, se
     m = await update_mandate(mandates, recorder, m["id"], {"timezone": "Europe/Berlin"}, "agent", NOW)
     assert m["next_run_at"] == datetime(2026, 10, 9, 7, 0, tzinfo=UTC)  # Fri 9 Oct 09:00 in Berlin
     table = config_table(m)
-    assert "| Time zone | Europe/Berlin |" in table and "| Next goal | Fri 9 Oct 2026 09:00 |" in table
+    assert "| Time zone | Europe/Berlin |" in table and "| Next mission | Fri 9 Oct 2026 09:00 |" in table
     note = (await notices(store, m["home_goal_id"]))[-1]
     assert "time zone Asia/Kolkata → Europe/Berlin" in note["text"]
 

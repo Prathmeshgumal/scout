@@ -56,8 +56,8 @@ async def test_a_proposal_saves_nothing_and_shows_the_full_table(ctx, store):
     chat = Chat(ctx, "goal")
     out = await chat("propose_mandate", {"instruction": "Series B fintechs in the EU", "jobs_per_run": 20})
     assert "is_error" not in out and "Nothing is saved yet" in text(out)
-    assert "| Quota for each goal | 20 fit roles |" in text(out) and "| Total spend limit | $10.00 |" in text(out)
-    assert "| Next goal | Thu 8 Oct 2026 12:00 |" in text(out)  # the first goal starts at once
+    assert "| Quota for each mission | 20 fit roles |" in text(out) and "| Total spend limit | $10.00 |" in text(out)
+    assert "| Next mission | Thu 8 Oct 2026 12:00 |" in text(out)  # the first goal starts at once
     assert (await store.get_goal(ctx.goal_id))["home_of"] is None
 
 
@@ -71,8 +71,8 @@ async def test_confirm_needs_a_new_message_from_the_user(ctx, store):
     assert (await store.get_goal(ctx.goal_id))["home_of"] is None
     await say(ctx, "yes")
     out = await chat("confirm_mandate")
-    assert "is_error" not in out and "| Quota for each goal | 20 fit roles |" in text(out)
-    assert "This chat now manages the mandate" in text(out) and "home chat" not in text(out)
+    assert "is_error" not in out and "| Quota for each mission | 20 fit roles |" in text(out)
+    assert "This chat now manages the schedule" in text(out) and "home chat" not in text(out)
     assert (await store.get_goal(ctx.goal_id))["home_of"] is not None and ctx.changed == [True]
     again = await chat("confirm_mandate")
     assert again["is_error"]  # the proposal is used
@@ -108,19 +108,19 @@ async def test_a_proposal_is_refused_in_a_run_and_in_a_home_chat(ctx, pool):
     m = await MandateStore(pool).by_home(ctx.goal_id)
     run = await MandateStore(pool).create_run(m, NOW, 2.0, 1)
     out = await Chat(replace(ctx, goal_id=run["id"]), "goal")("propose_mandate", {"instruction": "y", "jobs_per_run": 1})
-    assert out["is_error"] and "scheduled goal" in text(out)
+    assert out["is_error"] and "scheduled mission" in text(out)
 
 
 async def test_home_changes_wait_for_a_yes(ctx, pool):
     home = await make_home(ctx)
     out = await home("propose_mandate", {"every": "6h", "jobs_per_run": 100, "window_end": "21:00"})
-    assert "Nothing is saved yet" in text(out) and "| Quota for each goal | 20 fit roles | 100 fit roles |" in text(out)
+    assert "Nothing is saved yet" in text(out) and "| Quota for each mission | 20 fit roles | 100 fit roles |" in text(out)
     assert (await MandateStore(pool).by_home(ctx.goal_id))["jobs_per_run"] == 20
     await say(ctx, "yes")
     out = await home("confirm_mandate")
     assert "is_error" not in out and "| Interval | every 6 hours |" in text(out)
-    assert "| Quota for each goal | 100 fit roles |" in text(out) and "| No goals after | 21:00 |" in text(out)
-    assert "To change, pause, resume or end the mandate, ask here in this chat." in text(out)
+    assert "| Quota for each mission | 100 fit roles |" in text(out) and "| No missions after | 21:00 |" in text(out)
+    assert "To change, pause, resume or end the schedule, ask here in this chat." in text(out)
 
 
 async def test_pause_resume_start_now_and_end(ctx, pool):
@@ -137,7 +137,7 @@ async def test_pause_resume_start_now_and_end(ctx, pool):
     await ms.update((await ms.by_home(ctx.goal_id))["id"], {"next_run_at": datetime(2030, 1, 1, tzinfo=UTC)})
     await change({"start_now": True})
     assert (await ms.by_home(ctx.goal_id))["next_run_at"] == NOW
-    assert "No goals yet." == text(await home("list_runs"))
+    assert "No missions yet." == text(await home("list_runs"))
     assert "| Status | ended |" in text(await change({"status": "ended"}))
     refused = await home("propose_mandate", {"jobs_per_run": 5})
     assert refused["is_error"] and "ended" in text(refused)
@@ -146,19 +146,19 @@ async def test_pause_resume_start_now_and_end(ctx, pool):
 
 async def test_a_proposal_gives_the_buttons_for_the_answer(ctx, pool):
     out = await Chat(ctx, "goal")("propose_mandate", {"instruction": "Series B fintechs in the EU", "jobs_per_run": 20})
-    assert text(out).endswith("[[Start mandate | Change settings]]")
+    assert text(out).endswith("[[Start schedule | Change settings]]")
     home = await make_home(ctx)
     buttons = {"[[Save change | Discard]]": {"jobs_per_run": 5},
-               "[[Pause mandate | Keep running]]": {"status": "paused"},
-               "[[!End mandate | Keep mandate]]": {"status": "ended"},
-               "[[Start goal now | Cancel]]": {"start_now": True}}
+               "[[Pause schedule | Keep running]]": {"status": "paused"},
+               "[[!End schedule | Keep schedule]]": {"status": "ended"},
+               "[[Start mission now | Cancel]]": {"start_now": True}}
     for line, args in buttons.items():
         assert text(await home("propose_mandate", args)).endswith(line), line
     assert text(await home("propose_mandate", {"status": "paused", "jobs_per_run": 5})).endswith(
         "[[Save change | Discard]]")
     ms = MandateStore(pool)
     await ms.update((await ms.by_home(ctx.goal_id))["id"], {"status": "paused"})
-    assert text(await home("propose_mandate", {"status": "active"})).endswith("[[Resume mandate | Keep paused]]")
+    assert text(await home("propose_mandate", {"status": "active"})).endswith("[[Resume schedule | Keep paused]]")
 
 
 async def test_a_mandate_takes_the_ready_profile_of_its_chat_and_each_goal_copies_it(ctx, store):
@@ -189,16 +189,16 @@ async def test_a_proposal_uses_the_time_zone_of_the_user(ctx, store):
     chat = Chat(ctx, "goal")
     out = await chat("propose_mandate", {"instruction": "Series B fintechs in the EU", "jobs_per_run": 20})
     assert "| Time zone | America/New_York |" in text(out)
-    assert "| Next goal | Thu 8 Oct 2026 02:30 |" in text(out)  # 06:30 UTC
+    assert "| Next mission | Thu 8 Oct 2026 02:30 |" in text(out)  # 06:30 UTC
 
 
 async def test_the_time_limit_of_each_goal_is_a_setting_that_waits_for_a_yes(ctx, pool):
     home = await make_home(ctx)
     out = await home("propose_mandate", {"time_limit_minutes": "3h", "grace_minutes": 15})
-    assert "| Time limit for each goal | 2h | 3h |" in text(out) and "| Extra time to finish | 30m | 15m |" in text(out)
+    assert "| Time limit for each mission | 2h | 3h |" in text(out) and "| Extra time to finish | 30m | 15m |" in text(out)
     await say(ctx, "yes")
     out = await home("confirm_mandate")
-    assert "| Time limit for each goal | 3h |" in text(out) and "| Extra time to finish | 15m |" in text(out)
+    assert "| Time limit for each mission | 3h |" in text(out) and "| Extra time to finish | 15m |" in text(out)
     m = await MandateStore(pool).by_home(ctx.goal_id)
     assert (m["time_limit_minutes"], m["grace_minutes"]) == (180, 15)
     bad = await home("propose_mandate", {"time_limit_minutes": "4m"})

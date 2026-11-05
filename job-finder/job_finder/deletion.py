@@ -29,7 +29,7 @@ class MandateChat(Exception):
     """The chat of a mandate goes only with its mandate."""
 
     def __init__(self, goal_id: str):
-        super().__init__("This chat belongs to a mandate. Delete the mandate to delete its chat.")
+        super().__init__("This chat belongs to a schedule. Delete the schedule to delete its chat.")
         self.goal_id = goal_id
 
 
@@ -92,7 +92,7 @@ class Deleter:
         await self._cancel(scrapes)
         if mandate_id and (m := await self.mandates.get(mandate_id)) is not None:
             await self.recorder.record(m["home_goal_id"], "notice", trigger="mandate_run_deleted",
-                                       text=f"Goal {number} was deleted by the user. "
+                                       text=f"Mission {number} was deleted by the user. "
                                             "Its spend still counts to the total spend limit.")
         return True
 

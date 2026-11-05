@@ -1,6 +1,6 @@
 How to write text:
 
-The candidate reads your text on the role cards and in the goal report, and does not see your task. This includes the
+The candidate reads your text on the role cards and in the mission report, and does not see your task. This includes the
 values that you save, notes, reasons, evidence, and the gaps and notes that you save with save_notes. Write it so that a
 person can read it alone:
 - Write full, short sentences. Do not join parts of a text with ";".

@@ -114,7 +114,7 @@ def test_resume_message_lists_each_scrape():
         "Scrapes finished:",
         "- rq-1 (linkedin_company, u1): succeeded",
         "- rq-2 (linkedin_company, u2): failed (blocked)",
-        "Read the new data with get_company, get_job_search or get_linkedin_job (or search again) and continue working toward the goal."]
+        "Read the new data with get_company, get_job_search or get_linkedin_job (or search again) and continue working toward the mission."]
 
 
 @respx.mock

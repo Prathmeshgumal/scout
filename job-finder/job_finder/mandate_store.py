@@ -57,7 +57,7 @@ class MandateStore(Queries):
         change came first, and the caller reads the mandate again."""
         unknown = sorted(set(values) - set(WRITABLE))
         if unknown:
-            raise ValueError(f"Not a mandate setting: {', '.join(unknown)}")
+            raise ValueError(f"Not a schedule setting: {', '.join(unknown)}")
         sets = ", ".join([*(f"{key} = %({key})s" for key in values), "updated_at = clock_timestamp()"])
         where = "id = %(id)s" + (" AND updated_at = %(seen)s" if seen else "")
         return await self._one(f"UPDATE mandates SET {sets} WHERE {where} RETURNING {MANDATE}",
@@ -142,7 +142,7 @@ class MandateStore(Queries):
                 WHERE id = %(mandate)s AND EXISTS (SELECT 1 FROM run)
             )
             SELECT * FROM run
-        """, {"number": number, "title": goal_title(f"{mandate['title']}: goal {number}"), "scrapes": mandate["max_scrapes_per_run"],
+        """, {"number": number, "title": goal_title(f"{mandate['title']}: mission {number}"), "scrapes": mandate["max_scrapes_per_run"],
               "spend": max_spend_usd, "brief": Jsonb(brief),
               "mandate": mandate["id"], "slot": slot})
 

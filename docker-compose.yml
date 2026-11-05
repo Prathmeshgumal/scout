@@ -199,10 +199,10 @@ services:
       JOB_FINDER_ENV_FILE: /config/.env
       JOB_FINDER_SELF_RESTART: "1"       # a new Claude login from the web app restarts this container
     volumes:
-      - jobfinder-state:/data            # Claude sessions: goals resume from them
+      - jobfinder-state:/data            # Claude sessions: missions resume from them
       - ./job-finder-config:/config      # the env file that `job-finder login` keeps
     init: true                           # reaps the Claude CLI processes
-    stop_grace_period: 30s               # running goals become interrupted and resume on the next start
+    stop_grace_period: 30s               # running missions become interrupted and resume on the next start
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
@@ -212,7 +212,7 @@ services:
       retries: 3
 
 volumes:
-  # The volumes of the earlier separate stacks: the LinkedIn accounts, captures and goals stay.
+  # The volumes of the earlier separate stacks: the LinkedIn accounts, captures and missions stay.
   careerlens-postgres:
     external: true
     name: careerlens-v1_postgres-data

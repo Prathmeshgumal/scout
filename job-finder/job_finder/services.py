@@ -24,7 +24,7 @@ from .watcher import Watcher
 
 class GoalLocked(Exception):
     def __init__(self, goal_id: str):
-        super().__init__("Goal is open in another terminal or in the web app.")
+        super().__init__("Mission is open in another terminal or in the web app.")
         self.goal_id = goal_id
 
 
@@ -33,7 +33,7 @@ async def with_pending_note(store: Store, goal_id: str, text: str) -> str:
     pending = await store.count_pending(goal_id)
     if not pending:
         return text
-    noun = "scrape for this goal is" if pending == 1 else "scrapes for this goal are"
+    noun = "scrape for this mission is" if pending == 1 else "scrapes for this mission are"
     return f"{text}\n\n(Note: {pending} {noun} still pending; you will be resumed when they finish.)"
 
 

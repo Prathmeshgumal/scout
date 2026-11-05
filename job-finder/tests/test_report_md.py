@@ -79,7 +79,7 @@ def test_the_research_of_a_role_lists_its_facts_and_sources():
 def test_research_from_another_goal_names_that_goal():
     row = {"kind": "funding", "data": {"round": "Seed"}, "sources": [], "from_goal": "Go roles"}
     md = render_markdown({**REPORT, "jobs": [job("Engineer", "Acme", "fit", research=[row])]})
-    assert '#### Company funding\n\nFrom the goal "Go roles".\n\n- **Round:** Seed' in md
+    assert '#### Company funding\n\nFrom the mission "Go roles".\n\n- **Round:** Seed' in md
 
 
 def test_a_role_with_no_verdict_says_it_is_not_checked():

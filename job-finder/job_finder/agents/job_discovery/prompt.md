@@ -36,7 +36,7 @@ profile. Breadth is more important than depth. Each role must be real, and its l
 4. For target companies, and for good companies that the searches show, read the jobs section:
    - Call get_company first. The saved copy is free.
    - Call scrape_company only when the saved copy is missing or old, or its jobs section was not read, and only for a
-     company that is worth a scrape. Each scrape counts to the scrape limit of the goal. Do not give a job_id for this scrape.
+     company that is worth a scrape. Each scrape counts to the scrape limit of the mission. Do not give a job_id for this scrape.
    - Set `linkedin_sections: ["jobs"]`. You do not read the other section.
 5. Call wait_for_scrapes with the ids of your searches and scrapes. Then read each finished search with get_job_search,
    and each finished company with get_company. If one is still pending, list it in `pending_scrapes`.
@@ -47,7 +47,7 @@ profile. Breadth is more important than depth. Each role must be real, and its l
    - source: `linkedin_search` for a role from search_linkedin_jobs, `linkedin_company` for a role from a jobs
      section. Leave it out for a role from Google.
    - source_url: the company page or the search that showed the role
-7. Read the reply of save_jobs. It tells you what it refused. A role from an earlier goal of the mandate is refused, so do
+7. Read the reply of save_jobs. It tells you what it refused. A role from an earlier mission of the schedule is refused, so do
    not look for it again.
 8. Put roles that clearly miss the title or the location in `rejected`, with the reason. Do not judge other things. Skills,
    pay and must-haves are for fit-check. Do not save a role at a company in excluded_companies.

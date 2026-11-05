@@ -28,39 +28,39 @@ from . import ToolContext, result
 
 SERVER_NAME = "mandates"
 SETTINGS = {
-    "title": {"type": "string", "description": "A short name for the mandate, fewer than 15 words."},
+    "title": {"type": "string", "description": "A short name for the schedule, fewer than 15 words."},
     "instruction": {"type": "string", "description": "What to find, word for word from the user: the criteria."},
     "every": {"type": "string", "description": "The interval: 1h to 23h, or a number of days (2d), weeks (1w) or "
                                                "months (1m). Default: 1d."},
-    "jobs_per_run": {"type": "integer", "minimum": 1, "description": "The quota of fit roles for each goal."},
+    "jobs_per_run": {"type": "integer", "minimum": 1, "description": "The quota of fit roles for each mission."},
     "window_days": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 7},
-                    "description": "Days with goals: 1 is Monday, 7 is Sunday. Default: 1 to 7. A planned day "
+                    "description": "Days with missions: 1 is Monday, 7 is Sunday. Default: 1 to 7. A planned day "
                                    "that is not in the list moves to the next day in the list."},
-    "window_start": {"type": "string", "description": "First goal at: the time of the first goal of each day, e.g. "
-                                     "09:00. For days, weeks and months: the time of each goal."},
-    "window_end": {"type": "string", "description": "No goals after: no goals start from this time on, e.g. "
+    "window_start": {"type": "string", "description": "First mission at: the time of the first mission of each day, e.g. "
+                                     "09:00. For days, weeks and months: the time of each mission."},
+    "window_end": {"type": "string", "description": "No missions after: no missions start from this time on, e.g. "
                                    "18:00. Set it only when the user asks for an end time. Only for intervals "
                                    "in hours."},
-    "max_spend_per_run": {"type": "number", "description": "The spend cap of each goal, in USD."},
-    "max_scrapes_per_run": {"type": "integer", "minimum": 0, "description": "The fresh-scrape cap of each goal."},
+    "max_spend_per_run": {"type": "number", "description": "The spend cap of each mission, in USD."},
+    "max_scrapes_per_run": {"type": "integer", "minimum": 0, "description": "The fresh-scrape cap of each mission."},
     "time_limit_minutes": {"type": ["integer", "string"],
-                           "description": "The time limit of each goal: minutes (90), or hours and minutes (2h, "
-                                          "1h 30m). At the limit, the goal starts no new work. Default: 2h."},
+                           "description": "The time limit of each mission: minutes (90), or hours and minutes (2h, "
+                                          "1h 30m). At the limit, the mission starts no new work. Default: 2h."},
     "grace_minutes": {"type": ["integer", "string"],
                       "description": "Extra time to finish after the time limit: minutes (30) or 1h. The running "
-                                     "subagents finish their work in it. Then all work of the goal stops. Default: 30m."},
-    "max_total_spend": {"type": "number", "description": "The mandate ends at this total spend, in USD. Default: the default total spend of the app."},
-    "ends_on": {"type": "string", "description": "Optional. The last day of the mandate, e.g. 2026-12-31."},
+                                     "subagents finish their work in it. Then all work of the mission stops. Default: 30m."},
+    "max_total_spend": {"type": "number", "description": "The schedule ends at this total spend, in USD. Default: the default total spend of the app."},
+    "ends_on": {"type": "string", "description": "Optional. The last day of the schedule, e.g. 2026-12-31."},
     "timezone": {"type": "string", "description": "The time zone of the clock times, e.g. Asia/Kolkata. Default: "
                                                   "the time zone of the user. Set it only when the user asks."},
 }
 ACTIONS = {
     "status": {"type": "string", "enum": ["active", "paused", "ended"],
-               "description": "paused: no new goals start. active: resume from the next scheduled time. "
-                              "ended: end the mandate for good."},
-    "start_now": {"type": "boolean", "description": "true: a new goal starts within a minute. The schedule after "
+               "description": "paused: no new missions start. active: resume from the next scheduled time. "
+                              "ended: end the schedule for good."},
+    "start_now": {"type": "boolean", "description": "true: a new mission starts within a minute. The set times after "
                                                     "it does not change."},
-    "new_profile": {"type": "boolean", "description": "true: the mandate takes the profile of this chat, which the "
+    "new_profile": {"type": "boolean", "description": "true: the schedule takes the profile of this chat, which the "
                                                     "candidate-profile subagent saved. Use it when the user changes the profile."},
 }
 CREATE_SCHEMA = {"type": "object", "properties": SETTINGS, "required": ["instruction", "jobs_per_run"]}
@@ -71,10 +71,10 @@ ASK = ("Show this table to the user exactly as it is and ask: \"{question}\" Cal
        "user says yes in a new message. End your reply with the line below, exactly as it is. The user sees it as "
        "buttons, and the first button means yes. A \"!\" marks a red button for a change that cannot be undone.\n\n{buttons}")
 # The buttons for a change of one kind. Other changes get "Save change" and "Discard".
-CHANGE_BUTTONS = {("status", "paused"): "[[Pause mandate | Keep running]]",
-                  ("status", "active"): "[[Resume mandate | Keep paused]]",
-                  ("status", "ended"): "[[!End mandate | Keep mandate]]",
-                  ("start_now", True): "[[Start goal now | Cancel]]"}
+CHANGE_BUTTONS = {("status", "paused"): "[[Pause schedule | Keep running]]",
+                  ("status", "active"): "[[Resume schedule | Keep paused]]",
+                  ("status", "ended"): "[[!End schedule | Keep schedule]]",
+                  ("start_now", True): "[[Start mission now | Cancel]]"}
 
 
 def change_buttons(change: dict) -> str:
@@ -142,12 +142,12 @@ def build_tools(ctx: ToolContext, kind: str) -> list[SdkMcpTool]:
     async def refusal() -> str | None:
         goal = await ctx.store.get_goal(ctx.goal_id) or {}
         if goal.get("mandate_id"):
-            return "This chat is a scheduled goal of a mandate. It cannot create a mandate."
+            return "This chat is a scheduled mission of a schedule. It cannot create a schedule."
         if goal.get("home_of"):
-            return "This chat has a mandate already. Change it with propose_mandate in its own chat."
+            return "This chat has a schedule already. Change it with propose_mandate in its own chat."
         return None
 
-    @tool("propose_mandate", "Check the settings of a new mandate: work that repeats on a schedule. It saves "
+    @tool("propose_mandate", "Check the settings of a new schedule: work that repeats at set times. It saves "
           "nothing. The reply gives all the settings, with the defaults, as a table.", CREATE_SCHEMA)
     async def propose_new(args: dict[str, Any]) -> dict[str, Any]:
         if error := await refusal():
@@ -161,9 +161,9 @@ def build_tools(ctx: ToolContext, kind: str) -> list[SdkMcpTool]:
             return result(str(exc), error=True)
         await keep(settings)
         table = config_table({**values, "next_run_at": ctx.now()})
-        return result(f"Nothing is saved yet.\n\n{table}\n\n{ASK.format(question='Start it?', buttons='[[Start mandate | Change settings]]')}")
+        return result(f"Nothing is saved yet.\n\n{table}\n\n{ASK.format(question='Start it?', buttons='[[Start schedule | Change settings]]')}")
 
-    @tool("confirm_mandate", "Save the mandate of the last propose_mandate. Call it only after the user said yes.",
+    @tool("confirm_mandate", "Save the schedule of the last propose_mandate. Call it only after the user said yes.",
           EMPTY)
     async def confirm_new(args: dict[str, Any]) -> dict[str, Any]:
         if error := await refusal():
@@ -180,21 +180,21 @@ def build_tools(ctx: ToolContext, kind: str) -> list[SdkMcpTool]:
             ctx.on_change()
         return result(f"Saved.\n\n{config_table(m)}\n\n{CREATED_NOTE}\n\n{SHOW}")
 
-    @tool("get_mandate", "Read all the settings of the mandate, its status and the time of the next goal, as a table.",
+    @tool("get_mandate", "Read all the settings of the schedule, its status and the time of the next mission, as a table.",
           EMPTY, annotations=read_only)
     async def get(args: dict[str, Any]) -> dict[str, Any]:
         m = await home()
         if m is None:
-            return result("This chat has no mandate.", error=True)
-        return result(f"The settings of the mandate:\n\n{config_table(m)}\n\n{SHOW}")
+            return result("This chat has no schedule.", error=True)
+        return result(f"The settings of the schedule:\n\n{config_table(m)}\n\n{SHOW}")
 
-    @tool("propose_mandate", "Check a change to the mandate: settings, status (pause, resume or end) or a goal "
+    @tool("propose_mandate", "Check a change to the schedule: settings, status (pause, resume or end) or a mission "
           "that starts now. Give only what changes. It saves nothing. The reply gives the change as a table.",
           CHANGE_SCHEMA)
     async def propose_change(args: dict[str, Any]) -> dict[str, Any]:
         m = await home()
         if m is None:
-            return result("This chat has no mandate.", error=True)
+            return result("This chat has no schedule.", error=True)
         change = await with_profile(
             {key: value for key, value in args.items() if (key in SETTINGS or key in ACTIONS) and value is not None}, m)
         if isinstance(change, str):
@@ -206,7 +206,7 @@ def build_tools(ctx: ToolContext, kind: str) -> list[SdkMcpTool]:
         await keep(change)
         table = change_table(now, after)
         if change.get("start_now"):
-            table += "\n\nA new goal starts within a minute."
+            table += "\n\nA new mission starts within a minute."
         return result(f"Nothing is saved yet.\n\n{table}\n\n{ASK.format(question='Save this change?', buttons=change_buttons(change))}")
 
     @tool("confirm_mandate", "Save the change of the last propose_mandate. Call it only after the user said yes.",
@@ -214,7 +214,7 @@ def build_tools(ctx: ToolContext, kind: str) -> list[SdkMcpTool]:
     async def confirm_change(args: dict[str, Any]) -> dict[str, Any]:
         m = await home()
         if m is None:
-            return result("This chat has no mandate.", error=True)
+            return result("This chat has no schedule.", error=True)
         change = await take()
         if isinstance(change, str):
             return result(change, error=True)
@@ -230,17 +230,17 @@ def build_tools(ctx: ToolContext, kind: str) -> list[SdkMcpTool]:
             return result(str(exc), error=True)
         return result(f"Saved.\n\n{config_table(m)}\n\n{CHANGE_NOTE}\n\n{SHOW}")
 
-    @tool("list_runs", "List the goals that the mandate started: time, status and spend, with the goal id of each.", EMPTY,
+    @tool("list_runs", "List the missions that the schedule started: time, status and spend, with the mission id of each.", EMPTY,
           annotations=read_only)
     async def list_runs(args: dict[str, Any]) -> dict[str, Any]:
         m = await home()
         if m is None:
-            return result("This chat has no mandate.", error=True)
+            return result("This chat has no schedule.", error=True)
         rows = await ms().runs(m["id"])
         if not rows:
-            return result("No goals yet.")
-        lines = [f"Goal {r['number']}, {slot_text(r['run_slot'], m['timezone'])}: {r['status']}, "
-                 f"${r['spend_usd']:.2f}. Goal id: {r['id']}." for r in rows]
+            return result("No missions yet.")
+        lines = [f"Mission {r['number']}, {slot_text(r['run_slot'], m['timezone'])}: {r['status']}, "
+                 f"${r['spend_usd']:.2f}. Mission id: {r['id']}." for r in rows]
         return result("\n".join(lines))
 
     if kind == "goal":

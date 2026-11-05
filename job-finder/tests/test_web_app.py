@@ -123,7 +123,7 @@ async def test_message_reopens_a_closed_goal_and_adds_the_pending_note(client, s
     await store.add_scrape(goal_id, "rq-1", "linkedin_person", "https://www.linkedin.com/in/jane/", True)
     response = await client.post(f"/api/goals/{goal_id}/messages", json={"text": "Skip Germany"})
     assert response.status_code == 202
-    assert streams.last.queries[-1].startswith("Skip Germany\n\n(Note: 1 scrape for this goal is still pending")
+    assert streams.last.queries[-1].startswith("Skip Germany\n\n(Note: 1 scrape for this mission is still pending")
     detail = (await client.get(f"/api/goals/{goal_id}?events=false")).json()
     assert detail["scrapes"] == {"fresh": 1, "pending": 1}
 
@@ -266,7 +266,7 @@ async def test_delete_a_goal(client, store):
 async def test_delete_a_mandate_and_not_its_chat_alone(client, store, make_run):
     mandate, run = await make_run()
     refused = await client.delete(f"/api/goals/{mandate['home_goal_id']}")
-    assert refused.status_code == 409 and "Delete the mandate" in refused.json()["detail"]
+    assert refused.status_code == 409 and "Delete the schedule" in refused.json()["detail"]
     preview = (await client.get(f"/api/mandates/{mandate['id']}/delete-preview")).json()
     assert preview["goals"] == 1 and preview["status"] == "active" and preview["working"] is True
     assert (await client.delete(f"/api/mandates/{mandate['id']}")).status_code == 204
@@ -420,7 +420,7 @@ async def test_continue_after_the_time_limit(client, store, streams, make_run, p
     await MandateStore(pool).update(m["id"], {"time_limit_minutes": 240})
     assert (await client.get(f"/api/goals/{run['id']}?events=false")).json()["time_limit"]["ok"] is True
     assert (await client.post(f"/api/goals/{run['id']}/continue")).status_code == 202
-    assert streams.last.queries[-1].startswith("The user gave this goal more time.")
+    assert streams.last.queries[-1].startswith("The user gave this mission more time.")
     assert (await store.get_goal(run["id"]))["status"] == "running"
     other = await idle_goal(store)
     assert (await client.get(f"/api/goals/{other}?events=false")).json()["time_limit"] is None

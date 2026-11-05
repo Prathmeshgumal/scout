@@ -67,14 +67,14 @@ def test_a_home_chat_has_the_mandate_tools_and_only_the_profile_subagent(app_set
     o = options_for(app_settings, goal(home_of="m-1"))
     assert o.tools == ["Agent"] and list(o.agents) == ["candidate-profile"]
     assert set(o.mcp_servers) == {"mandates", "career_lens", "artifacts_candidate_profile"}
-    assert o.system_prompt.startswith("This chat manages a mandate in job-finder")
+    assert o.system_prompt.startswith("This chat manages a schedule in job-finder")
 
 
 def test_a_run_has_the_normal_tools_and_no_mandate_tools(app_settings):
     o = options_for(app_settings, goal(mandate_id="m-1"))
     assert o.tools == ["Agent", "SendMessage"] and "mandates" not in o.mcp_servers
     assert not any(name.startswith("mcp__mandates") for name in o.allowed_tools)
-    assert "This goal was started by a mandate" in o.system_prompt
+    assert "This mission was started by a schedule" in o.system_prompt
     assert [m.matcher for m in o.hooks["PreToolUse"]] == [SCRAPE_MATCHER, MAIN_THREAD_MATCHER, PROFILE_MATCHER,
                                                        JOBS_MATCHER, TIME_MATCHER]
 
@@ -105,7 +105,7 @@ def test_retry_message_depends_on_how_the_goal_ended():
     failed = {"sdk_session_id": "s", "status": "failed", "status_reason": "Claude API error (overloaded).",
               "title": "t"}
     assert retry_message(failed, "Find X") == (
-        "The previous attempt failed (Claude API error (overloaded).). Continue working toward the goal.")
+        "The previous attempt failed (Claude API error (overloaded).). Continue working toward the mission.")
     stopped = {**failed, "status": "stopped"}
     assert retry_message(stopped, "Find X").startswith("The user stopped you earlier")
     assert retry_message({**failed, "sdk_session_id": None}, "Find X") == "Find X"

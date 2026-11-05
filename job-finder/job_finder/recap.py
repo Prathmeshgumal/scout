@@ -14,8 +14,8 @@ def scrape_line(scrape: dict) -> str:
 def build_recap(events: list[dict], scrapes: list[dict]) -> str:
     asked = [e["text"] for e in events if e["type"] == "user_message"]
     answers = [e["text"] for e in events if e["type"] == "text" and e.get("agent", "main") == "main"]
-    lines = ["Your earlier conversation for this goal was lost. This is a summary of it.",
-             f"Goal: {asked[0] if asked else '(unknown)'}"]
+    lines = ["Your earlier conversation for this mission was lost. This is a summary of it.",
+             f"Mission: {asked[0] if asked else '(unknown)'}"]
     lines += [f"Later message from the user: {text}" for text in asked[1:][-MAX_FOLLOW_UPS:]]
     if answers:
         last = answers[-1]

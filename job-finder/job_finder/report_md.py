@@ -134,7 +134,7 @@ def _job(job: dict) -> list[str]:
     for row in job["research"]:
         out += [f"#### Company {_esc(_humanize(row['kind']).lower())}", ""]
         if row.get("from_goal"):
-            out += [f"From the goal \"{_esc(row['from_goal'])}\".", ""]
+            out += [f"From the mission \"{_esc(row['from_goal'])}\".", ""]
         for key, value in row["data"].items():
             if value not in (None, "", [], {}):
                 out.append(_item(f"**{_esc(_humanize(key))}:** {_value(value)}"))
@@ -207,7 +207,7 @@ def render_markdown(report: dict, zone: str = "UTC") -> str:
     out += ["  \n".join(about), ""]
     out += [f"{pipeline_sentence(report['pipeline'])} Spent \\${goal['spend_usd']:.2f} "
             f"of the \\${goal['max_spend_usd']:.2f} limit.", "",
-            f"Goal `{goal['id']}`, status: {goal['status']}. {_timing(report['timing'], zone)}", ""]
+            f"Mission `{goal['id']}`, status: {goal['status']}. {_timing(report['timing'], zone)}", ""]
     if report["warnings"]:
         out += ["## Warnings", "", *(_item(_esc(w["text"])) for w in report["warnings"]), ""]
     out += [f"## Roles ({len(jobs)})", ""]

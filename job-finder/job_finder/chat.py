@@ -51,11 +51,11 @@ class Chat:
             self.out.print(job_table(await self.s.artifacts.list_jobs(self.goal_id)))
         elif text == "/stop":
             await self.session.stop()
-            self.out.print("Stopped all work on this goal.")
+            self.out.print("Stopped all work on this mission.")
         elif text == "/retry":
             goal = await store.get_goal(self.goal_id)
             if self.session.main_busy or goal["status"] not in ("failed", "stopped"):
-                self.out.print("Only a failed or stopped goal can be retried.")
+                self.out.print("Only a failed or stopped mission can be retried.")
             else:
                 note = retry_message(goal, await store.first_user_message(self.goal_id))
                 await self.session.send(note, "retry", user=False)
@@ -73,7 +73,7 @@ class Chat:
             names = ", ".join(task["name"] for task in tasks)
             if await self._yes(prompt, f"This also stops {names}. Stop everything? [y/N] "):
                 await self.session.stop()
-                self.out.print("Stopped all work on this goal.")
+                self.out.print("Stopped all work on this mission.")
             return True
         return await self.session.interrupt()
 
@@ -95,7 +95,7 @@ class Chat:
         names = ", ".join(task["name"] for task in tasks)
         count = f"{len(tasks)} subagents are" if len(tasks) > 1 else "1 subagent is"
         return await self._yes(prompt, f"{count} still working ({names}). Exit now? "
-                                       "You can resume them when you open this goal again. [y/N] ")
+                                       "You can resume them when you open this mission again. [y/N] ")
 
 
 async def run_chat(services: Services, out: Console, goal_text: str | None = None, *, prompt=None) -> None:
@@ -108,17 +108,17 @@ async def run_chat(services: Services, out: Console, goal_text: str | None = Non
             goal = await resolve_goal(services.store, goal_text)
             if goal["agent"]:
                 short = goal["id"][:8]
-                raise CliError(f"Goal {short} is a {goal['agent']} goal. Use: "
-                               f'job-finder agent {goal["agent"]} "<task>" --goal {short}')
+                raise CliError(f"Mission {short} is a {goal['agent']} mission. Use: "
+                               f'job-finder agent {goal["agent"]} "<task>" --mission {short}')
         else:
             try:
-                first = (await reader.prompt_async("goal> ")).strip()
+                first = (await reader.prompt_async("mission> ")).strip()
             except (EOFError, KeyboardInterrupt):
                 return
             if not first:
                 return
             goal = await new_goal(services, first)
-            out.print(f"New goal {goal['id'][:8]}. Type exit to leave. Open it again with: "
+            out.print(f"New mission {goal['id'][:8]}. Type exit to leave. Open it again with: "
                       f"job-finder chat {goal['id'][:8]}")
         async with services.drive(goal["id"], recover=first is None) as session:
             chat = Chat(services, session, out)

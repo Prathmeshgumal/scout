@@ -18,12 +18,12 @@ CONFLICT_TRIES = 5
 DAY_NAMES = {1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun"}
 SOURCES = {"agent": "the agent"}  # only the agent of the chat changes a mandate
 LABELS = {"title": "title", "instruction": "instruction", "profile": "profile", "profile_ready": "profile",
-          "every_unit": "interval", "every_count": "interval", "jobs_per_run": "quota for each goal",
+          "every_unit": "interval", "every_count": "interval", "jobs_per_run": "quota for each mission",
           "window_days": "days",
           "window_start": "start time", "window_end": "end time",
-          "max_spend_per_run": "spend cap for each goal", "max_scrapes_per_run": "scrape cap for each goal",
+          "max_spend_per_run": "spend cap for each mission", "max_scrapes_per_run": "scrape cap for each mission",
           "max_total_spend": "total spend limit", "ends_on": "end date", "timezone": "time zone",
-          "time_limit_minutes": "time limit for each goal", "grace_minutes": "extra time to finish"}
+          "time_limit_minutes": "time limit for each mission", "grace_minutes": "extra time to finish"}
 MIN_TIME_LIMIT = 5  # minutes: a shorter goal cannot do the work of one batch
 DURATION = re.compile(r"^(?:(\d+(?:\.\d+)?)\s*h)?\s*(?:(\d+)\s*m(?:in)?)?$")
 
@@ -99,7 +99,7 @@ def clean(changes: dict) -> dict:
             except ValueError as exc:
                 raise MandateError(str(exc)) from None
         elif key not in FIELDS:
-            raise MandateError(f"Not a mandate setting: {key}.")
+            raise MandateError(f"Not a schedule setting: {key}.")
         elif key in ("title", "instruction"):
             text = " ".join(str(value or "").split())
             if not text:
@@ -151,7 +151,7 @@ def _check(m: dict) -> None:
     except ValueError as exc:
         raise MandateError(str(exc)) from None
     if m["window_end"] is not None and m["window_end"] <= m["window_start"]:
-        raise MandateError("\"No goals after\" must be later than \"First goal at\".")
+        raise MandateError("\"No missions after\" must be later than \"First mission at\".")
 
 
 async def _next(ms: MandateStore, m: dict, now: datetime) -> datetime:
@@ -203,9 +203,9 @@ def _plain(values: dict) -> dict:
 
 # What the user reads when a mandate starts. The words "home chat" and "run" are for the code only: the user reads
 # "this chat" and "goal".
-CHANGE_NOTE = "To change, pause, resume or end the mandate, ask here in this chat."
-CREATED_NOTE = ("This chat now manages the mandate. On its schedule, the mandate starts a new goal. Each goal shows "
-                f"under the mandate in the Mandates tab of the left panel. The first goal starts now. {CHANGE_NOTE}")
+CHANGE_NOTE = "To change, pause, resume or end the schedule, ask here in this chat."
+CREATED_NOTE = ("This chat now manages the schedule. At each set time, the schedule starts a new mission. Each mission shows "
+                f"under the schedule in the Schedules tab of the left panel. The first mission starts now. {CHANGE_NOTE}")
 
 
 def describe(m: dict) -> str:
@@ -214,15 +214,15 @@ def describe(m: dict) -> str:
         window = f"at {start}"
     else:
         window = f"{start} to {_shown('window_end', m['window_end'])}" if m["window_end"] else f"from {start}"
-    every = f"One goal {every_text(m['every_unit'], m['every_count'])}"
+    every = f"One mission {every_text(m['every_unit'], m['every_count'])}"
     total = f"Total spend limit: ${m['max_total_spend']:.2f}." if m["max_total_spend"] else "No total spend limit."
     end = f"End date: {m['ends_on'].isoformat()}." if m["ends_on"] else "No end date."
-    nxt = (f" Next goal: {slot_text(m['next_run_at'], m['timezone'])}."
+    nxt = (f" Next mission: {slot_text(m['next_run_at'], m['timezone'])}."
            if m["status"] == "active" and m["next_run_at"] else "")
     days = "" if len(m["window_days"]) == 7 else f"{_shown('window_days', m['window_days'])}, "
-    return (f"Mandate \"{m['title']}\": {m['instruction'].rstrip('.')}. {every}, {days}"
-            f"{window}. Quota: {m['jobs_per_run']} fit roles for each goal. Caps for each goal: "
-            f"${m['max_spend_per_run']:.2f} and {m['max_scrapes_per_run']} scrapes. Time limit for each goal: "
+    return (f"Schedule \"{m['title']}\": {m['instruction'].rstrip('.')}. {every}, {days}"
+            f"{window}. Quota: {m['jobs_per_run']} fit roles for each mission. Caps for each mission: "
+            f"${m['max_spend_per_run']:.2f} and {m['max_scrapes_per_run']} scrapes. Time limit for each mission: "
             f"{span(m['time_limit_minutes'])}, then {span(m['grace_minutes'])} to finish. {total} {end} "
             f"Status: {m['status']}.{nxt}")
 
@@ -233,7 +233,7 @@ def _cell(text: str) -> str:
 
 def _next_text(m: dict) -> str:
     if m["status"] != "active":
-        return f"none: the mandate is {m['status']}"
+        return f"none: the schedule is {m['status']}"
     return slot_text(m["next_run_at"], m["timezone"]) if m.get("next_run_at") else "none"
 
 
@@ -261,15 +261,15 @@ def _rows(m: dict) -> list[tuple[str, str]]:
     runs, its schedule, and its limits."""
     rows = [("Title", m["title"]), ("Instruction", m["instruction"]),
             ("Profile", profile_text(m["profile"])),
-            ("Status", m["status"]), ("Next goal", _next_text(m)), ("Time zone", m["timezone"]),
+            ("Status", m["status"]), ("Next mission", _next_text(m)), ("Time zone", m["timezone"]),
             ("Interval", every_text(m["every_unit"], m["every_count"])),
             ("Days", _shown("window_days", m["window_days"])),
-            ("First goal at", _shown("window_start", m["window_start"])),
-            ("No goals after", _shown("window_end", m["window_end"])),
-            ("Quota for each goal", f"{m['jobs_per_run']} fit role{'' if m['jobs_per_run'] == 1 else 's'}"),
-            ("Spend cap for each goal", _shown("max_spend_per_run", m["max_spend_per_run"])),
-            ("Scrape cap for each goal", str(m["max_scrapes_per_run"])),
-            ("Time limit for each goal", _shown("time_limit_minutes", m["time_limit_minutes"])),
+            ("First mission at", _shown("window_start", m["window_start"])),
+            ("No missions after", _shown("window_end", m["window_end"])),
+            ("Quota for each mission", f"{m['jobs_per_run']} fit role{'' if m['jobs_per_run'] == 1 else 's'}"),
+            ("Spend cap for each mission", _shown("max_spend_per_run", m["max_spend_per_run"])),
+            ("Scrape cap for each mission", str(m["max_scrapes_per_run"])),
+            ("Time limit for each mission", _shown("time_limit_minutes", m["time_limit_minutes"])),
             ("Extra time to finish", _shown("grace_minutes", m["grace_minutes"])),
             ("Total spend limit", _shown("max_total_spend", m["max_total_spend"])),
             ("End date", _shown("ends_on", m["ends_on"]))]
@@ -297,19 +297,19 @@ def _one_line(text: str) -> str:
 
 # The lines of the first message of a run that hold the instruction and the quota.
 INSTRUCTION_LINE = "Instruction: "
-QUOTA_LINE = "Quota for this goal: "
+QUOTA_LINE = "Quota for this mission: "
 
 
 def kickoff_message(m: dict, number: int, slot: datetime, history: dict) -> str:
     """The first message of a run. Code writes it from Postgres. No LLM writes it. It does not grow with each
     goal: the system prompt tells the rule about earlier roles, and save_jobs applies it."""
-    lines = [f"This is goal {number} of the mandate \"{m['title']}\", for the slot {slot_text(slot, m['timezone'])}.",
+    lines = [f"This is mission {number} of the schedule \"{m['title']}\", for the slot {slot_text(slot, m['timezone'])}.",
              f"{INSTRUCTION_LINE}{m['instruction']}",
              f"{QUOTA_LINE}{m['jobs_per_run']} fit roles. Spend cap: ${m['max_spend_per_run']:.2f}. "
              f"Scrape cap: {m['max_scrapes_per_run']}. Time limit: {span(m['time_limit_minutes'])}."]
     if not history["runs"]:
-        return "\n".join([*lines, "This is the first goal of the mandate."])
-    lines += [f"Earlier goals: {history['jobs']} roles found, {history['fit']} fit, {history['not_fit']} not a fit, "
+        return "\n".join([*lines, "This is the first mission of the schedule."])
+    lines += [f"Earlier missions: {history['jobs']} roles found, {history['fit']} fit, {history['not_fit']} not a fit, "
               f"{history['unsure']} unsure."]
     if history["reasons"]:
         lines += ["Newest reasons for not_fit:", *(f"- {_one_line(reason)}" for reason in history["reasons"])]
@@ -341,16 +341,16 @@ async def create_mandate(ms: MandateStore, recorder: Recorder, home_goal_id: str
     values = new_settings(changes, settings, zone)
     m = await ms.create(home_goal_id, {**values, "next_run_at": now})
     await recorder.record(home_goal_id, "notice", trigger="mandate_created", mandate_id=m["id"],
-                          text=f"Mandate created: {describe(m)}\n\n{CREATED_NOTE}")
+                          text=f"Schedule created: {describe(m)}\n\n{CREATED_NOTE}")
     return m
 
 
 async def _current(ms: MandateStore, mandate_id: str) -> dict:
     m = await ms.get(mandate_id)
     if m is None:
-        raise MandateError("Unknown mandate.")
+        raise MandateError("Unknown schedule.")
     if m["status"] == "ended":
-        raise MandateError("This mandate has ended. It cannot change. Create a new mandate.")
+        raise MandateError("This schedule has ended. It cannot change. Create a new schedule.")
     return m
 
 
@@ -369,13 +369,13 @@ async def preview_change(ms: MandateStore, mandate_id: str, changes: dict, now: 
         if status not in STATUSES:
             raise MandateError("The status must be active, paused or ended.")
         if status == current["status"]:
-            raise MandateError(f"The mandate is {status} already.")
+            raise MandateError(f"The schedule is {status} already.")
         after["status"] = status
     if after["status"] == "active" and (status or SCHEDULE & set(values)):
         after["next_run_at"] = await _next(ms, after, now)
     if start_now:
         if after["status"] != "active":
-            raise MandateError("Only an active mandate can start a goal now.")
+            raise MandateError("Only an active schedule can start a mission now.")
         after["next_run_at"] = now
     return current, after
 
@@ -398,7 +398,7 @@ async def update_mandate(ms: MandateStore, recorder: Recorder, mandate_id: str, 
         if m is not None:
             break
     else:
-        raise MandateError("The mandate changed again and again. Try again.")
+        raise MandateError("The schedule changed again and again. Try again.")
     if "jobs_per_run" in values:
         await ms.set_run_target(mandate_id, values["jobs_per_run"])
     if {"time_limit_minutes", "grace_minutes"} & set(values):
@@ -415,7 +415,7 @@ async def update_mandate(ms: MandateStore, recorder: Recorder, mandate_id: str, 
         parts = "; ".join(shown.values())
         await recorder.record(m["home_goal_id"], "notice", trigger="mandate_changed", source=source,
                               old=_plain(_shown_values(old)), new=_plain(_shown_values(new)),
-                              text=f"Mandate changed by {SOURCES[source]}: {parts}.")
+                              text=f"Schedule changed by {SOURCES[source]}: {parts}.")
     return m
 
 
@@ -434,11 +434,11 @@ async def set_mandate_status(ms: MandateStore, recorder: Recorder, mandate_id: s
         if m is not None:
             break
     else:
-        raise MandateError("The mandate changed again and again. Try again.")
+        raise MandateError("The schedule changed again and again. Try again.")
     word = {"active": "resumed", "paused": "paused", "ended": "ended"}[status]
     await recorder.record(m["home_goal_id"], "notice", trigger="mandate_changed", source=source,
                           old={"status": current["status"]}, new={"status": status},
-                          text=f"Mandate {word} by {SOURCES[source]}.")
+                          text=f"Schedule {word} by {SOURCES[source]}.")
     return m
 
 
@@ -446,8 +446,8 @@ async def start_goal_now(ms: MandateStore, recorder: Recorder, mandate_id: str, 
     """The scheduler starts a new goal at its next check, within a minute. The schedule after it does not change."""
     current = await _current(ms, mandate_id)
     if current["status"] != "active":
-        raise MandateError("Only an active mandate can start a goal now.")
+        raise MandateError("Only an active schedule can start a mission now.")
     m = await ms.update(mandate_id, {"next_run_at": now})
     await recorder.record(m["home_goal_id"], "notice", trigger="mandate_changed", source=source,
-                          text=f"Mandate changed by {SOURCES[source]}: a new goal starts within a minute.")
+                          text=f"Schedule changed by {SOURCES[source]}: a new mission starts within a minute.")
     return m

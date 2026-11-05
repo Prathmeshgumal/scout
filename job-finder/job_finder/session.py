@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 STOP_EXIT_CODES = {130, 143, -2, -15}  # Claude Code ended by SIGINT or SIGTERM
 WRAP_UP_USD = 0.20  # kept back from the goal's cap for the final short answer
 WRAP_UP_TURNS = 3
-WRAP_UP_PROMPT = ("You've reached this goal's limits. Write the best answer you can from what you have, "
+WRAP_UP_PROMPT = ("You've reached this mission's limits. Write the best answer you can from what you have, "
                   "with sources, and list what's missing.")
 SETTLED = {"done", "capped", "failed", "stopped"}
 WATCHER_TRIGGERS = {"scrapes_finished", "wait_expired"}  # messages from the scrape watcher
@@ -68,7 +68,7 @@ def restart_note(first: str | None, interrupted: list[dict], resumable: bool) ->
         parts.append("Earlier subagents did not finish and cannot be resumed. Their saved work is in Postgres: "
                      "use list_jobs and read_job.")
     if parts and first:
-        parts.append("Continue working toward the goal.")
+        parts.append("Continue working toward the mission.")
     return " ".join(parts) or None
 
 
@@ -315,7 +315,7 @@ class GoalSession:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            log.warning("goal %s: the SDK stream failed: %s", self.goal_id, exc)
+            log.warning("mission %s: the SDK stream failed: %s", self.goal_id, exc)
             if not self._closing and self.client is client:
                 # A stop signal (Ctrl+C or a stop of the server) reaches Claude Code before the app closes the
                 # session. That is not a problem to show to the user.
@@ -546,7 +546,7 @@ class GoalSession:
         try:
             await self.send(text, "continue", user=False, fit=fit)
         except Exception as exc:
-            log.warning("goal %s: could not continue toward the target: %s", self.goal_id, exc)
+            log.warning("mission %s: could not continue toward the target: %s", self.goal_id, exc)
             await self._refresh()
 
     def running_tasks(self) -> list[dict]:

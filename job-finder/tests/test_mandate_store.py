@@ -55,7 +55,7 @@ async def test_one_run_for_each_slot(store, mandates):
     assert run["max_spend_usd"] == 1.5 and run["max_fresh_scrapes"] == 15
     assert run["brief"] == {"title": "EU fintech jobs", "criteria": "Series B fintechs in the EU",
                             "target_count": 20}
-    assert run["title"] == "EU fintech jobs: goal 1"
+    assert run["title"] == "EU fintech jobs: mission 1"
     assert (run["time_limit_s"], run["grace_s"], run["soft_limit_at"]) == (120 * 60, 30 * 60, None)
     assert await mandates.create_run(m, NOW, 1.5, 1) is None
     assert await mandates.has_running_run(m["id"])

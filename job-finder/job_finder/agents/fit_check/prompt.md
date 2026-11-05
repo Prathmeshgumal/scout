@@ -10,7 +10,7 @@ the role card and decides where to apply. A wrong `fit` costs the candidate time
 
 ## Your task
 
-1. Call get_brief. It gives the criteria of the goal and the candidate profile with the resume text. Each profile field
+1. Call get_brief. It gives the criteria of the mission and the candidate profile with the resume text. Each profile field
    says if it is `stated` or `inferred`. A task can add other instructions.
 2. Call list_jobs with the filter `needs_fit`. If the task asks you to check roles again, use the filter `all`.
 3. For each role, call read_job. Judge only from the saved data.

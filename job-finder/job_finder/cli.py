@@ -44,12 +44,12 @@ class CliError(Exception):
 async def resolve_goal(store, text: str) -> dict:
     text = text.strip().lower()
     if not GOAL_PREFIX.match(text):
-        raise CliError(f"Not a goal id: {text}")
+        raise CliError(f"Not a mission id: {text}")
     ids = await store.goals_by_prefix(text)
     if not ids:
-        raise CliError(f"No goal starts with {text}.")
+        raise CliError(f"No mission starts with {text}.")
     if len(ids) > 1:
-        raise CliError(f"More than one goal starts with {text}. Give more characters.")
+        raise CliError(f"More than one mission starts with {text}. Give more characters.")
     return await store.get_goal(ids[0])
 
 
@@ -69,9 +69,9 @@ def need_key(settings: Settings) -> None:
 async def list_goals(services: Services, out: Console) -> None:
     goals = await services.store.list_goals()
     if not goals:
-        out.print("No goals yet. Start one with: job-finder chat")
+        out.print("No missions yet. Start one with: job-finder chat")
         return
-    table = Table("goal", "status", "title", "roles", "fit", "notes", "agent")
+    table = Table("mission", "status", "title", "roles", "fit", "notes", "agent")
     for goal in goals:
         p = await services.artifacts.pipeline(goal["id"])
         table.add_row(goal["id"][:8], goal["status"], goal["title"], str(p["jobs"]), str(p["fit"]),
@@ -114,15 +114,15 @@ async def run_agent(services: Services, out: Console, name: str, task: str, goal
     if goal_text:
         goal = await resolve_goal(store, goal_text)
         if goal["agent"] != name:
-            raise CliError(f"Goal {goal['id'][:8]} is not a {name} goal.")
+            raise CliError(f"Mission {goal['id'][:8]} is not a {name} mission.")
     else:
         goal = await new_goal(services, task, agent=name)
-        out.print(f"New {name} goal {goal['id'][:8]}.")
+        out.print(f"New {name} mission {goal['id'][:8]}.")
     goal_id = goal["id"]
     if jobs_from:
         source = await resolve_goal(store, jobs_from)
         copied = await services.artifacts.copy_jobs(source["id"], goal_id, name)
-        out.print(f"Copied {copied} roles from goal {source['id'][:8]}.")
+        out.print(f"Copied {copied} roles from mission {source['id'][:8]}.")
     events = await store.list_events(goal_id)
     printer = EventPrinter(store, services.hub, out, goal_id, after=events[-1]["seq"] if events else 0)
     async with services.drive(goal_id, recover=bool(goal_text)) as session:
@@ -134,7 +134,7 @@ async def run_agent(services: Services, out: Console, name: str, task: str, goal
             live.cancel()
             await asyncio.gather(live, return_exceptions=True)
         await printer.flush()
-    out.print(f"Goal {goal_id[:8]}: {status_line(final)}")
+    out.print(f"Mission {goal_id[:8]}: {status_line(final)}")
 
 
 async def run_evals(services: Services, out: Console, suites: list[str], keep: bool = False,
@@ -155,7 +155,7 @@ async def run_evals(services: Services, out: Console, suites: list[str], keep: b
 
     async def cleanup(goal_id: str) -> None:
         if keep:
-            out.print(f"Kept eval goal {goal_id[:8]}.")
+            out.print(f"Kept eval mission {goal_id[:8]}.")
         else:
             await deleter.delete_goal(goal_id)
 
@@ -184,21 +184,21 @@ async def run_evals(services: Services, out: Console, suites: list[str], keep: b
 async def resolve_mandate(ms: MandateStore, text: str) -> dict:
     text = text.strip().lower()
     if not GOAL_PREFIX.match(text):
-        raise CliError(f"Not a mandate id: {text}")
+        raise CliError(f"Not a schedule id: {text}")
     ids = await ms.by_prefix(text)
     if not ids:
-        raise CliError(f"No mandate starts with {text}.")
+        raise CliError(f"No schedule starts with {text}.")
     if len(ids) > 1:
-        raise CliError(f"More than one mandate starts with {text}. Give more characters.")
+        raise CliError(f"More than one schedule starts with {text}. Give more characters.")
     return await ms.get(ids[0])
 
 
 async def list_mandates(services: Services, out: Console) -> None:
     rows = await MandateStore(services.store.pool).list()
     if not rows:
-        out.print("No mandates yet. Ask for work that repeats in a chat, for example \"20 fit roles each weekday\".")
+        out.print("No schedules yet. Ask for work that repeats in a chat, for example \"20 fit roles each weekday\".")
         return
-    table = Table("mandate", "status", "title", "every", "quota", "next goal")
+    table = Table("schedule", "status", "title", "every", "quota", "next mission")
     for m in rows:
         nxt = slot_text(m["next_run_at"], m["timezone"]) if m["status"] == "active" and m["next_run_at"] else "-"
         table.add_row(m["id"][:8], m["status"], m["title"], every_text(m["every_unit"], m["every_count"]), str(m["jobs_per_run"]), nxt)
@@ -210,8 +210,8 @@ async def show_mandate(services: Services, out: Console, text: str) -> None:
     m = await resolve_mandate(ms, text)
     out.print(describe(m))
     for run in await ms.runs(m["id"]):
-        out.print(f"Goal {run['number']}, {slot_text(run['run_slot'], m['timezone'])}: {run['status']}, "
-                  f"${run['spend_usd']:.2f}, goal {run['id'][:8]}")
+        out.print(f"Mission {run['number']}, {slot_text(run['run_slot'], m['timezone'])}: {run['status']}, "
+                  f"${run['spend_usd']:.2f}, mission {run['id'][:8]}")
 
 
 def _plural(n: int, word: str) -> str:
@@ -226,12 +226,12 @@ def _contents(p: dict) -> str:
 async def delete_goal(services: Services, out: Console, text: str, yes: bool, ask=typer.confirm) -> None:
     goal = await resolve_goal(services.store, text)
     if goal["home_of"]:
-        raise CliError("This chat belongs to a mandate. Delete the mandate: "
-                       f"job-finder mandate delete {goal['home_of'][:8]}")
+        raise CliError("This chat belongs to a schedule. Delete the schedule: "
+                       f"job-finder schedule delete {goal['home_of'][:8]}")
     deleter = Deleter(services.settings, services.store, MandateStore(services.store.pool), services.recorder,
                       career_lens=services.career_lens, files=services.files)
-    out.print(f"Goal {goal['id'][:8]}, {goal['title']}: {_contents(await deleter.goal_preview(goal['id']))}")
-    if not yes and not ask("Delete the goal and all its data? You cannot undo this."):
+    out.print(f"Mission {goal['id'][:8]}, {goal['title']}: {_contents(await deleter.goal_preview(goal['id']))}")
+    if not yes and not ask("Delete the mission and all its data? You cannot undo this."):
         out.print("Nothing is deleted.")
         return
     await deleter.delete_goal(goal["id"])
@@ -243,11 +243,11 @@ async def delete_mandate(services: Services, out: Console, text: str, yes: bool,
     m = await resolve_mandate(ms, text)
     deleter = Deleter(services.settings, services.store, ms, services.recorder, career_lens=services.career_lens, files=services.files)
     p = await deleter.mandate_preview(m["id"])
-    out.print(f"Mandate {m['id'][:8]}, {m['title']} ({m['status']}): its chat, {_plural(p['goals'], 'goal')}, "
+    out.print(f"Schedule {m['id'][:8]}, {m['title']} ({m['status']}): its chat, {_plural(p['goals'], 'mission')}, "
               f"{_contents(p)}")
     if m["status"] != "ended":
-        out.print("The mandate is not ended. To stop it and keep its data, ask its chat to end it.")
-    if not yes and not ask("Delete the mandate and all its data? You cannot undo this."):
+        out.print("The schedule is not ended. To stop it and keep its data, ask its chat to end it.")
+    if not yes and not ask("Delete the schedule and all its data? You cannot undo this."):
         out.print("Nothing is deleted.")
         return
     await deleter.delete_mandate(m["id"])
@@ -279,21 +279,27 @@ def _run(command, *args) -> None:
         raise typer.Exit(130) from None
 
 
-GoalArg = Annotated[str, typer.Argument(help="Goal id, or a unique start of it.")]
+GoalArg = Annotated[str, typer.Argument(metavar="MISSION", help="Mission id, or a unique start of it.")]
 
 
 @app.command()
-def chat(goal: Annotated[str | None, typer.Argument(help="Goal id, or a unique start of it. "
-                                                         "Leave it out to start a new goal.")] = None) -> None:
-    """Chat with the main agent about a new goal or an existing goal."""
+def chat(goal: Annotated[str | None, typer.Argument(metavar="[MISSION]", help="Mission id, or a unique start of it. "
+                                                         "Leave it out to start a new mission.")] = None) -> None:
+    """Chat with the main agent about a new mission or an existing mission."""
     from .chat import run_chat
 
     _run(run_chat, goal)
 
 
 @app.command()
+def missions() -> None:
+    """List the missions."""
+    _run(list_goals)
+
+
+@app.command("goals", hidden=True)  # the earlier name still works
 def goals() -> None:
-    """List the goals."""
+    """List the missions."""
     _run(list_goals)
 
 
@@ -301,26 +307,26 @@ def goals() -> None:
 def show(goal: GoalArg,
          jobs: Annotated[bool, typer.Option("--jobs", help="Show only the table of roles.")] = False,
          notes: Annotated[bool, typer.Option("--notes", help="Show the application notes.")] = False,
-         events: Annotated[bool, typer.Option("--events", help="Show the events of the goal.")] = False,
+         events: Annotated[bool, typer.Option("--events", help="Show the events of the mission.")] = False,
          research: Annotated[bool, typer.Option("--research",
                                                 help="Show the job text and the company facts of each role.")] = False) -> None:
-    """Show a goal: its brief, pipeline and roles."""
+    """Show a mission: its brief, pipeline and roles."""
     _run(show_goal, goal, jobs, notes, events, research)
 
 
 @app.command()
 def delete(goal: GoalArg,
            yes: Annotated[bool, typer.Option("--yes", help="Do not ask first.")] = False) -> None:
-    """Delete a goal and all its data. You cannot undo this."""
+    """Delete a mission and all its data. You cannot undo this."""
     _run(delete_goal, goal, yes)
 
 
 @app.command()
 def agent(name: Annotated[str, typer.Argument(help=f"One of: {', '.join(REGISTRY)}.")],
           task: Annotated[str, typer.Argument(help="The task for the subagent.")],
-          goal: Annotated[str | None, typer.Option("--goal", help="Continue an earlier run of this subagent.")] = None,
+          goal: Annotated[str | None, typer.Option("--mission", "--goal", help="Continue an earlier run of this subagent.")] = None,
           jobs_from: Annotated[str | None, typer.Option("--jobs-from",
-                                                         help="Copy the roles of another goal first.")] = None) -> None:
+                                                         help="Copy the roles of another mission first.")] = None) -> None:
     """Run one subagent alone. Use it to build and test a subagent."""
     _run(run_agent, name, task, goal, jobs_from)
 
@@ -328,33 +334,34 @@ def agent(name: Annotated[str, typer.Argument(help=f"One of: {', '.join(REGISTRY
 @app.command("eval")
 def eval_(suites: Annotated[list[str] | None, typer.Argument(help=f"Suites to run: {', '.join(SUITES)}. "
                                                                    "Leave it out to run all.")] = None,
-          keep: Annotated[bool, typer.Option("--keep", help="Keep the eval goals, to read them.")] = False) -> None:
+          keep: Annotated[bool, typer.Option("--keep", help="Keep the eval missions, to read them.")] = False) -> None:
     """Run the evals on made-up cases and save the scores. The metrics page shows them. Costs money."""
     _run(run_evals, suites or [], keep)
 
 
-mandate_app = typer.Typer(help="Mandates: work that repeats on a schedule. Create and change them in a chat.",
+mandate_app = typer.Typer(help="Schedules: work that repeats at set times. Create and change them in a chat.",
                           no_args_is_help=True)
-app.add_typer(mandate_app, name="mandate")
-MandateArg = Annotated[str, typer.Argument(help="Mandate id, or a unique start of it.")]
+app.add_typer(mandate_app, name="schedule")
+app.add_typer(mandate_app, name="mandate", hidden=True)  # the earlier name still works
+MandateArg = Annotated[str, typer.Argument(metavar="SCHEDULE", help="Schedule id, or a unique start of it.")]
 
 
 @mandate_app.command("list")
 def mandate_list() -> None:
-    """List the mandates."""
+    """List the schedules."""
     _run(list_mandates)
 
 
 @mandate_app.command("show")
 def mandate_show(mandate: MandateArg) -> None:
-    """Show the settings and the goals of a mandate."""
+    """Show the settings and the missions of a schedule."""
     _run(show_mandate, mandate)
 
 
 @mandate_app.command("delete")
 def mandate_delete(mandate: MandateArg,
                    yes: Annotated[bool, typer.Option("--yes", help="Do not ask first.")] = False) -> None:
-    """Delete a mandate, its chat and all its goals, with all their data. You cannot undo this."""
+    """Delete a schedule, its chat and all its missions, with all their data. You cannot undo this."""
     _run(delete_mandate, mandate, yes)
 
 

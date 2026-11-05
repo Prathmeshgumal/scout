@@ -84,7 +84,7 @@ async def test_the_chat_of_a_mandate_is_deleted_with_the_mandate_only(deleter, m
 async def test_delete_a_mandate_with_its_chat_and_its_goals(deleter, store, make_run, pool):
     mandate, first = await make_run(slot_hour=3)
     _, second = await make_run(slot_hour=4, mandate=mandate)
-    other = await store.create_goal("not of the mandate")
+    other = await store.create_goal("not of the schedule")
     assert await deleter.mandate_preview(mandate["id"]) == {
         "goals": 2, "jobs": 0, "notes": 0, "working": True, "status": "active",
         "next_run_at": mandate["next_run_at"]}
@@ -106,7 +106,7 @@ async def test_delete_one_goal_of_a_mandate(deleter, store, make_run, pool):
     assert await ms.get(mandate["id"]) is not None and await ms.runs(mandate["id"]) == []
     assert await ms.total_spend(mandate["id"]) == 1.5
     notes = [e["text"] for e in await store.list_events(mandate["home_goal_id"]) if e["type"] == "notice"]
-    assert notes == ["Goal 1 was deleted by the user. Its spend still counts to the total spend limit."]
+    assert notes == ["Mission 1 was deleted by the user. Its spend still counts to the total spend limit."]
 
 
 async def test_a_delete_waits_for_the_scheduler(deleter, store, make_run, database_url):

@@ -32,12 +32,12 @@ def _when(value: str | None) -> datetime | None:
 def resume_message(finished: list[dict]) -> str:
     return "\n".join(["Scrapes finished:", *map(scrape_line, finished),
                       "Read the new data with get_company, get_job_search or get_linkedin_job (or search again) and "
-                      "continue working toward the goal."])
+                      "continue working toward the mission."])
 
 
 def expired_message(finished: list[dict], hours: float) -> str:
     return "\n".join([f"Stopped waiting for scrapes after {hours:g} hours:", *map(scrape_line, finished),
-                      "An expired scrape counts as not done. It does not mean \"no jobs\". Finish the goal with what "
+                      "An expired scrape counts as not done. It does not mean \"no jobs\". Finish the mission with what "
                       "you have, and say what is missing."])
 
 

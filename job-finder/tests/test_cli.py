@@ -26,15 +26,15 @@ def out():
 async def test_resolve_goal(store):
     goal = await store.create_goal("g")
     assert (await resolve_goal(store, goal["id"][:8].upper()))["id"] == goal["id"]
-    with pytest.raises(CliError, match="Not a goal id"):
+    with pytest.raises(CliError, match="Not a mission id"):
         await resolve_goal(store, "xyz!")
-    with pytest.raises(CliError, match="No goal starts with"):
+    with pytest.raises(CliError, match="No mission starts with"):
         await resolve_goal(store, "ffffffff")
 
 
 async def test_list_goals(services, out, store, artifacts):
     await list_goals(services, out)
-    assert "No goals yet" in out.export_text()
+    assert "No missions yet" in out.export_text()
     goal = await store.create_goal("Find Go roles")
     await artifacts.save_jobs(goal["id"], roles("Acme"), "job-discovery")
     await list_goals(services, out)
@@ -89,8 +89,8 @@ async def test_run_subagent_tasks_the_subagent_on_a_new_goal(services, out, stor
 
 
 async def test_run_agent_refuses_a_goal_of_another_agent(services, out, store):
-    goal = await store.create_goal("main goal")
-    with pytest.raises(CliError, match="is not a job-research goal"):
+    goal = await store.create_goal("main mission")
+    with pytest.raises(CliError, match="is not a job-research mission"):
         await run_agent(services, out, "job-research", "task", goal["id"])
 
 
@@ -106,7 +106,7 @@ async def test_run_agent_copies_roles(services, out, store, artifacts, streams):
 
 def test_help_lists_the_commands():
     output = CliRunner().invoke(app, ["--help"]).output
-    for command in ("chat", "goals", "show", "agent", "login"):
+    for command in ("chat", "missions", "show", "agent", "login"):
         assert command in output
 
 
@@ -148,7 +148,7 @@ async def test_mandate_commands(services, out, store, pool):
     from job_finder.cli import list_mandates, show_mandate
     from job_finder.mandate_store import MandateStore
     await list_mandates(services, out)
-    assert "No mandates yet" in out.export_text()
+    assert "No schedules yet" in out.export_text()
     home = await store.create_goal("home")
     m = await MandateStore(pool).create(home["id"], {
         "title": "EU fintech jobs", "instruction": "fintech", "every_unit": "day", "every_count": 1, "jobs_per_run": 20,
@@ -175,11 +175,11 @@ async def test_delete_commands_ask_first(services, out, store, make_run):
     await delete_goal(services, out, goal["id"][:8], False, lambda text: True)
     assert await store.get_goal(goal["id"]) is None
     mandate, run = await make_run()
-    with pytest.raises(CliError, match="job-finder mandate delete"):
+    with pytest.raises(CliError, match="job-finder schedule delete"):
         await delete_goal(services, out, mandate["home_goal_id"], True)
     await delete_mandate(services, out, mandate["id"][:8], True)
     text = out.export_text()
-    assert "1 goal" in text and "Deleted." in text and await store.get_goal(run["id"]) is None
+    assert "1 mission" in text and "Deleted." in text and await store.get_goal(run["id"]) is None
 
 
 async def test_run_evals_refuses_an_unknown_suite(services, out):
