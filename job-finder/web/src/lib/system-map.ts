@@ -182,7 +182,8 @@ export function buildTimeline(events: GoalEvent[], status: GoalStatus, now: numb
 
 export type AgentState = { mode: "working" | "thinking" | "waiting" | "done" | "idle"; text: string; queued: number }
 export type Place = "agent" | "gate" | "dispatcher" | "queue" | "worker" | "site" | "history" | "reader"
-export type Mover = { kind: "envelope" | "page" | "runner"; path: string[]; f: number; caption?: string; tone: "request" | "result" | "refused"; agent: string }
+/** path: map places. "agent" is the agent of the mover; "agent:<name>" is that agent; "worker" is browser `worker`. */
+export type Mover = { kind: "envelope" | "page" | "runner"; path: string[]; f: number; caption?: string; tone: "request" | "result" | "refused"; agent: string; worker?: number; site?: Site }
 export type Ticket = { request: LensRequest; wait: string }
 export type WorkerState = { request: LensRequest; progress: number }
 
@@ -205,6 +206,13 @@ export type MapState = {
 }
 
 export const AGENTS = ["main", "candidate-profile", "job-discovery", "job-research", "fit-check", "application-prep"] as const
+
+/** The known agents, then each other agent that worked in the goal. */
+export function agentsOf(tl: Timeline): string[] {
+  const names: string[] = [...AGENTS]
+  for (const s of [...tl.runs, ...tl.steps]) if (s.agent && !names.includes(s.agent)) names.push(s.agent)
+  return names
+}
 
 const WAIT_WORDS: Record<string, string> = {
   pacing: "pacing gap",
@@ -268,8 +276,9 @@ export function mapState(tl: Timeline, t: number, move: number): MapState {
       const f = frac(t, started, Number.isFinite(ended) ? ended : started + 4 * move)
       workers.push({ request: r, progress: Number.isFinite(ended) ? f : Math.min(0.9, f) })
       const out = Math.min(move, (ended - started) / 2)
-      if (t < started + out) movers.push({ kind: "runner", path: ["worker", "site"], f: frac(t, started, started + out), tone: "request", agent: r.agent })
-      else if (Number.isFinite(ended) && t > ended - out) movers.push({ kind: "page", path: ["site", "worker"], f: frac(t, ended - out, ended), tone: "result", agent: r.agent })
+      const worker = workers.length - 1
+      if (t < started + out) movers.push({ kind: "runner", path: ["worker", "site"], f: frac(t, started, started + out), tone: "request", agent: r.agent, worker, site: r.site })
+      else if (Number.isFinite(ended) && t > ended - out) movers.push({ kind: "page", path: ["site", "worker"], f: frac(t, ended - out, ended), tone: "result", agent: r.agent, worker, site: r.site })
       sites[r.site] = true
       if (r.site === "linkedin") linkedin = "open"
     } else if (t < ended + move) {
@@ -300,7 +309,7 @@ export function mapState(tl: Timeline, t: number, move: number): MapState {
   }
 
   const agents: Record<string, AgentState> = {}
-  for (const name of AGENTS) agents[name] = { mode: "idle", text: name === "fit-check" ? "Waiting for roles to check" : "Waiting for work", queued: 0 }
+  for (const name of agentsOf(tl)) agents[name] = { mode: "idle", text: name === "fit-check" ? "Waiting for roles to check" : "Waiting for work", queued: 0 }
   for (const run of tl.runs) {
     if (run.startedAt > t || !agents[run.agent]) continue
     if (run.endedAt !== null && run.endedAt <= t) agents[run.agent] = { mode: "done", text: short(run.summary ?? "Done", 60), queued: 0 }
